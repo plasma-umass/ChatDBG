@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ChatDBG"
+version = "0.0.1"
+authors = [
+  { name="Emery Berger", email="emery.berger@gmail.com" },
+]
+dependencies = ["openai>=0.27.0", "openai_async>=0.0.3", "rich>=12.4.4", "ast-comments>=1.0.0"]
+description = "ChatDBG."
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.scripts]
+commentator = "chatdbg.__main__:main"
+
+
+[project.urls]
+"Homepage" = "https://github.com/plasma-umass/ChatDBG"
+"Bug Tracker" = "https://github.com/plasma-umass/ChatDBG"

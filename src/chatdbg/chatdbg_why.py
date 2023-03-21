@@ -24,7 +24,7 @@ async def why(self, arg):
             continue
         positions = inspect.getframeinfo(frame).positions
         try:
-            user_prompt += '#' + '-' * 60 + '\n'
+            # user_prompt += '#' + '-' * 60 + '\n'
             lines = inspect.getsourcelines(frame)[0]
             for index, line in enumerate(lines, frame.f_code.co_firstlineno):
                 user_prompt += '  '

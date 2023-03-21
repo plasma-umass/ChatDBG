@@ -990,6 +990,11 @@ class Pdb(bdb.Bdb, cmd.Cmd):
     complete_clear = _complete_location
     complete_cl = _complete_location
 
+    def do_why(self, arg):
+        from . import chatdbg_why
+        import asyncio
+        asyncio.run(chatdbg_why.why(self, arg))
+        
     def do_where(self, arg):
         """w(here)
         Print a stack trace, with the most recent frame at the bottom.

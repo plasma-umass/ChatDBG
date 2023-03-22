@@ -2,7 +2,7 @@
 
 by [Emery Berger](https://emeryberger.com)
 
-ChatDBG is a Python debugger that integrates large language models to help debug your code. With ChatDBG, you can ask your debugger "why" your program failed, and it will provide a suggested fix.
+ChatDBG is a Python debugger that integrates large language models to help debug your code. With ChatDBG, you can ask your debugger "why" your program failed, and it will provide a suggested fix. As far as we are aware, ChatDBG is the first debugger to automatically perform root cause analysis and to provide suggested fixes.
 
 ## Installation
 
@@ -21,8 +21,12 @@ To use ChatDBG, simply run your Python script with the `-m` flag:
 python3 -m chatdbg -c continue yourscript.py
 ```
 
+ChatDBG is an extension of the standard Python debugger `pdb`. Like
+`pdb`, when your script encounters an uncaught exception, ChatDBG will
+enter post mortem debugging mode.
 
-When your script encounters an uncaught exception, ChatDBG will enter post mortem debugging mode. You can then use the `why` command to ask ChatDBG why your program failed and get a suggested fix.
+Unlike other debuggers, you can then use the `why` command to ask
+ChatDBG why your program failed and get a suggested fix.
 
 For example:
 

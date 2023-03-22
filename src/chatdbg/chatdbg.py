@@ -9,10 +9,12 @@ import traceback
 
 from . import chatdbg_why
 
+
 class ChatDBG(Pdb):
     def do_why(self, arg):
         asyncio.run(chatdbg_why.why(self, arg))
-    
+
+
 _usage = """\
 usage: chatdbg [-c command] ... [-m module | pyfile] [arg] ...
 
@@ -36,28 +38,29 @@ You can get a key here: https://openai.com/api/
 To let the script run up to a given line X in the debugged file, use
 "-c 'until X'"."""
 
+
 def main():
     import getopt
 
-    opts, args = getopt.getopt(sys.argv[1:], 'mhc:', ['help', 'command='])
+    opts, args = getopt.getopt(sys.argv[1:], "mhc:", ["help", "command="])
 
     if not args:
         print(_usage)
         sys.exit(2)
 
-    if any(opt in ['-h', '--help'] for opt, optarg in opts):
+    if any(opt in ["-h", "--help"] for opt, optarg in opts):
         print(_usage)
         sys.exit()
 
-    commands = [optarg for opt, optarg in opts if opt in ['-c', '--command']]
+    commands = [optarg for opt, optarg in opts if opt in ["-c", "--command"]]
 
-    module_indicated = any(opt in ['-m'] for opt, optarg in opts)
+    module_indicated = any(opt in ["-m"] for opt, optarg in opts)
     cls = _ModuleTarget if module_indicated else _ScriptTarget
     target = cls(args[0])
 
     target.check()
 
-    sys.argv[:] = args      # Hide "pdb.py" and pdb options from argument list
+    sys.argv[:] = args  # Hide "pdb.py" and pdb options from argument list
 
     # Note on saving/restoring sys.argv: it's a good idea when sys.argv was
     # modified by the script being debugged. It's a bad idea when it was
@@ -76,7 +79,7 @@ def main():
             print("\t" + " ".join(sys.argv[1:]))
         except SystemExit:
             # In most cases SystemExit does not warrant a post-mortem session.
-            print("The program exited via sys.exit(). Exit status:", end=' ')
+            print("The program exited via sys.exit(). Exit status:", end=" ")
             print(sys.exc_info()[1])
         except SyntaxError:
             traceback.print_exc()
@@ -87,11 +90,11 @@ def main():
             print("Running 'cont' or 'step' will restart the program")
             t = sys.exc_info()[2]
             pdb.interaction(None, t)
-            print("Post mortem debugger finished. The " + target +
-                  " will be restarted")
+            print("Post mortem debugger finished. The " + target + " will be restarted")
 
 
 # When invoked as main program, invoke the debugger on a script
-if __name__ == '__main__':
+if __name__ == "__main__":
     import chatdbg
+
     chatdbg.main()

@@ -1721,7 +1721,10 @@ def help():
     pydoc.pager(__doc__)
 
 _usage = """\
-usage: chatpdb.py [-c command] ... [-m module | pyfile] [arg] ...
+usage: chatdbg [-c command] ... [-m module | pyfile] [arg] ...
+
+A Python debugger that uses AI to tell you `why`.
+https://github.com/plasma-umass/ChatDBG
 
 Debug the Python program given by pyfile. Alternatively,
 an executable module or package to debug can be specified using
@@ -1732,6 +1735,11 @@ and in the current directory, if they exist.  Commands supplied with
 -c are executed after commands from .pdbrc files.
 
 To let the script run until an exception occurs, use "-c continue".
+You can then type `why` to get an explanation of the root cause of
+the exception, along with a suggested fix. NOTE: you must have an
+OpenAI key saved as the environment variable OPENAI_API_KEY.
+You can get a key here: https://openai.com/api/
+
 To let the script run up to a given line X in the debugged file, use
 "-c 'until X'"."""
 

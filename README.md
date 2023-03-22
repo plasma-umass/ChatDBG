@@ -48,9 +48,15 @@ Running 'cont' or 'step' will restart the program
 ChatDBG will then provide a helpful explanation of why your program failed and a suggested fix:
 
 ```
-The root cause of the error is that the code is attempting to divide by zero in the line "if x / i > 2". As i ranges from 0 to 99, it will eventually reach the value of 0, causing a ZeroDivisionError. 
+The root cause of the error is that the code is attempting to
+divide by zero in the line "if x / i > 2". As i ranges from 0 to 99,
+it will eventually reach the value of 0, causing a ZeroDivisionError.
 
-A possible fix for this would be to add a check for i being equal to zero before performing the division. This could be done by adding an additional conditional statement, such as "if i == 0: continue", to skip over the iteration when i is zero. The updated code would look like this:
+A possible fix for this would be to add a check for i being equal to
+zero before performing the division. This could be done by adding an
+additional conditional statement, such as "if i == 0: continue", to
+skip over the iteration when i is zero. The updated code would look
+like this:
 
 def tryme(x):
     count = 0

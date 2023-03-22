@@ -21,6 +21,12 @@ To use ChatDBG, simply run your Python script with the `-m` flag:
 python3 -m chatdbg -c continue yourscript.py
 ```
 
+or just
+
+```
+chatdbg -c continue yourscript.py
+```
+
 ChatDBG is an extension of the standard Python debugger `pdb`. Like
 `pdb`, when your script encounters an uncaught exception, ChatDBG will
 enter post mortem debugging mode.

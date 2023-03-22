@@ -1,5 +1,7 @@
 # ChatDBG
 
+by [Emery Berger](https://emeryberger.com)
+
 ChatDBG is a Python debugger that integrates large language models to help debug your code. With ChatDBG, you can ask your debugger "why" your program failed, and it will provide a suggested fix.
 
 ## Installation

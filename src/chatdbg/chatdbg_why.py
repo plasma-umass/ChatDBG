@@ -50,9 +50,13 @@ async def why(self, arg):
     stack_trace = ''
     
     stack_frames = len(self.stack)
-    import sys
-    exception_name = sys.exc_info()[0].__name__
-    exception_value = sys.exc_info()[1]
+    try:
+        import sys
+        exception_name = sys.exc_info()[0].__name__
+        exception_value = sys.exc_info()[1]
+    except:
+        print("The command 'why' only works when there is an uncaught exception. Try running 'python3 -m chatdbg -c continue'.")
+        return
 
     # print(dir(self))
     for frame_lineno in self.stack:

@@ -84,8 +84,10 @@ import functools
 import traceback
 import linecache
 
-from typing import Union
+from . import chatdbg_why
+import asyncio
 
+from typing import Union
 
 class Restart(Exception):
     """Causes a debugger to be restarted for the debugged python program."""
@@ -991,8 +993,6 @@ class Pdb(bdb.Bdb, cmd.Cmd):
     complete_cl = _complete_location
 
     def do_why(self, arg):
-        from . import chatdbg_why
-        import asyncio
         asyncio.run(chatdbg_why.why(self, arg))
         
     def do_where(self, arg):

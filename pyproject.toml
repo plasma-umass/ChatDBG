@@ -19,7 +19,7 @@ classifiers = [
 ]
 
 [project.scripts]
-commentator = "chatdbg.__main__:main"
+chatdbg = "chatdbg.__main__:main"
 
 
 [project.urls]

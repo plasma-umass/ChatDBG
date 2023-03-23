@@ -15,10 +15,14 @@ class ChatDBG(Pdb):
         asyncio.run(chatdbg_why.why(self, arg))
 
 
-_usage = """\
+import importlib.metadata
+
+_usage = f"""\
 usage: chatdbg [-c command] ... [-m module | pyfile] [arg] ...
 
 A Python debugger that uses AI to tell you `why`.
+(version {importlib.metadata.metadata('ChatDBG')['Version']})
+
 https://github.com/plasma-umass/ChatDBG
 
 Debug the Python program given by pyfile. Alternatively,

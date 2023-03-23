@@ -1,8 +1,8 @@
 import os
 
-from . import chatdbg
+from . import chatdbg_pdb
 
 def main():
-    chatdbg.main()
+    chatdbg_pdb.main()
 
 main()

@@ -128,8 +128,12 @@ def stackTrace(debugger: any) -> Tuple[str, str, str]:
         line_num = line_entry.GetLine()
         col_num = line_entry.GetColumn()
         stack_trace += f'frame {index}: {func_name} at {file_name}:{line_num}:{col_num}\n'
-        source_code += read_lines(full_file_name, line_num - 10, line_num) + '\n'
-        source_code += '-' * (col_num - 1) + '^' + '\n\n'
+        try:
+            source_code += read_lines(full_file_name, line_num - 10, line_num) + '\n'
+            source_code += '-' * (col_num - 1) + '^' + '\n\n'
+        except:
+            # Couldn't find the source for some reason. Skip the file.
+            pass
     error_reason = thread.GetStopDescription(255)
     return (source_code, stack_trace, error_reason)
 import sys

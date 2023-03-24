@@ -81,17 +81,21 @@ if __name__ == '__main__':
 
 ## Usage (lldb)
 
-(Currently only tested on Mac.)
+(Currently only tested on Mac and Linux.)
 
 Install ChatDBG into the `lldb` debugger by running the following command:
 
+### Linux
+
+```
+python3 -m pip install ChatDBG
+python3 -c 'import chatdbg; print(f"command script import {chatdbg.__path__[0]}/chatdbg_lldb.py")' >> ~/.lldbinit
+```
+
+### Mac
+
 ```
 xcrun python3 -m pip install ChatDBG
-```
-
-Now run
-
-```
 xcrun python3 -c 'import chatdbg; print(f"command script import {chatdbg.__path__[0]}/chatdbg_lldb.py")' >> ~/.lldbinit
 ```
 

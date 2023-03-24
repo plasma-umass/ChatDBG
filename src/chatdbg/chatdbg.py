@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 
-import pdb
-from pdb import Pdb, Restart, _ModuleTarget, _ScriptTarget
+from . import pdb
+from .pdb import Pdb, Restart, _ModuleTarget, _ScriptTarget
 
 import asyncio
 import sys

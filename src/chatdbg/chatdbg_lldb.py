@@ -102,7 +102,7 @@ def get_function_by_line(source_code: str, line_number: int) -> str:
         line_number -= line_count
     return None
 
-def stackTrace(debugger: any) -> Tuple[str, str, str]:
+def buildPrompt(debugger: any) -> Tuple[str, str, str]:
     import os
     target = get_target()
     if not target:
@@ -119,7 +119,14 @@ def stackTrace(debugger: any) -> Tuple[str, str, str]:
         function = frame.GetFunction()
         if not function:
             continue
-        func_name = frame.GetFunctionName()
+        full_func_name = frame.GetFunctionName()
+        func_name = full_func_name.split('(')[0]
+        arg_list = []
+
+        # Build up an array of argument values to the function.
+        for i in range(len(frame.GetFunction().GetType().GetFunctionArgumentTypes())):
+            arg_list.append(str(frame.FindVariable(frame.GetFunction().GetArgumentName(i))).split('=')[1].strip())
+            
         line_entry = frame.GetLineEntry()
         file_spec = line_entry.GetFileSpec()
         file_name = file_spec.GetFilename()
@@ -127,7 +134,7 @@ def stackTrace(debugger: any) -> Tuple[str, str, str]:
         full_file_name = os.path.join(directory, file_name)
         line_num = line_entry.GetLine()
         col_num = line_entry.GetColumn()
-        stack_trace += f'frame {index}: {func_name} at {file_name}:{line_num}:{col_num}\n'
+        stack_trace += f'frame {index}: {func_name}({",".join(arg_list)}) at {file_name}:{line_num}:{col_num}\n'
         try:
             source_code += read_lines(full_file_name, line_num - 10, line_num) + '\n'
             source_code += '-' * (col_num - 1) + '^' + '\n\n'
@@ -197,6 +204,12 @@ async def explain(source_code: str, traceback: str, exception: str) -> None:
     user_prompt += traceback + '\n\n'
     user_prompt += 'stop reason = ' + exception + '\n'
     text = ''
+    
+    # uncomment to view prompt and not send to OpenAI
+    #print(user_prompt)
+    #return
+
+
     try:
         completion = await openai_async.chat_complete(openai.api_key, timeout=30, payload={'model': 'gpt-3.5-turbo', 'messages': [{'role': 'user', 'content': user_prompt}]})
         json_payload = completion.json()
@@ -212,12 +225,13 @@ async def explain(source_code: str, traceback: str, exception: str) -> None:
         pass
     print(word_wrap_except_code_blocks(text))
 
+    
 def why(debugger: lldb.SBDebugger, command: str, result: str, internal_dict: dict) -> None:
     """
     Check if program is attached to a debugger.
     Check if code has been run before executing the `why` command.
     Check if execution stopped at a breakpoint or an error.
-    Get stack trace and call `explain` function using asyncio.
+    Get source code, stack trace, and exception, and call `explain` function using asyncio.
     """
     if not get_target():
         # Check if program is attached to a debugger.
@@ -233,7 +247,7 @@ def why(debugger: lldb.SBDebugger, command: str, result: str, internal_dict: dic
         # Check if execution stopped at a breakpoint or an error.
         print('Execution stopped at a breakpoint, not an error.')
         return
-    # Get the current stack trace.
-    the_trace = stackTrace(debugger)
-    # Call `explain` function with stack trace as arguments.
-    asyncio.run(explain(the_trace[0], the_trace[1], the_trace[2]))
+    the_prompt = buildPrompt(debugger)
+    # Call `explain` function with pieces of the_prompt  as arguments.
+
+    asyncio.run(explain(the_prompt[0], the_prompt[1], the_prompt[2]))

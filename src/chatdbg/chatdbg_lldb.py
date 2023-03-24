@@ -4,7 +4,7 @@ import lldb
 import asyncio
 # xcrun python3 -m pip install whatever
 
-def __lldb_init_module(debugger: SBDebugger, internal_dict: dict) -> None:
+def __lldb_init_module(debugger: lldb.SBDebugger, internal_dict: dict) -> None:
     debugger.HandleCommand('command script add -f chatdbg_lldb.why why')
 # From lldbinit
 

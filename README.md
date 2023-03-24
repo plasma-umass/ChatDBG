@@ -142,7 +142,7 @@ the size of the array before accessing the element:
         cout << "ERROR: index out of bounds" << endl;
       }
     }
-```
+    ```
 
 This code first computes `sizeof(x)/sizeof(int)`, which gives the
 number of elements in the `x` array. It then checks whether `n *

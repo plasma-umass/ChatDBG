@@ -2,20 +2,19 @@
 
 by [Emery Berger](https://emeryberger.com)
 
-ChatDBG is an experimental Python debugger that integrates large language models to help debug your code. With ChatDBG, you can ask your debugger "why" your program failed, and it will provide a suggested fix. As far as we are aware, ChatDBG is the first debugger to automatically perform root cause analysis and to provide suggested fixes. This is an alpha release; we greatly welcome feedback and suggestions!
+ChatDBG is an experimental debugger (for Python *and* (new) native code) that integrates large language models to help debug your code. With ChatDBG, you can ask your debugger "why" your program failed, and it will provide a suggested fix. As far as we are aware, ChatDBG is the first debugger to automatically perform root cause analysis and to provide suggested fixes. This is an alpha release; we greatly welcome feedback and suggestions!
 
 ## Installation
 
-You can install ChatDBG using `pip`:
+Install ChatDBG using `pip`:
 
 ```
 python3 -m pip install chatdbg
 ```
 
+## Usage (Python)
 
-## Usage
-
-To use ChatDBG, simply run your Python script with the `-m` flag:
+To use ChatDBG to debug Python programs, simply run your Python script with the `-m` flag:
 
 ```
 python3 -m chatdbg -c continue yourscript.py
@@ -76,4 +75,80 @@ def tryme(x):
 if __name__ == '__main__':
     print(tryme(100))
 ```
+
+## Usage (lldb)
+
+(Currently only tested on Mac.)
+
+Install ChatDBG into the `lldb` debugger by running the following command:
+
+```
+xcrun python3 -m pip install ChatDBG
+```
+
+Now run
+
+```
+xcrun python3 -c 'import chatdbg; print(f"command script import {chatdbg.__path__[0]}/chatdbg_lldb.py")' >> ~/.lldbinit
+```
+
+This will install ChatDBG as an LLVM extension.
+
+You can now run native code (compiled with `-g` for debugging symbols) with `lldb`; when it crashes, ask `why`.
+
+```
+(lldb) run
+Process 91113 launched: '/Users/emery/git/chatdbg/test/a.out' (arm64)
+TEST 1
+TEST -422761288
+TEST 0
+TEST 0
+TEST 0
+TEST 0
+TEST 0
+TEST 0
+Process 91113 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = EXC_BAD_ACCESS (code=1, address=0x100056200)
+    frame #0: 0x0000000100002f68 a.out`foo(n=8) at test.cpp:7:22
+   4     int x[] = { 1, 2, 3, 4, 5 };
+   5     
+   6     void foo(int n) {
+-> 7       cout << "TEST " << x[n * 10000] << endl;
+   8     }
+   9     
+   10    int main()
+Target 0: (a.out) stopped.
+```
+
+Now you can ask `why`:
+
+```
+(lldb) why
+The root cause of this error is an out-of-bounds memory access. The
+program is trying to access an element of the `x` array that is beyond
+its allocated size. Specifically, when `n` is large enough (greater
+than or equal to 1), the expression `n * 10000` causes the program to
+access memory beyond the end of the `x` array.
+
+To fix this error, we can check that the index is within bounds before
+accessing the array. One way to do this is to compare `n * 10000` with
+the size of the array before accessing the element:
+
+    ```
+    void foo(int n) {
+      if (n * 10000 < sizeof(x)/sizeof(int)) {
+        cout << "TEST " << x[n * 10000] << endl;
+      } else {
+        cout << "ERROR: index out of bounds" << endl;
+      }
+    }
+```
+
+This code first computes `sizeof(x)/sizeof(int)`, which gives the
+number of elements in the `x` array. It then checks whether `n *
+10000` is less than this size before accessing the `x` array. If `n *
+10000` is greater than or equal to the size of the array, it prints an
+error message instead of accessing the `x` array.
+```
+
 

@@ -75,7 +75,6 @@ async def why(self, arg):
         if not frame.f_code.co_filename.startswith(os.getcwd()):
             stack_frames -= 1
             continue
-        positions = inspect.getframeinfo(frame).positions
         try:
             # user_prompt += '#' + '-' * 60 + '\n'
             lines = inspect.getsourcelines(frame)[0]
@@ -85,12 +84,18 @@ async def why(self, arg):
                 if index == lineno:
                     leading_spaces = len(line) - len(line.lstrip())
                     stack_trace += f"{stack_frames}: " + line.strip() + "\n"
-                    stack_trace += (
-                        " " * len(str(stack_frames))
-                        + "  "
-                        + " " * (positions.col_offset - leading_spaces)
-                        + "^" * (positions.end_col_offset - positions.col_offset)
-                        + "\n"
+                    # Degrade gracefully when using older Python versions that don't have column info.
+                    try:
+                        positions = inspect.getframeinfo(frame).positions
+                    except:
+                        positions = None
+                    if positions:
+                        stack_trace += (
+                            " " * len(str(stack_frames))
+                            + "  "
+                            + " " * (positions.col_offset - leading_spaces)
+                            + "^" * (positions.end_col_offset - positions.col_offset)
+                            + "\n"
                     )
                 if index >= lineno:
                     break

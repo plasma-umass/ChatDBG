@@ -4,66 +4,74 @@ import asyncio
 
 # xcrun python3 -m pip install whatever
 
-# openai, openai_sync, unittest2
 
 def __lldb_init_module(debugger, internal_dict):
-    debugger.HandleCommand('command script add -f chatdbg_lldb.why why')
+    debugger.HandleCommand("command script add -f chatdbg_lldb.why why")
+
 
 # From lldbinit
-
 def get_process():
-	'''
-		A read only property that returns an lldb object
-		that represents the process (lldb.SBProcess)that this target owns.
-	'''
-	return get_target().process
+    """
+    A read only property that returns an lldb object
+    that represents the process (lldb.SBProcess)that this target owns.
+    """
+    return get_target().process
+
 
 def get_frame():
-	frame = None
-	# SBProcess supports thread iteration -> SBThread
-	for thread in get_process():
-		if (thread.GetStopReason() != lldb.eStopReasonNone) and (thread.GetStopReason() != lldb.eStopReasonInvalid):
-			frame = thread.GetFrameAtIndex(0)
-			break
-	# this will generate a false positive when we start the target the first time because there's no context yet.
-	if not frame:
-            # print("[-] warning: get_frame() failed. Is the target binary started?")
-            pass
-	return frame
+    frame = None
+    # SBProcess supports thread iteration -> SBThread
+    for thread in get_process():
+        if (thread.GetStopReason() != lldb.eStopReasonNone) and (
+            thread.GetStopReason() != lldb.eStopReasonInvalid
+        ):
+            frame = thread.GetFrameAtIndex(0)
+            break
+    # this will generate a false positive when we start the target the first time because there's no context yet.
+    if not frame:
+        # print("[-] warning: get_frame() failed. Is the target binary started?")
+        pass
+    return frame
+
 
 def get_thread():
-	thread = None
-	# SBProcess supports thread iteration -> SBThread
-	for _thread in get_process():
-		if (_thread.GetStopReason() != lldb.eStopReasonNone) and (_thread.GetStopReason() != lldb.eStopReasonInvalid):
-			thread = _thread
-	
-	if not thread:
-            # print("[-] warning: get_thread() failed. Is the target binary started?")
-            pass
+    thread = None
+    # SBProcess supports thread iteration -> SBThread
+    for _thread in get_process():
+        if (_thread.GetStopReason() != lldb.eStopReasonNone) and (
+            _thread.GetStopReason() != lldb.eStopReasonInvalid
+        ):
+            thread = _thread
 
-	return thread
+    if not thread:
+        # print("[-] warning: get_thread() failed. Is the target binary started?")
+        pass
+
+    return thread
+
 
 def get_target():
-	target = lldb.debugger.GetSelectedTarget()
-	if not target:
-		# print("[-] error: no target available. please add a target to lldb.")
-		return None
-	return target
+    target = lldb.debugger.GetSelectedTarget()
+    if not target:
+        # print("[-] error: no target available. please add a target to lldb.")
+        return None
+    return target
+
 
 #
 def read_lines(file_path, start_line, end_line):
-    with open(file_path, 'r') as f:
+    with open(file_path, "r") as f:
         lines = f.readlines()
         lines = [line.rstrip() for line in lines]  # remove trailing newline characters
 
     start_line = max(0, start_line - 1)  # convert to 0-based indexing
     end_line = min(len(lines), end_line)  # ensure end_line is within range
 
-    return '\n'.join(lines[start_line:end_line])
+    return "\n".join(lines[start_line:end_line])
 
 
 import re
+
 
 def get_function_by_line(source_code, line_number):
     """
@@ -87,14 +95,23 @@ def get_function_by_line(source_code, line_number):
 
         print("checking ", function_body)
         if line_number <= line_count:
-            return function.group("signature") + function.group("name") + "(" + function.group("args") + ")" + function_body
+            return (
+                function.group("signature")
+                + function.group("name")
+                + "("
+                + function.group("args")
+                + ")"
+                + function_body
+            )
 
         line_number -= line_count
 
     return None
 
+
 def stackTrace(debugger):
     import os
+
     target = get_target()
     if not target:
         return ""
@@ -105,10 +122,7 @@ def stackTrace(debugger):
 
     if thread.GetStopReason() == lldb.eStopReasonBreakpoint:
         return ""
-    
-    #print(thread.GetStopReason())
-    #print(thread.GetStopDescription(255))
-        
+
     frame = thread.GetFrameAtIndex(0)
     stack_trace = ""
     source_code = ""
@@ -127,12 +141,15 @@ def stackTrace(debugger):
         full_file_name = os.path.join(directory, file_name)
         line_num = line_entry.GetLine()
         col_num = line_entry.GetColumn()
-        stack_trace += f"frame {index}: {func_name} at {file_name}:{line_num}:{col_num}\n"
-        source_code += read_lines(full_file_name, line_num - 10, line_num) + '\n'
-        source_code += '-' * (col_num - 1) + '^' + '\n\n'
+        stack_trace += (
+            f"frame {index}: {func_name} at {file_name}:{line_num}:{col_num}\n"
+        )
+        source_code += read_lines(full_file_name, line_num - 10, line_num) + "\n"
+        source_code += "-" * (col_num - 1) + "^" + "\n\n"
 
     error_reason = thread.GetStopDescription(255)
     return (source_code, stack_trace, error_reason)
+
 
 import sys
 
@@ -141,6 +158,7 @@ import openai_async
 import os
 import sys
 import textwrap
+
 
 def word_wrap_except_code_blocks(text: str) -> str:
     """Wraps text except for code blocks.
@@ -194,11 +212,11 @@ async def explain(source_code, traceback, exception):
     user_prompt = "Explain what the root cause of this error is, given the following source code and traceback, and propose a fix."
     user_prompt += "\n"
     user_prompt += "source code:\n```\n"
-    user_prompt += source_code + '\n```\n'
+    user_prompt += source_code + "\n```\n"
 
-    user_prompt += traceback + '\n\n'
+    user_prompt += traceback + "\n\n"
 
-    user_prompt += "stop reason = " + exception + '\n'
+    user_prompt += "stop reason = " + exception + "\n"
 
     text = ""
     try:
@@ -225,7 +243,7 @@ async def explain(source_code, traceback, exception):
         print(f"EXCEPTION {e}")
         pass
     print(word_wrap_except_code_blocks(text))
-    
+
 
 def why(debugger, command, result, internal_dict):
     if not get_target():

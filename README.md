@@ -81,8 +81,6 @@ if __name__ == '__main__':
 
 ## Usage (lldb)
 
-(Currently only tested on Mac and Linux.)
-
 Install ChatDBG into the `lldb` debugger by running the following command:
 
 ### Linux
@@ -102,6 +100,11 @@ xcrun python3 -c 'import chatdbg; print(f"command script import {chatdbg.__path_
 This will install ChatDBG as an LLVM extension.
 
 You can now run native code (compiled with `-g` for debugging symbols) with `lldb`; when it crashes, ask `why`.
+
+<details>
+<summary>
+<B>Example of using `why` in LLDB</B>
+</summary>
 
 ```
 (lldb) run
@@ -157,5 +160,18 @@ number of elements in the `x` array. It then checks whether `n *
 10000` is greater than or equal to the size of the array, it prints an
 error message instead of accessing the `x` array.
 ```
+</details>
 
+
+
+## Usage (gdb)
+
+Install ChatDBG into the `gdb` debugger by running the following command:
+
+```
+python3 -m pip install ChatDBG
+python3 -c 'import chatdbg; print(f"source {chatdbg.__path__[0]}/chatdbg_gdb.py")' >> ~/.gdbinit
+```
+
+This will install ChatDBG as a GDB extension. You can now run native code (compiled with `-g` for debugging symbols) with `gdb`; when it crashes, ask `why`.
 

@@ -1,11 +1,15 @@
-from typing import Tuple, Union
 #!env python3
+from typing import Tuple, Union
 import lldb
 import asyncio
-# xcrun python3 -m pip install whatever
 
 def __lldb_init_module(debugger: lldb.SBDebugger, internal_dict: dict) -> None:
+    # Install the `why` command.
     debugger.HandleCommand('command script add -f chatdbg_lldb.why why')
+    # Update the prompt.
+    debugger.HandleCommand("settings set prompt '(ChatDBG lldb) '")
+
+    
 # From lldbinit
 
 def get_process() -> Union[None, lldb.SBProcess]:

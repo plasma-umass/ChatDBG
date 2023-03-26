@@ -162,9 +162,13 @@ def buildPrompt() -> str:
 
     frames = []
     frame = gdb.selected_frame()
+
+    # magic number - don't bother walking up more than this many frames.
+    # This is just to prevent overwhelming OpenAI (or to cope with a stack overflow!).
+    max_frames = 10
     
     # Walk the stack and build up the frames list.
-    while frame is not None:
+    while frame is not None and max_frames > 0:
         func_name = frame.name()
         symtab_and_line = frame.find_sal()
         if symtab_and_line.symtab is not None:
@@ -187,6 +191,7 @@ def buildPrompt() -> str:
                 args.append((name, value))
         frames.append((filename, func_name, args, lineno, colno))
         frame = frame.older()
+        max_frames -= 1
 
     # Now build the stack trace and source code strings.
     for i, frame_info in enumerate(frames):

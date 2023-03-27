@@ -2,7 +2,9 @@
 
 by [Emery Berger](https://emeryberger.com)
 
-ChatDBG is an experimental debugger (for Python *and* (new) native code) that integrates large language models to help debug your code. With ChatDBG, you can ask your debugger "why" your program failed, and it will provide a suggested fix. As far as we are aware, ChatDBG is the first debugger to automatically perform root cause analysis and to provide suggested fixes. This is an alpha release; we greatly welcome feedback and suggestions!
+ChatDBG is an experimental debugger for Python *and* native code that integrates large language models into a standard debugger (`pdb`, `lldb`, and `gdb`) to help debug your code. With ChatDBG, you can ask your debugger "why" your program failed, and it will provide a suggested fix.
+
+As far as we are aware, ChatDBG is the *first* debugger to automatically perform root cause analysis and to provide suggested fixes. This is an alpha release; we greatly welcome feedback and suggestions!
 
 [![PyPI Latest Release](https://img.shields.io/pypi/v/chatdbg.svg)](https://pypi.org/project/chatdbg/)[![Downloads](https://pepy.tech/badge/chatdbg)](https://pepy.tech/project/chatdbg) [![Downloads](https://pepy.tech/badge/chatdbg/month)](https://pepy.tech/project/chatdbg) ![Python versions](https://img.shields.io/pypi/pyversions/chatdbg.svg?style=flat-square)
 
@@ -36,7 +38,7 @@ enter post mortem debugging mode.
 Unlike other debuggers, you can then use the `why` command to ask
 ChatDBG why your program failed and get a suggested fix.
 
-For example:
+### Example
 
 ```
 Traceback (most recent call last):
@@ -49,7 +51,7 @@ Uncaught exception. Entering post mortem debugging
 Running 'cont' or 'step' will restart the program
 > yourscript.py(4)tryme()
 -> if x / i > 2:
-(Pdb) why
+(ChatDBG Pdb) why
 ```
 
 
@@ -107,7 +109,7 @@ You can now run native code (compiled with `-g` for debugging symbols) with `lld
 </summary>
 
 ```
-(lldb) run
+(ChatDBG lldb) run
 Process 91113 launched: '/Users/emery/git/chatdbg/test/a.out' (arm64)
 TEST 1
 TEST -422761288
@@ -133,7 +135,7 @@ Target 0: (a.out) stopped.
 Now you can ask `why`:
 
 ```
-(lldb) why
+(ChatDBG lldb) why
 The root cause of this error is an out-of-bounds memory access. The
 program is trying to access an element of the `x` array that is beyond
 its allocated size. Specifically, when `n` is large enough (greater

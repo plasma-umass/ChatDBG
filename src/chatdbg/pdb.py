@@ -215,7 +215,7 @@ class Pdb(bdb.Bdb, cmd.Cmd):
         sys.audit("pdb.Pdb")
         if stdout:
             self.use_rawinput = 0
-        self.prompt = '(Pdb) '
+        self.prompt = '(ChatDBG Pdb) '
         self.aliases = {}
         self.displaying = {}
         self.mainpyfile = ''

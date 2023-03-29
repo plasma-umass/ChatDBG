@@ -120,16 +120,14 @@ async def why(self, arg):
             },
         )
         json_payload = completion.json()
+        if not 'choices' in json_payload:
+            raise openai.error.AuthenticationError
         text = json_payload["choices"][0]["message"]["content"]
     except (openai.error.AuthenticationError, httpx.LocalProtocolError):
-        print()
         print(
-            "You need an OpenAI key to use commentator. You can get a key here: https://openai.com/api/"
+            "You need a valid OpenAI key to use commentator. You can get a key here: https://openai.com/api/"
         )
         print("Set the environment variable OPENAI_API_KEY to your key value.")
-        import sys
-
-        sys.exit(1)
     except Exception as e:
         print(f"EXCEPTION {e}")
         pass

@@ -110,7 +110,7 @@ You can now run native code (compiled with `-g` for debugging symbols) with `lld
 
 ```
 (ChatDBG lldb) run
-Process 91113 launched: '/Users/emery/git/chatdbg/test/a.out' (arm64)
+Process 85494 launched: '/Users/emery/git/ChatDBG/test/a.out' (arm64)
 TEST 1
 TEST -422761288
 TEST 0
@@ -119,12 +119,12 @@ TEST 0
 TEST 0
 TEST 0
 TEST 0
-Process 91113 stopped
+Process 85494 stopped
 * thread #1, queue = 'com.apple.main-thread', stop reason = EXC_BAD_ACCESS (code=1, address=0x100056200)
-    frame #0: 0x0000000100002f68 a.out`foo(n=8) at test.cpp:7:22
+    frame #0: 0x0000000100002f64 a.out`foo(n=8, b=1) at test.cpp:7:22
    4     int x[] = { 1, 2, 3, 4, 5 };
    5     
-   6     void foo(int n) {
+   6     void foo(int n, float b) {
 -> 7       cout << "TEST " << x[n * 10000] << endl;
    8     }
    9     
@@ -136,31 +136,34 @@ Now you can ask `why`:
 
 ```
 (ChatDBG lldb) why
-The root cause of this error is an out-of-bounds memory access. The
-program is trying to access an element of the `x` array that is beyond
-its allocated size. Specifically, when `n` is large enough (greater
-than or equal to 1), the expression `n * 10000` causes the program to
-access memory beyond the end of the `x` array.
+The root cause of this error is accessing an index of the array `x`
+that is out of bounds. In `foo()`, the index is calculated as `n *
+10000`, which can be much larger than the size of the array `x` (which
+is only 5 elements). In the given trace, the program is trying to
+access the memory address `0x100056200`, which is outside of the range
+of allocated memory for the array `x`.
 
-To fix this error, we can check that the index is within bounds before
-accessing the array. One way to do this is to compare `n * 10000` with
-the size of the array before accessing the element:
+To fix this error, we need to ensure that the index is within the
+bounds of the array. One way to do this is to check the value of `n`
+before calculating the index, and ensure that it is less than the size
+of the array divided by the size of the element. For example, we can
+modify `foo()` as follows:
 
     ```
-    void foo(int n) {
-      if (n * 10000 < sizeof(x)/sizeof(int)) {
-        cout << "TEST " << x[n * 10000] << endl;
-      } else {
-        cout << "ERROR: index out of bounds" << endl;
+    void foo(int n, float b) {
+      if (n < 0 || n >= sizeof(x)/sizeof(x[0])) {
+        cout << "ERROR: Invalid index" << endl;
+        return;
       }
+      cout << "TEST " << x[n] << endl;
     }
     ```
 
-This code first computes `sizeof(x)/sizeof(int)`, which gives the
-number of elements in the `x` array. It then checks whether `n *
-10000` is less than this size before accessing the `x` array. If `n *
-10000` is greater than or equal to the size of the array, it prints an
-error message instead of accessing the `x` array.
+This code checks if `n` is within the valid range, and prints an error
+message if it is not. If `n` is within the range, the function prints
+the value of the element at index `n` of `x`. With this modification,
+the program will avoid accessing memory outside the bounds of the
+array, and will print the expected output for valid indices.
 ```
 </details>
 

@@ -112,7 +112,7 @@ async def why(self, arg):
     text = ""
     try:
         completion = await openai_async.chat_complete(
-            openai.api_key,
+            openai.api_key or "",
             timeout=30,
             payload={
                 "model": "gpt-3.5-turbo",

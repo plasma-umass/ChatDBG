@@ -2,7 +2,7 @@
 
 by [Emery Berger](https://emeryberger.com)
 
-ChatDBG is an experimental debugger for Python *and* native code that integrates large language models into a standard debugger (`pdb`, `lldb`, and `gdb`) to help debug your code. With ChatDBG, you can ask your debugger "why" your program failed, and it will provide a suggested fix.
+ChatDBG is an experimental debugger for Python *and* native C/C++ code that integrates large language models into a standard debugger (`pdb`, `lldb`, and `gdb`) to help debug your code. With ChatDBG, you can ask your debugger "why" your program failed, and it will provide a suggested fix.
 
 As far as we are aware, ChatDBG is the *first* debugger to automatically perform root cause analysis and to provide suggested fixes. This is an alpha release; we greatly welcome feedback and suggestions!
 
@@ -11,13 +11,60 @@ As far as we are aware, ChatDBG is the *first* debugger to automatically perform
 
 ## Installation
 
-Install ChatDBG using `pip`:
+Install ChatDBG using `pip` (you need to do this whether you are debugging Python, C, or C++ code):
 
 ```
 python3 -m pip install chatdbg
 ```
 
-## Usage (Python)
+If you are using ChatDBG to debug Python programs, you are done. If you want to use ChatDBG to debug native code with `gdb` or `lldb`, follow the installation instructions below.
+
+### Installing as an <TT>lldb</TT> extension
+
+<details>
+<summary>
+<B><TT>lldb</TT> installation instructions</B>
+</summary>
+
+Install ChatDBG into the `lldb` debugger by running the following command:
+
+#### Linux
+
+```
+python3 -m pip install ChatDBG
+python3 -c 'import chatdbg; print(f"command script import {chatdbg.__path__[0]}/chatdbg_lldb.py")' >> ~/.lldbinit
+```
+
+#### Mac
+
+```
+xcrun python3 -m pip install ChatDBG
+xcrun python3 -c 'import chatdbg; print(f"command script import {chatdbg.__path__[0]}/chatdbg_lldb.py")' >> ~/.lldbinit
+```
+
+This will install ChatDBG as an LLVM extension.
+</details>
+
+### Installing as a <TT>gdb</TT> extension
+
+<details>
+<summary>
+<B><TT>gdb</TT> installation instructions</B>
+</summary>
+
+Install ChatDBG into the `gdb` debugger by running the following command:
+
+```
+python3 -m pip install ChatDBG
+python3 -c 'import chatdbg; print(f"source {chatdbg.__path__[0]}/chatdbg_gdb.py")' >> ~/.gdbinit
+```
+
+This will install ChatDBG as a GDB extension.
+</details>
+
+## Usage
+
+### Debugging Python
 
 To use ChatDBG to debug Python programs, simply run your Python script with the `-m` flag:
 
@@ -38,7 +85,10 @@ enter post mortem debugging mode.
 Unlike other debuggers, you can then use the `why` command to ask
 ChatDBG why your program failed and get a suggested fix.
 
-### Example
+<details>
+<summary>
+<B>ChatDBG example with Python</B>
+</summary>
 
 ```
 Traceback (most recent call last):
@@ -53,7 +103,6 @@ Running 'cont' or 'step' will restart the program
 -> if x / i > 2:
 (ChatDBG Pdb) why
 ```
-
 
 ChatDBG will then provide a helpful explanation of why your program failed and a suggested fix:
 
@@ -81,31 +130,15 @@ if __name__ == '__main__':
     print(tryme(100))
 ```
 
-## Usage (lldb)
+</details>
 
-Install ChatDBG into the `lldb` debugger by running the following command:
+### Debugging native code (<TT>lldb</TT> / <TT>gdb</TT>)
 
-### Linux
-
-```
-python3 -m pip install ChatDBG
-python3 -c 'import chatdbg; print(f"command script import {chatdbg.__path__[0]}/chatdbg_lldb.py")' >> ~/.lldbinit
-```
-
-### Mac
-
-```
-xcrun python3 -m pip install ChatDBG
-xcrun python3 -c 'import chatdbg; print(f"command script import {chatdbg.__path__[0]}/chatdbg_lldb.py")' >> ~/.lldbinit
-```
-
-This will install ChatDBG as an LLVM extension.
-
-You can now run native code (compiled with `-g` for debugging symbols) with `lldb`; when it crashes, ask `why`.
+To use ChatDBG with `lldb` or `gdb`, just run native code (compiled with `-g` for debugging symbols) with your choice of debugger; when it crashes, ask `why`. This also works for post mortem debugging (when you load a core with the `-c` option).
 
 <details>
 <summary>
-<B>Example of using `why` in LLDB</B>
+<B>Example of using <TT>why</TT> in <TT>lldb</TT></B>
 </summary>
 
 ```
@@ -166,17 +199,4 @@ the program will avoid accessing memory outside the bounds of the
 array, and will print the expected output for valid indices.
 ```
 </details>
-
-
-
-## Usage (gdb)
-
-Install ChatDBG into the `gdb` debugger by running the following command:
-
-```
-python3 -m pip install ChatDBG
-python3 -c 'import chatdbg; print(f"source {chatdbg.__path__[0]}/chatdbg_gdb.py")' >> ~/.gdbinit
-```
-
-This will install ChatDBG as a GDB extension. You can now run native code (compiled with `-g` for debugging symbols) with `gdb`; when it crashes, ask `why`.
 

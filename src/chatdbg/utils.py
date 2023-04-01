@@ -90,11 +90,10 @@ async def explain(source_code: str, traceback: str, exception: str) -> None:
     #return
 
     if not 'OPENAI_API_KEY' in os.environ:
-        print('X) You need an OpenAI key to use ChatDBG. You can get a key here: https://openai.com/api/')
+        print('You need a valid OpenAI key to use ChatDBG. You can get a key here: https://openai.com/api/')
         print('Set the environment variable OPENAI_API_KEY to your key value.')
-        import sys
-        sys.exit(1)
-        
+        return
+    
     try:
         completion = await openai_async.chat_complete(openai.api_key, timeout=30, payload={'model': 'gpt-3.5-turbo', 'messages': [{'role': 'user', 'content': user_prompt}]})
         json_payload = completion.json()

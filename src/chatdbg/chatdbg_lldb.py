@@ -96,7 +96,14 @@ def buildPrompt(debugger: any) -> Tuple[str, str, str]:
     frame = thread.GetFrameAtIndex(0)
     stack_trace = ''
     source_code = ''
+    
+    # magic number - don't bother walking up more than this many frames.
+    # This is just to prevent overwhelming OpenAI (or to cope with a stack overflow!).
+    max_frames = 10
+    
     for index, frame in enumerate(thread):
+        if index >= max_frames:
+            break
         function = frame.GetFunction()
         if not function:
             continue

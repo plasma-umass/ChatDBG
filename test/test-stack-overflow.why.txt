@@ -1,0 +1,19 @@
+The root cause of this error is a stack overflow. The function `fib`
+calls itself recursively without a base case, causing the stack to
+fill up with too many function calls and resulting in a stack
+overflow.
+
+A fix for this would be to add a base case that stops the recursion,
+for example:
+
+```
+int fib(int n) {
+  if (n <= 1) {
+    return n;
+  }
+  return fib(n-1) + fib(n-2);
+}
+```
+
+This way, the recursion will stop when `n` is 0 or 1 and prevent a
+stack overflow.

@@ -1,0 +1,24 @@
+The root cause of this error is that the program is attempting to
+delete a memory location that is not currently allocated.
+Specifically, the pointer `n` is being decremented by one, which moves
+it to a location outside of the allocated memory block. Then, the
+`delete` operator is being used on this pointer, which leads to
+undefined behavior and potentially a segmentation fault.
+
+To fix this, the program should only call `delete` on the original
+pointer that was returned by `new`, without modifying or decrementing
+its value. The corrected code would look like this:
+
+```
+#include <iostream>
+
+void doSomething(int * ptr) {
+    *ptr = 0;
+}
+
+int main()
+{
+    int * n = new int(100);
+    delete n;
+}
+```

@@ -1,0 +1,25 @@
+The root cause of the error is that the index `n*10000` in the `x`
+array access goes out of bounds of the array. This results in a
+segmentation fault or memory access violation.
+
+To fix the error, we can either increase the size of the `x` array or
+limit the value of `n` passed to `foo` so that the index stays within
+bounds of the array. For example, we can modify the function `foo` to
+check if the index is within bounds before accessing the array, and
+handle the error appropriately. Here is one possible fix:
+
+```
+void foo(int n, float b) {
+  int index = n * 10000;
+  if (index >= sizeof(x)/sizeof(x[0])) {
+    cerr << "Error: index out of bounds" << endl;
+    return;
+  }
+  cout << "TEST " << x[index] << endl;
+}
+```
+
+This fix checks if the computed index is greater than or equal to the
+size of the `x` array, and prints an error message to `cerr` if so. It
+also returns early from the function to avoid accessing the array out
+of bounds.

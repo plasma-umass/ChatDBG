@@ -140,9 +140,11 @@ class Why(gdb.Command):
         except:
             print("Must run the code first to ask `why`.")
             return
+        global last_error_type
         if not last_error_type:
-            print("Execution stopped at a breakpoint, not an error.")
-            return
+            # Assume we are running from a core dump,
+            # which _probably_ means a SEGV.
+            last_error_type = 'SIGSEGV'
         the_prompt = buildPrompt()
         #print(the_prompt[0])
         #print(the_prompt[1])
@@ -176,7 +178,6 @@ def buildPrompt() -> str:
         else:
             filename = None
         if symtab_and_line.line is not None:
-            print(dir(symtab_and_line))
             lineno = symtab_and_line.line
             colno = None
         else:

@@ -52,7 +52,7 @@ def word_wrap_except_code_blocks(text: str) -> str:
 
 
 async def why(self, arg):
-    user_prompt = "Explain what the root cause of this error is, given the following source code and traceback, and propose a fix."
+    user_prompt = "Explain what the root cause of this error is, given the following source code and traceback, and generate code that fixes the error."
     user_prompt += "\n"
     user_prompt += "source code:\n```\n"
     stack_trace = ""
@@ -118,6 +118,7 @@ async def why(self, arg):
                 "model": "gpt-3.5-turbo",
                 "messages": [{"role": "user", "content": user_prompt}],
             },
+            stream=True
         )
         json_payload = completion.json()
         if not 'choices' in json_payload:

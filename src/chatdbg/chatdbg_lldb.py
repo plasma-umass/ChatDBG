@@ -11,7 +11,18 @@ def __lldb_init_module(debugger: lldb.SBDebugger, internal_dict: dict) -> None:
     # Update the prompt.
     debugger.HandleCommand("settings set prompt '(ChatDBG lldb) '")
 
-    
+def is_debug_build(debugger, command, result, internal_dict) -> bool:
+    """Returns False if not compiled with debug information."""
+    target = debugger.GetSelectedTarget()
+    if target:
+        module = target.GetModuleAtIndex(0)
+        if module:
+            compile_unit = module.GetCompileUnitAtIndex(0)
+            if compile_unit.IsValid():
+                return True
+    return False
+
+   
 # From lldbinit
 
 def get_process() -> Union[None, lldb.SBProcess]:
@@ -126,7 +137,7 @@ def buildPrompt(debugger: any) -> Tuple[str, str, str]:
         try:
             source_code += f'/* frame {index} */\n'
             source_code += utils.read_lines(full_file_name, line_num - 10, line_num) + '\n'
-            source_code += '-' * (col_num - 1) + '^' + '\n\n'
+            source_code += '-' * (utils.read_lines_width() + col_num - 1) + '^' + '\n\n'
         except:
             # Couldn't find the source for some reason. Skip the file.
             pass
@@ -140,6 +151,9 @@ def why(debugger: lldb.SBDebugger, command: str, result: str, internal_dict: dic
     Check if execution stopped at a breakpoint or an error.
     Get source code, stack trace, and exception, and call `explain` function using asyncio.
     """
+    if not is_debug_build(debugger, command, result, internal_dict):
+        print('Your program must be compiled with debug information (`-g`) to use `why`.')
+        return
     if not get_target():
         # Check if program is attached to a debugger.
         print('Must be attached to a program to ask `why`.')
@@ -155,5 +169,9 @@ def why(debugger: lldb.SBDebugger, command: str, result: str, internal_dict: dic
         print('Execution stopped at a breakpoint, not an error.')
         return
     the_prompt = buildPrompt(debugger)
-    # Call `explain` function with pieces of the_prompt  as arguments.
     asyncio.run(utils.explain(the_prompt[0], the_prompt[1], the_prompt[2]))
+
+@lldb.command("why_prompt")
+def why_prompt(debugger: lldb.SBDebugger, command: str, result: str, internal_dict: dict) -> None:
+    print("WUT")
+    

@@ -49,6 +49,9 @@ def word_wrap_except_code_blocks(text: str) -> str:
     wrapped_text = '\n\n'.join(wrapped_paragraphs)
     return wrapped_text
 
+def read_lines_width() -> int:
+    return 10
+
 def read_lines(file_path: str, start_line: int, end_line: int) -> str:
     """
     Read lines from a file and return a string containing the lines between start_line and end_line.
@@ -68,6 +71,8 @@ def read_lines(file_path: str, start_line: int, end_line: int) -> str:
         lines = f.readlines()
         # remove trailing newline characters
         lines = [line.rstrip() for line in lines]
+        # add line numbers
+        lines = [f"   {index+1:<6} {line}" for index, line in enumerate(lines)]
     # convert start_line to 0-based indexing
     start_line = max(0, start_line - 1)
     # ensure end_line is within range
@@ -86,8 +91,8 @@ async def explain(source_code: str, traceback: str, exception: str) -> None:
     text = ''
     
     # uncomment to view prompt and not send to OpenAI
-    #print(user_prompt)
-    #return
+    # print(user_prompt)
+    # return
 
     if not 'OPENAI_API_KEY' in os.environ:
         print('You need a valid OpenAI key to use ChatDBG. You can get a key here: https://openai.com/api/')

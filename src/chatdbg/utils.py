@@ -80,19 +80,20 @@ def read_lines(file_path: str, start_line: int, end_line: int) -> str:
     # return the requested lines as a string
     return '\n'.join(lines[start_line:end_line])
 
-async def explain(source_code: str, traceback: str, exception: str) -> None:
+async def explain(source_code: str, traceback: str, exception: str, really_run = True) -> None:
     import httpx
-    user_prompt = 'Explain what the root cause of this error is, given the following source code and traceback, and propose a fix.'
+    user_prompt = 'Explain what the root cause of this error is, given the following source code context for each stack frame and a traceback, and propose a fix.'
     user_prompt += '\n'
-    user_prompt += 'source code:\n```\n'
+    user_prompt += 'Source code for each stack frame:\n```\n'
     user_prompt += source_code + '\n```\n'
     user_prompt += traceback + '\n\n'
     user_prompt += 'stop reason = ' + exception + '\n'
     text = ''
     
     # uncomment to view prompt and not send to OpenAI
-    # print(user_prompt)
-    # return
+    if not really_run:
+        print(user_prompt)
+        return
 
     if not 'OPENAI_API_KEY' in os.environ:
         print('You need a valid OpenAI key to use ChatDBG. You can get a key here: https://openai.com/api/')

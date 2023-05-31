@@ -1,13 +1,12 @@
 #!env python3
-from typing import Tuple, Union
 import lldb
 import asyncio
-
+import re
 import utils
 
+from typing import Tuple, Union
+
 def __lldb_init_module(debugger: lldb.SBDebugger, internal_dict: dict) -> None:
-    # Install the `why` command.
-    debugger.HandleCommand('command script add -f chatdbg_lldb.why why')
     # Update the prompt.
     debugger.HandleCommand("settings set prompt '(ChatDBG lldb) '")
 
@@ -75,24 +74,6 @@ def get_target() -> lldb.SBTarget:
     if not target:
         return None
     return target
-#
-
-import re
-
-def get_function_by_line(source_code: str, line_number: int) -> str:
-    source_code = re.sub('\\/\\/.*', '', source_code)
-    source_code = re.sub('\\/\\*[\\s\\S]*?\\*\\/', '', source_code)
-    source_code = re.sub('\\s+', '', source_code)
-    function_regex = '(?P<signature>(static|const)?[\\w\\s\\*]+)(?P<name>\\w+)\\((?P<args>[\\w\\s\\*,]*)\\)(?P<body>{[\\s\\S]*?})'
-    functions = re.finditer(function_regex, source_code)
-    for function in functions:
-        function_body = function.group('body')
-        line_count = function_body.count('\n')
-        print('checking ', function_body)
-        if line_number <= line_count:
-            return function.group('signature') + function.group('name') + '(' + function.group('args') + ')' + function_body
-        line_number -= line_count
-    return None
 
 def buildPrompt(debugger: any) -> Tuple[str, str, str]:
     import os
@@ -111,8 +92,9 @@ def buildPrompt(debugger: any) -> Tuple[str, str, str]:
     # magic number - don't bother walking up more than this many frames.
     # This is just to prevent overwhelming OpenAI (or to cope with a stack overflow!).
     max_frames = 10
-    
-    for index, frame in enumerate(thread):
+
+    index = 0
+    for frame in thread:
         if index >= max_frames:
             break
         function = frame.GetFunction()
@@ -121,11 +103,15 @@ def buildPrompt(debugger: any) -> Tuple[str, str, str]:
         full_func_name = frame.GetFunctionName()
         func_name = full_func_name.split('(')[0]
         arg_list = []
+        type_list = []
 
-        # Build up an array of argument values to the function.
+        # Build up an array of argument values to the function, with type info.
         for i in range(len(frame.GetFunction().GetType().GetFunctionArgumentTypes())):
-            arg_list.append(str(frame.FindVariable(frame.GetFunction().GetArgumentName(i))).split('=')[1].strip())
-            
+            arg = frame.FindVariable(frame.GetFunction().GetArgumentName(i))
+            arg_name = str(arg).split('=')[0].strip()
+            arg_val = str(arg).split('=')[1].strip()
+            arg_list.append(f"{arg_name} = {arg_val}")
+
         line_entry = frame.GetLineEntry()
         file_spec = line_entry.GetFileSpec()
         file_name = file_spec.GetFilename()
@@ -135,43 +121,43 @@ def buildPrompt(debugger: any) -> Tuple[str, str, str]:
         col_num = line_entry.GetColumn()
         stack_trace += f'frame {index}: {func_name}({",".join(arg_list)}) at {file_name}:{line_num}:{col_num}\n'
         try:
-            source_code += f'/* frame {index} */\n'
+            source_code += f'/* frame {index} in {file_name} */\n'
             source_code += utils.read_lines(full_file_name, line_num - 10, line_num) + '\n'
             source_code += '-' * (utils.read_lines_width() + col_num - 1) + '^' + '\n\n'
+            index += 1
         except:
             # Couldn't find the source for some reason. Skip the file.
             pass
     error_reason = thread.GetStopDescription(255)
     return (source_code, stack_trace, error_reason)
 
-def why(debugger: lldb.SBDebugger, command: str, result: str, internal_dict: dict) -> None:
+@lldb.command("why")
+def why(debugger: lldb.SBDebugger, command: str, result: str, internal_dict: dict, really_run = True) -> None:
     """
-    Check if program is attached to a debugger.
-    Check if code has been run before executing the `why` command.
-    Check if execution stopped at a breakpoint or an error.
-    Get source code, stack trace, and exception, and call `explain` function using asyncio.
+    Root cause analysis for an error.
     """
+    # Check if there is debug info.
     if not is_debug_build(debugger, command, result, internal_dict):
         print('Your program must be compiled with debug information (`-g`) to use `why`.')
         return
+    # Check if program is attached to a debugger.
     if not get_target():
-        # Check if program is attached to a debugger.
         print('Must be attached to a program to ask `why`.')
         return
-    # Get the current thread.
+    # Check if code has been run before executing the `why` command.
     thread = get_thread()
     if not thread:
-        # Check if code has been run before executing the `why` command.
         print('Must run the code first to ask `why`.')
         return
+    # Check why code stopped running.
     if thread.GetStopReason() == lldb.eStopReasonBreakpoint:
         # Check if execution stopped at a breakpoint or an error.
         print('Execution stopped at a breakpoint, not an error.')
         return
     the_prompt = buildPrompt(debugger)
-    asyncio.run(utils.explain(the_prompt[0], the_prompt[1], the_prompt[2]))
+    asyncio.run(utils.explain(the_prompt[0], the_prompt[1], the_prompt[2], really_run))
 
 @lldb.command("why_prompt")
 def why_prompt(debugger: lldb.SBDebugger, command: str, result: str, internal_dict: dict) -> None:
-    print("WUT")
+    why(debugger, command, result, internal_dict, really_run=False)
     

@@ -111,7 +111,24 @@ def buildPrompt(debugger: any) -> Tuple[str, str, str]:
             arg_name = str(arg).split('=')[0].strip()
             arg_val = str(arg).split('=')[1].strip()
             arg_list.append(f"{arg_name} = {arg_val}")
-
+            
+        # Get the frame variables
+        variables = frame.GetVariables(True, True, True, True)
+        var_list = []
+        
+        for var in variables:
+            name = var.GetName()
+            value = var.GetValue()
+            type = var.GetTypeName()
+            # Check if the value is a pointer
+            if var.GetType().IsPointerType():
+                # Attempt to dereference the pointer
+                try:
+                    deref_value = var.Dereference().GetValue()
+                    var_list.append(f"{type} {name} = {value} (*{name} = {deref_value})")
+                except:
+                    var_list.append(f"{type} {name} = {value}")
+            
         line_entry = frame.GetLineEntry()
         file_spec = line_entry.GetFileSpec()
         file_name = file_spec.GetFilename()
@@ -120,6 +137,7 @@ def buildPrompt(debugger: any) -> Tuple[str, str, str]:
         line_num = line_entry.GetLine()
         col_num = line_entry.GetColumn()
         stack_trace += f'frame {index}: {func_name}({",".join(arg_list)}) at {file_name}:{line_num}:{col_num}\n'
+        stack_trace += "Local variables: " + ','.join(var_list)
         try:
             source_code += f'/* frame {index} in {file_name} */\n'
             source_code += utils.read_lines(full_file_name, line_num - 10, line_num) + '\n'

@@ -82,7 +82,7 @@ def read_lines(file_path: str, start_line: int, end_line: int) -> str:
 
 async def explain(source_code: str, traceback: str, exception: str, really_run = True) -> None:
     import httpx
-    user_prompt = 'Explain what the root cause of this error is, given the following source code context for each stack frame and a traceback, and propose a fix.'
+    user_prompt = "Explain what the root cause of this error is, given the following source code context for each stack frame and a traceback, and propose a fix. In your response, never refer to the frames given below (as in, 'frame 0'). Instead, always refer only to specific lines and filenames of source code.\n"
     user_prompt += '\n'
     user_prompt += 'Source code for each stack frame:\n```\n'
     user_prompt += source_code + '\n```\n'

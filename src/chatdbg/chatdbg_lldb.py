@@ -146,7 +146,6 @@ def buildPrompt(debugger: any) -> Tuple[str, str, str]:
         max_line_length = 100
         
         stack_trace += truncate_string(f'frame {index}: {func_name}({",".join(arg_list)}) at {file_name}:{line_num}:{col_num}\n', max_line_length - 3) + '\n' # 3 accounts for ellipsis
-        print(f"LEN {len(','.join(var_list))}")
         stack_trace += "Local variables: " + truncate_string(','.join(var_list), max_line_length) + '\n'
         try:
             source_code += f'/* frame {index} in {file_name} */\n'

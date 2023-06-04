@@ -75,6 +75,12 @@ def get_target() -> lldb.SBTarget:
         return None
     return target
 
+def truncate_string(string, n):
+    if len(string) <= n:
+        return string
+    else:
+        return string[:n] + "..."
+
 def buildPrompt(debugger: any) -> Tuple[str, str, str]:
     import os
     target = get_target()
@@ -136,8 +142,12 @@ def buildPrompt(debugger: any) -> Tuple[str, str, str]:
         full_file_name = os.path.join(directory, file_name)
         line_num = line_entry.GetLine()
         col_num = line_entry.GetColumn()
-        stack_trace += f'frame {index}: {func_name}({",".join(arg_list)}) at {file_name}:{line_num}:{col_num}\n'
-        stack_trace += "Local variables: " + ','.join(var_list)
+
+        max_line_length = 100
+        
+        stack_trace += truncate_string(f'frame {index}: {func_name}({",".join(arg_list)}) at {file_name}:{line_num}:{col_num}\n', max_line_length - 3) + '\n' # 3 accounts for ellipsis
+        print(f"LEN {len(','.join(var_list))}")
+        stack_trace += "Local variables: " + truncate_string(','.join(var_list), max_line_length) + '\n'
         try:
             source_code += f'/* frame {index} in {file_name} */\n'
             source_code += utils.read_lines(full_file_name, line_num - 10, line_num) + '\n'

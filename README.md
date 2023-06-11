@@ -16,13 +16,13 @@ already have an API key, you can set it as an environment variable
 called `OPENAI_API_KEY`. If you do not have one yet,
 you can get a key here: https://platform.openai.com/account/api-keys
 
-```
+```bash
 export OPENAI_API_KEY=<your-api-key>
 ```
 
 Install ChatDBG using `pip` (you need to do this whether you are debugging Python, C, or C++ code):
 
-```
+```bash
 python3 -m pip install chatdbg
 ```
 
@@ -39,14 +39,14 @@ Install ChatDBG into the `lldb` debugger by running the following command:
 
 #### Linux
 
-```
+```bash
 python3 -m pip install ChatDBG
 python3 -c 'import chatdbg; print(f"command script import {chatdbg.__path__[0]}/chatdbg_lldb.py")' >> ~/.lldbinit
 ```
 
 #### Mac
 
-```
+```bash
 xcrun python3 -m pip install ChatDBG
 xcrun python3 -c 'import chatdbg; print(f"command script import {chatdbg.__path__[0]}/chatdbg_lldb.py")' >> ~/.lldbinit
 ```
@@ -63,7 +63,7 @@ This will install ChatDBG as an LLVM extension.
 
 Install ChatDBG into the `gdb` debugger by running the following command:
 
-```
+```bash
 python3 -m pip install ChatDBG
 python3 -c 'import chatdbg; print(f"source {chatdbg.__path__[0]}/chatdbg_gdb.py")' >> ~/.gdbinit
 ```
@@ -77,13 +77,13 @@ This will install ChatDBG as a GDB extension.
 
 To use ChatDBG to debug Python programs, simply run your Python script with the `-m` flag:
 
-```
+```bash
 python3 -m chatdbg -c continue yourscript.py
 ```
 
 or just
 
-```
+```bash
 chatdbg -c continue yourscript.py
 ```
 
@@ -99,7 +99,7 @@ ChatDBG why your program failed and get a suggested fix.
 <B>ChatDBG example with Python</B>
 </summary>
 
-```
+```python
 Traceback (most recent call last):
   File "yourscript.py", line 9, in <module>
     print(tryme(100))
@@ -115,7 +115,7 @@ Running 'cont' or 'step' will restart the program
 
 ChatDBG will then provide a helpful explanation of why your program failed and a suggested fix:
 
-```
+```python
 The root cause of the error is that the code is attempting to
 divide by zero in the line "if x / i > 2". As i ranges from 0 to 99,
 it will eventually reach the value of 0, causing a ZeroDivisionError.
@@ -150,7 +150,7 @@ To use ChatDBG with `lldb` or `gdb`, just run native code (compiled with `-g` fo
 <B>Example of using <TT>why</TT> in <TT>lldb</TT></B>
 </summary>
 
-```
+```gdb
 (ChatDBG lldb) run
 Process 85494 launched: '/Users/emery/git/ChatDBG/test/a.out' (arm64)
 TEST 1
@@ -176,7 +176,7 @@ Target 0: (a.out) stopped.
 
 Now you can ask `why`:
 
-```
+```gdb
 (ChatDBG lldb) why
 The root cause of this error is accessing an index of the array `x`
 that is out of bounds. In `foo()`, the index is calculated as `n *

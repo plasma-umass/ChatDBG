@@ -94,60 +94,16 @@ enter post mortem debugging mode.
 Unlike other debuggers, you can then use the `why` command to ask
 ChatDBG why your program failed and get a suggested fix.
 
-<details>
-<summary>
-<B>ChatDBG example with Python</B>
-</summary>
-
-```python
-Traceback (most recent call last):
-  File "yourscript.py", line 9, in <module>
-    print(tryme(100))
-  File "yourscript.py", line 4, in tryme
-    if x / i > 2:
-ZeroDivisionError: division by zero
-Uncaught exception. Entering post mortem debugging
-Running 'cont' or 'step' will restart the program
-> yourscript.py(4)tryme()
--> if x / i > 2:
-(ChatDBG Pdb) why
-```
-
-ChatDBG will then provide a helpful explanation of why your program failed and a suggested fix:
-
-```python
-The root cause of the error is that the code is attempting to
-divide by zero in the line "if x / i > 2". As i ranges from 0 to 99,
-it will eventually reach the value of 0, causing a ZeroDivisionError.
-
-A possible fix for this would be to add a check for i being equal to
-zero before performing the division. This could be done by adding an
-additional conditional statement, such as "if i == 0: continue", to
-skip over the iteration when i is zero. The updated code would look
-like this:
-
-def tryme(x):
-    count = 0
-    for i in range(100):
-        if i == 0:
-            continue
-        if x / i > 2:
-            count += 1
-    return count
-
-if __name__ == '__main__':
-    print(tryme(100))
-```
-
-</details>
-
 ### Debugging native code (<TT>lldb</TT> / <TT>gdb</TT>)
 
 To use ChatDBG with `lldb` or `gdb`, just run native code (compiled with `-g` for debugging symbols) with your choice of debugger; when it crashes, ask `why`. This also works for post mortem debugging (when you load a core with the `-c` option).
 
+
+### Examples
+
 <details>
 <summary>
-<B>Example of using <TT>why</TT> in <TT>lldb</TT></B>
+<B>ChatDBG example in <TT>lldb</TT></B>
 </summary>
 
 ```gdb
@@ -174,7 +130,8 @@ Process 85494 stopped
 Target 0: (a.out) stopped.
 ```
 
-Now you can ask `why`:
+Ask `why` to have ChatDBG provide a helpful explanation why this program failed, and suggest a fix:
+
 
 ```gdb
 (ChatDBG lldb) why
@@ -207,5 +164,52 @@ the value of the element at index `n` of `x`. With this modification,
 the program will avoid accessing memory outside the bounds of the
 array, and will print the expected output for valid indices.
 ```
+</details>
+
+<details>
+<summary>
+<B>ChatDBG example in Python (<TT>pdb</TT>)</B>
+</summary>
+
+```python
+Traceback (most recent call last):
+  File "yourscript.py", line 9, in <module>
+    print(tryme(100))
+  File "yourscript.py", line 4, in tryme
+    if x / i > 2:
+ZeroDivisionError: division by zero
+Uncaught exception. Entering post mortem debugging
+Running 'cont' or 'step' will restart the program
+> yourscript.py(4)tryme()
+-> if x / i > 2:
+```
+
+Ask `why` to have ChatDBG provide a helpful explanation why this program failed, and suggest a fix:
+
+```python
+(ChatDBG Pdb) why
+The root cause of the error is that the code is attempting to
+divide by zero in the line "if x / i > 2". As i ranges from 0 to 99,
+it will eventually reach the value of 0, causing a ZeroDivisionError.
+
+A possible fix for this would be to add a check for i being equal to
+zero before performing the division. This could be done by adding an
+additional conditional statement, such as "if i == 0: continue", to
+skip over the iteration when i is zero. The updated code would look
+like this:
+
+def tryme(x):
+    count = 0
+    for i in range(100):
+        if i == 0:
+            continue
+        if x / i > 2:
+            count += 1
+    return count
+
+if __name__ == '__main__':
+    print(tryme(100))
+```
+
 </details>
 

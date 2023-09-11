@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ChatDBG"
-version = "0.0.15"
+version = "0.0.16"
 authors = [
   { name="Emery Berger", email="emery.berger@gmail.com" },
 ]
-dependencies = ["openai>=0.27.0", "openai_async>=0.0.3", "aiohttp==3.8.3"]
+dependencies = ["openai>=0.27.0", "openai_async>=0.0.3", "aiohttp>=3.8.3"]
 description = "ChatDBG."
 readme = "README.md"
 requires-python = ">=3.7"
@@ -18,7 +18,6 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]

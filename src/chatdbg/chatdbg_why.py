@@ -115,10 +115,9 @@ async def why(self, arg):
             openai.api_key or "",
             timeout=30,
             payload={
-                "model": "gpt-3.5-turbo",
+                "model": "gpt-4",
                 "messages": [{"role": "user", "content": user_prompt}],
             },
-            stream=True
         )
         json_payload = completion.json()
         if not 'choices' in json_payload:

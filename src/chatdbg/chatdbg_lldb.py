@@ -1,8 +1,16 @@
 #!env python3
 import lldb
 import asyncio
+import os
 import re
-import utils
+import sys
+
+import pathlib
+the_path = pathlib.Path(__file__).parent.resolve()
+
+sys.path.append(os.path.abspath(the_path))
+
+import chatdbg_utils
 
 from typing import Tuple, Union
 
@@ -149,8 +157,8 @@ def buildPrompt(debugger: any) -> Tuple[str, str, str]:
         stack_trace += "Local variables: " + truncate_string(','.join(var_list), max_line_length) + '\n'
         try:
             source_code += f'/* frame {index} in {file_name} */\n'
-            source_code += utils.read_lines(full_file_name, line_num - 10, line_num) + '\n'
-            source_code += '-' * (utils.read_lines_width() + col_num - 1) + '^' + '\n\n'
+            source_code += chatdbg_utils.read_lines(full_file_name, line_num - 10, line_num) + '\n'
+            source_code += '-' * (chatdbg_utils.read_lines_width() + col_num - 1) + '^' + '\n\n'
             index += 1
         except:
             # Couldn't find the source for some reason. Skip the file.
@@ -182,7 +190,7 @@ def why(debugger: lldb.SBDebugger, command: str, result: str, internal_dict: dic
         print('Execution stopped at a breakpoint, not an error.')
         return
     the_prompt = buildPrompt(debugger)
-    asyncio.run(utils.explain(the_prompt[0], the_prompt[1], the_prompt[2], really_run))
+    asyncio.run(chatdbg_utils.explain(the_prompt[0], the_prompt[1], the_prompt[2], really_run))
 
 @lldb.command("why_prompt")
 def why_prompt(debugger: lldb.SBDebugger, command: str, result: str, internal_dict: dict) -> None:

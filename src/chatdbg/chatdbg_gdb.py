@@ -7,6 +7,11 @@ import openai
 import openai_async
 import textwrap
 
+import pathlib
+the_path = pathlib.Path(__file__).parent.resolve()
+
+sys.path.append(os.path.abspath(the_path))
+
 import chatdbg_utils
 
 def read_lines_list(file_path: str, start_line: int, end_line: int) -> [str]:

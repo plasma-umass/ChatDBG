@@ -5,6 +5,7 @@ import gdb
 import os
 import openai
 import openai_async
+import sys
 import textwrap
 
 import pathlib

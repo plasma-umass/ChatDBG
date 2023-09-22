@@ -76,11 +76,12 @@ class Why(gdb.Command):
             # which _probably_ means a SEGV.
             last_error_type = 'SIGSEGV'
         the_prompt = buildPrompt()
-        #print(the_prompt[0])
-        #print(the_prompt[1])
-        #print(the_prompt[2])
-        # Call `explain` function with pieces of the_prompt  as arguments.
-        asyncio.run(chatdbg_utils.explain(the_prompt[0], the_prompt[1], the_prompt[2], really_run))
+        if the_prompt:
+            #print(the_prompt[0])
+            #print(the_prompt[1])
+            #print(the_prompt[2])
+            # Call `explain` function with pieces of the_prompt  as arguments.
+            asyncio.run(chatdbg_utils.explain(the_prompt[0], the_prompt[1], the_prompt[2], really_run))
         
 Why()
 
@@ -114,7 +115,11 @@ def buildPrompt() -> str:
             lineno = None
             colno = None
         args = []
-        block = frame.block()
+        try:
+            block = frame.block()
+        except RuntimeError:
+            print('Your program must be compiled with debug information (`-g`) to use `why`.')
+            return ""
         for symbol in block:
             if symbol.is_argument:
                 name = symbol.name

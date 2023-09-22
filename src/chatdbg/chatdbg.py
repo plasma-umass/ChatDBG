@@ -1,19 +1,23 @@
 #! /usr/bin/env python3
 
-from . import pdb
-from .pdb import Pdb, Restart, _ModuleTarget, _ScriptTarget
-
 import asyncio
+import os
 import sys
 import traceback
 
-from . import chatdbg_why
+import pathlib
+the_path = pathlib.Path(__file__).parent.resolve()
 
+sys.path.append(os.path.abspath(the_path))
+
+import pdb
+from pdb import Pdb, Restart, _ModuleTarget, _ScriptTarget
+
+import chatdbg_why
 
 class ChatDBG(Pdb):
     def do_why(self, arg):
         asyncio.run(chatdbg_why.why(self, arg))
-
 
 import importlib.metadata
 

@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include <assert.h>
 #include <dbgeng.h>
 #include <iostream>
 #include <windows.h>
@@ -74,6 +75,95 @@ extern "C" __declspec(dllexport) void CALLBACK
     g_client->Release();
 }
 
+void outputGeneric(int outputType, std::vector<std::string>& output) {
+  int hr;
+    IDebugSymbolGroup *symbolGroup = nullptr;
+    if (FAILED(hr = g_symbols->GetScopeSymbolGroup(outputType,
+                                                   nullptr, &symbolGroup)))
+      return;
+
+    IDebugSymbolGroup2 *symbolGroup2 = nullptr;
+    if (FAILED(hr = g_symbols3->GetScopeSymbolGroup2(outputType, // DEBUG_SCOPE_GROUP_ARGUMENTS
+                                                     nullptr, &symbolGroup2)))
+      return;
+
+    ULONG numSymbols = 0;
+    if (FAILED(hr = symbolGroup->GetNumberSymbols(&numSymbols)))
+      return;
+
+    std::vector<std::string> symbol_output;
+
+    for (ULONG i = 0; i < numSymbols; i++) {
+      char name[MaxNameLength] = {};
+      ULONG nameSize;
+      if (FAILED(hr = symbolGroup->GetSymbolName(i, name, sizeof(name),
+                                                 &nameSize)))
+        continue;
+
+      ULONG typeId;
+      ULONG64 module;
+      if (FAILED(hr = g_symbols->GetSymbolTypeId(name, &typeId, &module)))
+        continue;
+
+      char typeName[MaxTypeLength] = {};
+      ULONG typeNameSize;
+      if (FAILED(hr = g_symbols->GetTypeName(module, typeId, typeName,
+                                             sizeof(typeName), &typeNameSize)))
+        continue;
+
+      char varValue[MaxValueLength] = {};
+      ULONG varValueNameSize;
+      if (FAILED(hr = symbolGroup2->GetSymbolValueText(
+                     i, varValue, MaxValueLength, &varValueNameSize)))
+        continue;
+
+      switch(outputType) {
+      case DEBUG_SCOPE_GROUP_ARGUMENTS:
+	symbol_output.push_back(std::format("{} = {}", name, varValue));
+	break;
+      case DEBUG_SCOPE_GROUP_LOCALS:
+	symbol_output.push_back(std::format("{} {} = {}", typeName, name, varValue));
+	break;
+      default:
+	assert(0);
+      }
+    }
+    if (numSymbols > 0) {
+      ///      output.push_back(preface); // std::string("Arguments: "));
+      for (auto &symbol_out : symbol_output) {
+        output.push_back(symbol_out);
+      }
+    }
+
+    // Release the symbolGroup for this frame.
+    if (symbolGroup)
+      symbolGroup->Release();
+}
+
+void outputArguments(std::vector<std::string>& output) {
+  std::vector<std::string> args;
+  outputGeneric(DEBUG_SCOPE_GROUP_ARGUMENTS, args);
+  std::string outString;
+  for (const auto& a : args) {
+    if (!outString.empty()) {
+      outString += ",";
+    }
+    outString += a;
+  }
+  output.push_back(outString);
+}
+
+void outputLocals(std::vector<std::string>& output) {
+  std::vector<std::string> locals;
+  outputGeneric(DEBUG_SCOPE_GROUP_LOCALS, locals);
+  if (!locals.empty()) {
+    output.push_back("Local variables: ");
+    for (const auto& l : locals) {
+      output.push_back(l);
+    }
+  }
+}
+
 extern "C" __declspec(dllexport) HRESULT CALLBACK
     why(PDEBUG_CLIENT4 Client, PCSTR Args) {
   // Get and print the module name
@@ -102,85 +192,48 @@ extern "C" __declspec(dllexport) HRESULT CALLBACK
   ULONG framesFilled;
 
   std::vector<std::string> output;
-  output.push_back(std::format("Hello {}", nameBuffer));
+  // output.push_back(std::format("Hello {}", nameBuffer));
+
+  auto framesOutput = 0;
 
   // Get up to MaxStackFrames stack frames from the current call stack
-  if (g_control->GetStackTrace(0, 0, 0, stackFrames, MaxStackFrames,
-                               &framesFilled) == S_OK) {
+  if FAILED (g_control->GetStackTrace(0, 0, 0, stackFrames, MaxStackFrames,
+                                      &framesFilled))
+    return S_OK;
 
-    for (ULONG i = 0; i < framesFilled; i++) {
-      ULONG64 offset;
-      char functionName[MAX_PATH] = {};
-      char fileName[MAX_PATH] = {};
-      ULONG lineNo;
+  for (ULONG i = 0; i < framesFilled; i++) {
+    ULONG64 offset;
+    char functionName[MAX_PATH] = {};
+    char fileName[MAX_PATH] = {};
+    ULONG lineNo;
 
-      if FAILED (g_symbols->GetNameByOffset(stackFrames[i].InstructionOffset,
-                                            functionName, MAX_PATH, NULL,
-                                            &offset))
-        continue;
+    if FAILED (g_symbols->GetNameByOffset(stackFrames[i].InstructionOffset,
+                                          functionName, MAX_PATH, NULL,
+                                          &offset))
+      continue;
 
-      if FAILED (g_symbols->GetLineByOffset(stackFrames[i].InstructionOffset,
-                                            &lineNo, fileName, MAX_PATH, NULL,
-                                            NULL))
-        continue;
+    if FAILED (g_symbols->GetLineByOffset(stackFrames[i].InstructionOffset,
+                                          &lineNo, fileName, MAX_PATH, NULL,
+                                          NULL))
+      continue;
 
-      output.push_back(std::format("Function {}:{}", functionName, lineNo));
-      int hr;
-      if (FAILED(hr = g_symbols->SetScope(stackFrames[i].InstructionOffset,
-                                          &stackFrames[i], NULL, 0)))
-        continue;
+    framesOutput += 1;
 
-      IDebugSymbolGroup *symbolGroup = nullptr;
-      if (FAILED(hr = g_symbols->GetScopeSymbolGroup(DEBUG_SCOPE_GROUP_LOCALS,
-                                                     nullptr, &symbolGroup)))
-        continue;
 
-      IDebugSymbolGroup2 *symbolGroup2 = nullptr;
-      if (FAILED(hr = g_symbols3->GetScopeSymbolGroup2(DEBUG_SCOPE_GROUP_LOCALS,
-                                                       nullptr, &symbolGroup2)))
-        continue;
+    int hr;
+    if (FAILED(hr = g_symbols->SetScope(stackFrames[i].InstructionOffset,
+                                        &stackFrames[i], NULL, 0)))
+      continue;
 
-      ULONG numSymbols = 100;
-      if (FAILED(hr = symbolGroup->GetNumberSymbols(&numSymbols)))
-        continue;
+    std::vector<std::string> args;
+    outputArguments(args);
+    
+    output.push_back(std::format("frame {}: {}({}) at {}:{}", framesOutput,
+                                 functionName, args.back(), fileName, lineNo));
+    // outputArguments(output);
+    outputLocals(output);
 
-      for (ULONG i = 0; i < numSymbols; i++) {
-        char name[MaxNameLength] = {};
-        ULONG nameSize;
-        if (FAILED(hr = symbolGroup->GetSymbolName(i, name, sizeof(name),
-                                                   &nameSize)))
-          continue;
-
-        ULONG typeId;
-        ULONG64 module;
-        if (FAILED(hr = g_symbols->GetSymbolTypeId(name, &typeId, &module)))
-          continue;
-
-        char typeName[MaxTypeLength] = {};
-        ULONG typeNameSize;
-        if (FAILED(hr =
-                       g_symbols->GetTypeName(module, typeId, typeName,
-                                              sizeof(typeName), &typeNameSize)))
-          continue;
-
-        // g_control->Output(DEBUG_OUTPUT_NORMAL, "Symbol Name: %s, Type: %s\n",
-        // name, typeName);
-        char varValue[MaxValueLength] = {};
-        ULONG varValueNameSize;
-        if (FAILED(hr = symbolGroup2->GetSymbolValueText(
-                       i, varValue, MaxValueLength, &varValueNameSize)))
-          continue;
-
-        // g_control->Output(DEBUG_OUTPUT_NORMAL, "Value: %s\n", varValue);
-        output.push_back(std::format("{} {} = {}", typeName, name, varValue));
-      }
-
-      // Release the symbolGroup for this frame.
-      if (symbolGroup)
-        symbolGroup->Release();
-
-      hasDebugSymbols = true;
-    }
+    hasDebugSymbols = true;
   }
   for (auto &s : output) {
     g_control->Output(DEBUG_OUTPUT_NORMAL, s.c_str());

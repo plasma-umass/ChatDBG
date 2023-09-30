@@ -8,7 +8,7 @@ import traceback
 import pathlib
 the_path = pathlib.Path(__file__).parent.resolve()
 
-sys.path.append(os.path.abspath(the_path))
+sys.path.insert(0, os.path.abspath(the_path))
 
 import pdb
 from pdb import Pdb, Restart, _ModuleTarget, _ScriptTarget

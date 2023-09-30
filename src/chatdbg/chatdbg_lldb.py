@@ -122,6 +122,8 @@ def buildPrompt(debugger: any) -> Tuple[str, str, str]:
         # Build up an array of argument values to the function, with type info.
         for i in range(len(frame.GetFunction().GetType().GetFunctionArgumentTypes())):
             arg = frame.FindVariable(frame.GetFunction().GetArgumentName(i))
+            if not arg:
+                continue
             arg_name = str(arg).split('=')[0].strip()
             arg_val = str(arg).split('=')[1].strip()
             arg_list.append(f"{arg_name} = {arg_val}")
@@ -153,16 +155,18 @@ def buildPrompt(debugger: any) -> Tuple[str, str, str]:
 
         max_line_length = 100
         
-        stack_trace += truncate_string(f'frame {index}: {func_name}({",".join(arg_list)}) at {file_name}:{line_num}:{col_num}\n', max_line_length - 3) + '\n' # 3 accounts for ellipsis
-        stack_trace += "Local variables: " + truncate_string(','.join(var_list), max_line_length) + '\n'
         try:
+            lines = chatdbg_utils.read_lines(full_file_name, line_num - 10, line_num)
+            stack_trace += truncate_string(f'frame {index}: {func_name}({",".join(arg_list)}) at {file_name}:{line_num}:{col_num}\n', max_line_length - 3) + '\n' # 3 accounts for ellipsis
+            if len(var_list) > 0:
+                stack_trace += "Local variables: " + truncate_string(','.join(var_list), max_line_length) + '\n'
             source_code += f'/* frame {index} in {file_name} */\n'
-            source_code += chatdbg_utils.read_lines(full_file_name, line_num - 10, line_num) + '\n'
+            source_code += lines + '\n'
             source_code += '-' * (chatdbg_utils.read_lines_width() + col_num - 1) + '^' + '\n\n'
-            index += 1
         except:
             # Couldn't find the source for some reason. Skip the file.
-            pass
+            continue
+        index += 1
     error_reason = thread.GetStopDescription(255)
     return (source_code, stack_trace, error_reason)
 

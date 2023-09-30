@@ -2,20 +2,20 @@
 
 import asyncio
 import os
+import pathlib
+import re
 import sys
 import traceback
 
-import pathlib
 the_path = pathlib.Path(__file__).parent.resolve()
+the_abs_path = os.path.abspath(the_path)
+if the_abs_path not in sys.path:
+    sys.path.insert(0, the_abs_path)
 
-sys.path.insert(0, os.path.abspath(the_path))
-
-import pdb
-from pdb import Pdb, Restart, _ModuleTarget, _ScriptTarget
-
+import chatdbg_pdb
 import chatdbg_why
 
-class ChatDBG(Pdb):
+class ChatDBG(chatdbg_pdb.Pdb):
     def do_why(self, arg):
         asyncio.run(chatdbg_why.why(self, arg))
 
@@ -63,7 +63,7 @@ def main():
     commands = [optarg for opt, optarg in opts if opt in ["-c", "--command"]]
 
     module_indicated = any(opt in ["-m"] for opt, optarg in opts)
-    cls = _ModuleTarget if module_indicated else _ScriptTarget
+    cls = chatdbg_pdb._ModuleTarget if module_indicated else chatdbg_pdb._ScriptTarget
     target = cls(args[0])
 
     target.check()
@@ -82,7 +82,7 @@ def main():
             if pdb._user_requested_quit:
                 break
             print("The program finished and will be restarted")
-        except Restart:
+        except chatdbg_pdb.Restart:
             print("Restarting", target, "with arguments:")
             print("\t" + " ".join(sys.argv[1:]))
         except SystemExit:
@@ -99,10 +99,3 @@ def main():
             t = sys.exc_info()[2]
             pdb.interaction(None, t)
             print("Post mortem debugger finished. The " + target + " will be restarted")
-
-
-# When invoked as main program, invoke the debugger on a script
-if __name__ == "__main__":
-    import chatdbg
-
-    chatdbg.main()

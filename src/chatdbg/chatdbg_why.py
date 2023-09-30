@@ -22,12 +22,13 @@ async def why(self, arg):
             "The command 'why' only works when there is an uncaught exception. Try running 'python3 -m chatdbg -c continue'."
         )
         return
-    # print(dir(self))
     for frame_lineno in self.stack:
         import inspect
 
         frame, lineno = frame_lineno
-        if not frame.f_code.co_filename.startswith(os.getcwd()):
+        # Only include frames for files in the same directory as the program being debugged.
+        # TODO: add a --program-path option as in Scalene
+        if not frame.f_code.co_filename.startswith(os.path.dirname(sys.argv[0])):
             stack_frames -= 1
             continue
         try:
@@ -61,7 +62,10 @@ async def why(self, arg):
     user_prompt += "stack trace:\n"
     user_prompt += f"```\n{stack_trace}```\n"
     user_prompt += f"Exception: {exception_name} ({exception_value})\n"
-    # print(user_prompt)
+
+    #print(user_prompt)
+    #return
+    
     import httpx
 
     model = chatdbg_utils.get_model()

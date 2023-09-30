@@ -14,14 +14,28 @@
 
  ******/
 
+#include "openai.hpp"
+#include <nlohmann/json.hpp>
+
 #include <format>
 #include <string>
 #include <vector>
+#include <iostream>
+#include <cstdlib>
+#include <vector>
+#include <sstream>
+#include <algorithm>
 
 #include <assert.h>
 #include <dbgeng.h>
 #include <iostream>
+
+#define WIN32_LEAN_AND_MEAN // Exclude rarely-used stuff from Windows headers
 #include <windows.h>
+
+#include "appendlines.hpp"
+#include "wordwrap.hpp"
+#include "getmodel.hpp"
 
 const auto MaxStackFrames =
     20; // maximum number of stack frames to use for a stack trace
@@ -164,6 +178,36 @@ void outputLocals(std::vector<std::string>& output) {
   }
 }
 
+std::string call_openai_api(const std::string &user_prompt,
+			    const std::string &key) {
+    openai::start();
+
+    auto completion = openai::completion().create(R"(
+    {
+        "model": get_model(),
+        "messages": [{"role":"user", "content", user_prompt}],
+    }
+    )"_json);
+
+    return std::string{ completion.dump(2) };
+  
+
+#if 0
+    if (res && res->status == 200) {
+        auto response_json = nlohmann::json::parse(res->body);
+        std::string text = response_json["choices"][0]["message"]["content"];
+        return word_wrap(text);
+    } else {
+        std::string error_msg = "Error occurred: ";
+        if(res)
+            error_msg += res->status == 0 ? "Unable to connect to the server." : std::to_string(res->status) + " - " + res->body;
+        else
+            error_msg += "Unable to receive a response.";
+        return error_msg;
+    }
+#endif
+}
+
 extern "C" __declspec(dllexport) HRESULT CALLBACK
     why(PDEBUG_CLIENT4 Client, PCSTR Args) {
   // Get and print the module name
@@ -217,13 +261,12 @@ extern "C" __declspec(dllexport) HRESULT CALLBACK
                                           NULL))
       continue;
 
-    framesOutput += 1;
-
-
     int hr;
     if (FAILED(hr = g_symbols->SetScope(stackFrames[i].InstructionOffset,
                                         &stackFrames[i], NULL, 0)))
       continue;
+
+    framesOutput += 1;
 
     std::vector<std::string> args;
     outputArguments(args);
@@ -233,12 +276,32 @@ extern "C" __declspec(dllexport) HRESULT CALLBACK
     // outputArguments(output);
     outputLocals(output);
 
+    auto startLine = lineNo < 10 ? 1 : lineNo - 10;
+    output.push_back(std::format("/* frame {} in {} (lines {} to {}) */", framesOutput, fileName, startLine, lineNo));
+    append_lines(output, std::string(fileName), startLine, lineNo);
+    
     hasDebugSymbols = true;
   }
+  g_control->Output(DEBUG_OUTPUT_NORMAL, get_model().c_str());
+  g_control->Output(DEBUG_OUTPUT_NORMAL, "\n");
   for (auto &s : output) {
     g_control->Output(DEBUG_OUTPUT_NORMAL, s.c_str());
     g_control->Output(DEBUG_OUTPUT_NORMAL, "\n");
   }
+
+  std::string prompt { "What is the capitol of France?" };
+  auto openai_key_str = std::getenv("OPENAI_API_KEY");
+  
+  if (!openai_key_str) {
+    g_control->Output(DEBUG_OUTPUT_WARNING, "You need to define the environment variable OPENAI_API_KEY.\n");
+    return S_OK;
+  }
+  auto openai_key = std::string(openai_key_str);
+  
+  g_control->Output(DEBUG_OUTPUT_NORMAL, std::string(openai_key).c_str());
+  auto result = call_openai_api(prompt, openai_key);
+  g_control->Output(DEBUG_OUTPUT_NORMAL, result.c_str());
+  
   if (!hasDebugSymbols) {
     g_control->Output(DEBUG_OUTPUT_NORMAL,
                       "ChatDBG needs debug information to work properly. "

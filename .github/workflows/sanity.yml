@@ -22,5 +22,5 @@ jobs:
       - name: Install in editable mode
         run: python3 -m pip install -e .
 
-      - name: Check version
-        run: python3 -m chatdbg
+      - name: Check help message
+        run: python3 -m chatdbg --help

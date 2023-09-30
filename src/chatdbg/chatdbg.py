@@ -52,13 +52,13 @@ def main():
 
     opts, args = getopt.getopt(sys.argv[1:], "mhc:", ["help", "command="])
 
-    if not args:
-        print(_usage)
-        sys.exit(2)
-
     if any(opt in ["-h", "--help"] for opt, optarg in opts):
         print(_usage)
         sys.exit()
+
+    if not args:
+        print(_usage)
+        sys.exit(2)
 
     commands = [optarg for opt, optarg in opts if opt in ["-c", "--command"]]
 

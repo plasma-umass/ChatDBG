@@ -1,6 +1,6 @@
 [package]
 name = "chatdbg"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "Rust-specific support for ChatDBG (https://github.com/plasma-umass/chatdbg)."
 authors = ["Emery Berger <emery.berger@gmail.com>"]
@@ -11,8 +11,8 @@ repository = "https://github.com/plasma-umass/ChatDBG/"
 
 [dependencies]
 lazy_static = "1.4.0"
-quote = "1.0.33"
-syn = { version = "2.0.37", features = ["full"] }
+# quote = "1.0.33"
+# syn = { version = "2.0.37", features = ["full"] }
 
-[lib]
-proc-macro = true
+# [lib]
+# proc-macro = true

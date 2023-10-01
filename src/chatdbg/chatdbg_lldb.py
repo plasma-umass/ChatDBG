@@ -24,6 +24,20 @@ def __lldb_init_module(debugger: lldb.SBDebugger, internal_dict: dict) -> None:
 def is_debug_build(debugger, command, result, internal_dict) -> bool:
     """Returns False if not compiled with debug information."""
     target = debugger.GetSelectedTarget()
+    if not target:
+        return False
+
+    has_debug_symbols = False
+    for module in target.module_iter():
+        for cu in module.compile_unit_iter():
+            for line_entry in cu:
+                if line_entry.GetLine() > 0:
+                    has_debug_symbols = True
+                    break
+    return has_debug_symbols
+
+def is_debug_build_prev(debugger, command, result, internal_dict) -> bool:
+    target = debugger.GetSelectedTarget()
     if target:
         module = target.GetModuleAtIndex(0)
         if module:

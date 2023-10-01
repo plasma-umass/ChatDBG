@@ -8,6 +8,9 @@ import sys
 import pathlib
 the_path = pathlib.Path(__file__).parent.resolve()
 
+# The file produced by the panic handler if the Rust program is using the chatdbg crate.
+rust_panic_log_filename = "panic_log.txt"
+
 sys.path.append(os.path.abspath(the_path))
 
 import chatdbg_utils
@@ -168,6 +171,13 @@ def buildPrompt(debugger: any) -> Tuple[str, str, str]:
             continue
         index += 1
     error_reason = thread.GetStopDescription(255)
+    # If the Rust panic log exists, append it to the error reason.
+    try:
+        with open(rust_panic_log_filename, "r") as log:
+            panic_log = log.read()
+        error_reason = panic_log + "\n" + error_reason
+    except:
+        pass
     return (source_code, stack_trace, error_reason)
 
 @lldb.command("why")

@@ -1,0 +1,14 @@
+[package]
+name = "chatdbg"
+version = "0.1.0"
+edition = "2021"
+description = "Rust-specific support for ChatDBG (https://github.com/plasma-umass/chatdbg)."
+authors = ["Emery Berger <emery.berger@gmail.com>"]
+license = "Apache 2.0"
+readme = "https://github.com/plasma-umass/ChatDBG/README.md"
+homepage = "https://github.com/plasma-umass/ChatDBG/"
+repository = "https://github.com/plasma-umass/ChatDBG/"
+
+[dependencies]
+lazy_static = "1.4.0"
+

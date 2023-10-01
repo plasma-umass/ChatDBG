@@ -94,10 +94,44 @@ enter post mortem debugging mode.
 Unlike other debuggers, you can then use the `why` command to ask
 ChatDBG why your program failed and get a suggested fix.
 
-### Debugging native code (<TT>lldb</TT> / <TT>gdb</TT>)
+### Debugging native code (C, C++, or Rust with <TT>lldb</TT> / <TT>gdb</TT>)
 
 To use ChatDBG with `lldb` or `gdb`, just run native code (compiled with `-g` for debugging symbols) with your choice of debugger; when it crashes, ask `why`. This also works for post mortem debugging (when you load a core with the `-c` option).
 
+<details>
+<summary>
+<B>Debugging Rust programs</B>
+</summary>
+
+To use ChatDBG with Rust, you need to do two steps: modify your
+`Cargo.toml` file and add one line to your source program.
+
+1. Add this to your `Cargo.toml` file:
+
+```toml
+[dependencies]
+chatdbg = "0.1.2"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+```
+
+2. In your program, run `chatdbg::chatdbg()` as early as possible.
+
+```rust
+use chatdbg;
+
+fn main() {
+   chatdbg::chatdbg();
+   // Insert the above line as early as possible in your main function
+```
+
+Now you can run your Rust code with `lldb` (`gdb` is not yet supported).
+
+</details>
 
 ### Examples
 

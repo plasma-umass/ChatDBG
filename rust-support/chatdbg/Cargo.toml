@@ -11,4 +11,8 @@ repository = "https://github.com/plasma-umass/ChatDBG/"
 
 [dependencies]
 lazy_static = "1.4.0"
+quote = "1.0.33"
+syn = { version = "2.0.37", features = ["full"] }
 
+[lib]
+proc-macro = true

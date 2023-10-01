@@ -1,4 +1,3 @@
-use std::io;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::panic;
@@ -11,7 +10,7 @@ lazy_static::lazy_static! {
     static ref FILE_CREATED: AtomicBool = AtomicBool::new(false);
 }
 
-pub fn chatdbg() {
+fn chatdbg() {
     // Set a custom panic hook.
     panic::set_hook(Box::new(|info| {
         let _guard = FILE_MUTEX.lock().unwrap(); // Lock Mutex to synchronize access.
@@ -49,4 +48,27 @@ pub fn chatdbg() {
         // Write to the file.
         writeln!(file, "{}", message).expect("Unable to write to file");
     }));
+}
+
+use proc_macro::TokenStream;
+use quote::quote;
+use syn::{parse_macro_input, ItemFn};
+
+#[proc_macro_attribute]
+pub fn startup(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(item as ItemFn);
+    
+    let expanded = quote! {
+        #input // Repeat the original function
+        
+        fn main() {
+	    chatdbg(); // Call your startup function
+            // Call the original main function
+            ::std::rt::resume_unwind(::std::panic::catch_unwind(|| {
+                #input
+            }));
+        }
+    };
+    
+    TokenStream::from(expanded)
 }

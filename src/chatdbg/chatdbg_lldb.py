@@ -267,4 +267,5 @@ def why(
 def why_prompt(
     debugger: lldb.SBDebugger, command: str, result: str, internal_dict: dict
 ) -> None:
+    """Output the prompt that `why` would generate (for debugging purposes only)."""
     why(debugger, command, result, internal_dict, really_run=False)

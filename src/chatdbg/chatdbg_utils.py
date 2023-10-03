@@ -129,7 +129,7 @@ async def explain(
             messages=[{"role": "user", "content": user_prompt}],
         )
         text = completion.choices[0].message.content
-        print(chatdbg_utils.word_wrap_except_code_blocks(text))
+        print(word_wrap_except_code_blocks(text))
     except openai.error.AuthenticationError:
         print(
             "You need a valid OpenAI key to use ChatDBG. You can get a key here: https://openai.com/api/"

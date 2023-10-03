@@ -6,6 +6,7 @@ import re
 import sys
 
 import pathlib
+
 the_path = pathlib.Path(__file__).parent.resolve()
 
 # The file produced by the panic handler if the Rust program is using the chatdbg crate.
@@ -17,9 +18,11 @@ import chatdbg_utils
 
 from typing import Tuple, Union
 
+
 def __lldb_init_module(debugger: lldb.SBDebugger, internal_dict: dict) -> None:
     # Update the prompt.
     debugger.HandleCommand("settings set prompt '(ChatDBG lldb) '")
+
 
 def is_debug_build(debugger, command, result, internal_dict) -> bool:
     """Returns False if not compiled with debug information."""
@@ -36,6 +39,7 @@ def is_debug_build(debugger, command, result, internal_dict) -> bool:
                     break
     return has_debug_symbols
 
+
 def is_debug_build_prev(debugger, command, result, internal_dict) -> bool:
     target = debugger.GetSelectedTarget()
     if target:
@@ -46,8 +50,9 @@ def is_debug_build_prev(debugger, command, result, internal_dict) -> bool:
                 return True
     return False
 
-   
+
 # From lldbinit
+
 
 def get_process() -> Union[None, lldb.SBProcess]:
     """
@@ -55,6 +60,7 @@ def get_process() -> Union[None, lldb.SBProcess]:
     :return: An lldb object representing the process (lldb.SBProcess) that this target owns.
     """
     return get_target().process
+
 
 def get_frame() -> lldb.SBFrame:
     """
@@ -66,7 +72,10 @@ def get_frame() -> lldb.SBFrame:
     frame = None
     for thread in get_process():
         # Loop through the threads in the process
-        if thread.GetStopReason() != lldb.eStopReasonNone and thread.GetStopReason() != lldb.eStopReasonInvalid:
+        if (
+            thread.GetStopReason() != lldb.eStopReasonNone
+            and thread.GetStopReason() != lldb.eStopReasonInvalid
+        ):
             # If the stop reason is not "none" or "invalid", get the frame at index 0 and break the loop.
             frame = thread.GetFrameAtIndex(0)
             break
@@ -78,6 +87,7 @@ def get_frame() -> lldb.SBFrame:
     # Return the current frame.
     return frame
 
+
 def get_thread() -> lldb.SBThread:
     """
     Returns the currently stopped thread in the debugged process.
@@ -87,12 +97,16 @@ def get_thread() -> lldb.SBThread:
     # Iterate over threads in the process
     for _thread in get_process():
         # Check if thread is stopped for a valid reason
-        if _thread.GetStopReason() != lldb.eStopReasonNone and _thread.GetStopReason() != lldb.eStopReasonInvalid:
+        if (
+            _thread.GetStopReason() != lldb.eStopReasonNone
+            and _thread.GetStopReason() != lldb.eStopReasonInvalid
+        ):
             thread = _thread
     if not thread:
         # No stopped thread was found
         pass
     return thread
+
 
 def get_target() -> lldb.SBTarget:
     target = lldb.debugger.GetSelectedTarget()
@@ -100,26 +114,29 @@ def get_target() -> lldb.SBTarget:
         return None
     return target
 
+
 def truncate_string(string, n):
     if len(string) <= n:
         return string
     else:
         return string[:n] + "..."
 
+
 def buildPrompt(debugger: any) -> Tuple[str, str, str]:
     import os
+
     target = get_target()
     if not target:
-        return ''
+        return ""
     thread = get_thread()
     if not thread:
-        return ''
+        return ""
     if thread.GetStopReason() == lldb.eStopReasonBreakpoint:
-        return ''
+        return ""
     frame = thread.GetFrameAtIndex(0)
-    stack_trace = ''
-    source_code = ''
-    
+    stack_trace = ""
+    source_code = ""
+
     # magic number - don't bother walking up more than this many frames.
     # This is just to prevent overwhelming OpenAI (or to cope with a stack overflow!).
     max_frames = 10
@@ -132,7 +149,7 @@ def buildPrompt(debugger: any) -> Tuple[str, str, str]:
         if not function:
             continue
         full_func_name = frame.GetFunctionName()
-        func_name = full_func_name.split('(')[0]
+        func_name = full_func_name.split("(")[0]
         arg_list = []
         type_list = []
 
@@ -141,14 +158,14 @@ def buildPrompt(debugger: any) -> Tuple[str, str, str]:
             arg = frame.FindVariable(frame.GetFunction().GetArgumentName(i))
             if not arg:
                 continue
-            arg_name = str(arg).split('=')[0].strip()
-            arg_val = str(arg).split('=')[1].strip()
+            arg_name = str(arg).split("=")[0].strip()
+            arg_val = str(arg).split("=")[1].strip()
             arg_list.append(f"{arg_name} = {arg_val}")
-            
+
         # Get the frame variables
         variables = frame.GetVariables(True, True, True, True)
         var_list = []
-        
+
         for var in variables:
             name = var.GetName()
             value = var.GetValue()
@@ -158,10 +175,12 @@ def buildPrompt(debugger: any) -> Tuple[str, str, str]:
                 # Attempt to dereference the pointer
                 try:
                     deref_value = var.Dereference().GetValue()
-                    var_list.append(f"{type} {name} = {value} (*{name} = {deref_value})")
+                    var_list.append(
+                        f"{type} {name} = {value} (*{name} = {deref_value})"
+                    )
                 except:
                     var_list.append(f"{type} {name} = {value}")
-            
+
         line_entry = frame.GetLineEntry()
         file_spec = line_entry.GetFileSpec()
         file_name = file_spec.GetFilename()
@@ -171,15 +190,27 @@ def buildPrompt(debugger: any) -> Tuple[str, str, str]:
         col_num = line_entry.GetColumn()
 
         max_line_length = 100
-        
+
         try:
             lines = chatdbg_utils.read_lines(full_file_name, line_num - 10, line_num)
-            stack_trace += truncate_string(f'frame {index}: {func_name}({",".join(arg_list)}) at {file_name}:{line_num}:{col_num}\n', max_line_length - 3) + '\n' # 3 accounts for ellipsis
+            stack_trace += (
+                truncate_string(
+                    f'frame {index}: {func_name}({",".join(arg_list)}) at {file_name}:{line_num}:{col_num}\n',
+                    max_line_length - 3,
+                )
+                + "\n"
+            )  # 3 accounts for ellipsis
             if len(var_list) > 0:
-                stack_trace += "Local variables: " + truncate_string(','.join(var_list), max_line_length) + '\n'
-            source_code += f'/* frame {index} in {file_name} */\n'
-            source_code += lines + '\n'
-            source_code += '-' * (chatdbg_utils.read_lines_width() + col_num - 1) + '^' + '\n\n'
+                stack_trace += (
+                    "Local variables: "
+                    + truncate_string(",".join(var_list), max_line_length)
+                    + "\n"
+                )
+            source_code += f"/* frame {index} in {file_name} */\n"
+            source_code += lines + "\n"
+            source_code += (
+                "-" * (chatdbg_utils.read_lines_width() + col_num - 1) + "^" + "\n\n"
+            )
         except:
             # Couldn't find the source for some reason. Skip the file.
             continue
@@ -194,33 +225,46 @@ def buildPrompt(debugger: any) -> Tuple[str, str, str]:
         pass
     return (source_code, stack_trace, error_reason)
 
+
 @lldb.command("why")
-def why(debugger: lldb.SBDebugger, command: str, result: str, internal_dict: dict, really_run = True) -> None:
+def why(
+    debugger: lldb.SBDebugger,
+    command: str,
+    result: str,
+    internal_dict: dict,
+    really_run=True,
+) -> None:
     """
     Root cause analysis for an error.
     """
     # Check if there is debug info.
     if not is_debug_build(debugger, command, result, internal_dict):
-        print('Your program must be compiled with debug information (`-g`) to use `why`.')
+        print(
+            "Your program must be compiled with debug information (`-g`) to use `why`."
+        )
         return
     # Check if program is attached to a debugger.
     if not get_target():
-        print('Must be attached to a program to ask `why`.')
+        print("Must be attached to a program to ask `why`.")
         return
     # Check if code has been run before executing the `why` command.
     thread = get_thread()
     if not thread:
-        print('Must run the code first to ask `why`.')
+        print("Must run the code first to ask `why`.")
         return
     # Check why code stopped running.
     if thread.GetStopReason() == lldb.eStopReasonBreakpoint:
         # Check if execution stopped at a breakpoint or an error.
-        print('Execution stopped at a breakpoint, not an error.')
+        print("Execution stopped at a breakpoint, not an error.")
         return
     the_prompt = buildPrompt(debugger)
-    asyncio.run(chatdbg_utils.explain(the_prompt[0], the_prompt[1], the_prompt[2], really_run))
+    asyncio.run(
+        chatdbg_utils.explain(the_prompt[0], the_prompt[1], the_prompt[2], really_run)
+    )
+
 
 @lldb.command("why_prompt")
-def why_prompt(debugger: lldb.SBDebugger, command: str, result: str, internal_dict: dict) -> None:
+def why_prompt(
+    debugger: lldb.SBDebugger, command: str, result: str, internal_dict: dict
+) -> None:
     why(debugger, command, result, internal_dict, really_run=False)
-    

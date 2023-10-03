@@ -6,6 +6,7 @@ import textwrap
 
 import chatdbg_utils
 
+
 async def why(self, arg):
     user_prompt = "Explain what the root cause of this error is, given the following source code and traceback, and generate code that fixes the error."
     user_prompt += "\n"
@@ -52,7 +53,7 @@ async def why(self, arg):
                             + " " * (positions.col_offset - leading_spaces)
                             + "^" * (positions.end_col_offset - positions.col_offset)
                             + "\n"
-                    )
+                        )
                 if index >= lineno:
                     break
         except:
@@ -63,15 +64,15 @@ async def why(self, arg):
     user_prompt += f"```\n{stack_trace}```\n"
     user_prompt += f"Exception: {exception_name} ({exception_value})\n"
 
-    #print(user_prompt)
-    #return
-    
+    # print(user_prompt)
+    # return
+
     import httpx
 
     model = chatdbg_utils.get_model()
     if not model:
         return
-    
+
     text = ""
     try:
         completion = await openai_async.chat_complete(
@@ -83,7 +84,7 @@ async def why(self, arg):
             },
         )
         json_payload = completion.json()
-        if not 'choices' in json_payload:
+        if not "choices" in json_payload:
             raise openai.error.AuthenticationError
         text = json_payload["choices"][0]["message"]["content"]
     except (openai.error.AuthenticationError, httpx.LocalProtocolError):

@@ -9,6 +9,7 @@ import sys
 import textwrap
 
 import pathlib
+
 the_path = pathlib.Path(__file__).parent.resolve()
 
 sys.path.append(os.path.abspath(the_path))
@@ -17,6 +18,7 @@ sys.path.append(os.path.abspath(the_path))
 rust_panic_log_filename = "panic_log.txt"
 
 import chatdbg_utils
+
 
 def read_lines_list(file_path: str, start_line: int, end_line: int) -> [str]:
     """
@@ -32,7 +34,7 @@ def read_lines_list(file_path: str, start_line: int, end_line: int) -> [str]:
 
     """
     # open the file for reading
-    with open(file_path, 'r') as f:
+    with open(file_path, "r") as f:
         # read all the lines from the file
         lines = f.readlines()
         # remove trailing newline characters
@@ -44,30 +46,34 @@ def read_lines_list(file_path: str, start_line: int, end_line: int) -> [str]:
     # return the requested lines as a list
     return lines[start_line:end_line]
 
+
 # Set the prompt to gdb-ChatDBG
 gdb.prompt_hook = lambda x: "(gdb-ChatDBG) "
 
 last_error_type = ""
 
+
 def stop_handler(event):
     """Sets last error type so we can report it later."""
     # Check if the event is a stop event
     global last_error_type
-    if not hasattr(event, 'stop_signal'):
-        last_error_type = "" # Not a real error (e.g., a breakpoint)
+    if not hasattr(event, "stop_signal"):
+        last_error_type = ""  # Not a real error (e.g., a breakpoint)
         return
     if event.stop_signal is not None:
         last_error_type = event.stop_signal
+
 
 gdb.events.stop.connect(stop_handler)
 
 # Implement the command `why`
 class Why(gdb.Command):
     """Provides root cause analysis for a failure."""
+
     def __init__(self):
         gdb.Command.__init__(self, "why", gdb.COMMAND_USER)
 
-    def invoke(self, arg, from_tty, really_run = True):
+    def invoke(self, arg, from_tty, really_run=True):
         try:
             frame = gdb.selected_frame()
         except:
@@ -77,18 +83,24 @@ class Why(gdb.Command):
         if not last_error_type:
             # Assume we are running from a core dump,
             # which _probably_ means a SEGV.
-            last_error_type = 'SIGSEGV'
+            last_error_type = "SIGSEGV"
         the_prompt = buildPrompt()
         if the_prompt:
             # Call `explain` function with pieces of the_prompt  as arguments.
-            asyncio.run(chatdbg_utils.explain(the_prompt[0], the_prompt[1], the_prompt[2], really_run))
-        
+            asyncio.run(
+                chatdbg_utils.explain(
+                    the_prompt[0], the_prompt[1], the_prompt[2], really_run
+                )
+            )
+
+
 Why()
+
 
 def buildPrompt() -> str:
     thread = gdb.selected_thread()
     if not thread:
-        return ''
+        return ""
 
     stack_trace = ""
     source_code = ""
@@ -99,7 +111,7 @@ def buildPrompt() -> str:
     # magic number - don't bother walking up more than this many frames.
     # This is just to prevent overwhelming OpenAI (or to cope with a stack overflow!).
     max_frames = 10
-    
+
     # Walk the stack and build up the frames list.
     while frame is not None and max_frames > 0:
         func_name = frame.name()
@@ -118,7 +130,9 @@ def buildPrompt() -> str:
         try:
             block = frame.block()
         except RuntimeError:
-            print('Your program must be compiled with debug information (`-g`) to use `why`.')
+            print(
+                "Your program must be compiled with debug information (`-g`) to use `why`."
+            )
             return ""
         for symbol in block:
             if symbol.is_argument:
@@ -136,15 +150,17 @@ def buildPrompt() -> str:
         line_num = frame_info[3]
         arg_list = []
         for arg in frame_info[2]:
-            arg_list.append(str(arg[1])) # Note: arg[0] is the name of the argument
-        stack_trace += f'frame {i}: {func_name}({",".join(arg_list)}) at {file_name}:{line_num}\n'
+            arg_list.append(str(arg[1]))  # Note: arg[0] is the name of the argument
+        stack_trace += (
+            f'frame {i}: {func_name}({",".join(arg_list)}) at {file_name}:{line_num}\n'
+        )
         try:
-            source_code += f'/* frame {i} */\n'
+            source_code += f"/* frame {i} */\n"
             lines = read_lines_list(file_name, line_num - 10, line_num)
-            source_code += '\n'.join(lines) + '\n'
+            source_code += "\n".join(lines) + "\n"
             # Get the spaces before the last line.
             num_spaces = len(lines[-1]) - len(lines[-1].lstrip())
-            source_code += ' ' * num_spaces + '^' + '-' * (79 - num_spaces) + '\n'
+            source_code += " " * num_spaces + "^" + "-" * (79 - num_spaces) + "\n"
         except:
             # Couldn't find source for some reason. Skip file.
             pass
@@ -157,7 +173,5 @@ def buildPrompt() -> str:
         last_error_type = panic_log + "\n" + last_error_type
     except:
         pass
-    
+
     return (source_code, stack_trace, last_error_type)
-
-

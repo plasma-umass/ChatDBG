@@ -1,7 +1,7 @@
 import os
 import sys
 import textwrap
-
+import tiktoken
 import openai
 
 
@@ -102,6 +102,13 @@ def read_lines(file_path: str, start_line: int, end_line: int) -> str:
     return "\n".join(lines[start_line:end_line])
 
 
+def num_tokens_from_string(string: str, model: str) -> int:
+    """Returns the number of tokens in a text string."""
+    encoding = tiktoken.encoding_for_model(model)
+    num_tokens = len(encoding.encode(string))
+    return num_tokens
+
+
 def explain(source_code: str, traceback: str, exception: str, really_run=True) -> None:
     import httpx
 
@@ -113,12 +120,16 @@ def explain(source_code: str, traceback: str, exception: str, really_run=True) -
     user_prompt += "stop reason = " + exception + "\n"
     text = ""
 
-    if not really_run:
-        print(user_prompt)
-        return
-
     model = get_model()
     if not model:
+        return
+
+    input_tokens = num_tokens_from_string(user_prompt, model)
+    
+    if not really_run:
+        print(model)
+        print(user_prompt)
+        print(f"Total input tokens: {input_tokens}")
         return
 
     try:
@@ -128,9 +139,55 @@ def explain(source_code: str, traceback: str, exception: str, really_run=True) -
             messages=[{"role": "user", "content": user_prompt}],
         )
         text = completion.choices[0].message.content
+        output_tokens = completion.usage.total_tokens
+        context_window = "8K" if model == "gpt-4" else "4K" # FIXME: true as of Oct 3, 2023
+        cost = calculate_cost(input_tokens, output_tokens, model, context_window)
         print(word_wrap_except_code_blocks(text))
+        print()
+        print(f"(Estimated cost of this operation was ${cost} USD)")
     except openai.error.AuthenticationError:
         print(
             "You need a valid OpenAI key to use ChatDBG. You can get a key here: https://openai.com/api/"
         )
         print("Set the environment variable OPENAI_API_KEY to your key value.")
+        
+
+def calculate_cost(num_input_tokens, num_output_tokens, model_type, context_size):
+    """
+    Calculate the cost of processing a request based on model type and context size.
+
+    Args:
+    - num_input_tokens (int): Number of input tokens.
+    - num_output_tokens (int): Number of output tokens.
+    - model_type (str): The type of GPT model used.
+    - context_size (str): Context size (e.g., 8K, 32K, 4K, 16K).
+
+    Returns:
+    float: The cost of processing the request, in USD.
+    """
+    # Latest pricing info from OpenAI (https://openai.com/pricing), as of Oct 3 2023.
+    PRICING = {
+        "gpt-4": {
+            "8K": {"input": 0.03, "output": 0.06},
+            "32K": {"input": 0.06, "output": 0.12}
+        },
+        "gpt-3.5-turbo": {
+            "4K": {"input": 0.0015, "output": 0.002},
+            "16K": {"input": 0.003, "output": 0.004}
+        }
+    }
+    
+    # Ensure model_type and context_size are valid
+    if model_type not in PRICING or str(context_size) not in PRICING[model_type]:
+        raise ValueError(f"Invalid model_type or context_size. Choose from {', '.join(PRICING.keys())} and respective context sizes.")
+    
+    # Calculate total cost per token and total tokens
+    input_cost_per_token = PRICING[model_type][str(context_size)]["input"] / 1000
+    output_cost_per_token = PRICING[model_type][str(context_size)]["output"] / 1000
+    total_tokens = num_input_tokens + num_output_tokens
+    
+    # Calculate cost for input and output separately
+    input_cost = num_input_tokens * input_cost_per_token
+    output_cost = num_output_tokens * output_cost_per_token
+    
+    return input_cost + output_cost

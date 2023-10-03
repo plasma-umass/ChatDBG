@@ -127,7 +127,7 @@ function:
 fn main() {
 ```
 
-Now you can run your Rust code with `lldb` (`gdb` is not yet supported).
+Now you can debug your Rust code with `gdb` or `lldb`.
 
 </details>
 

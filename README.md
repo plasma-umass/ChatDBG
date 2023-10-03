@@ -11,14 +11,15 @@ As far as we are aware, ChatDBG is the *first* debugger to automatically perform
 
 ## Installation
 
-*NOTE*: To use ChatDBG, you must first set up an OpenAI API key. If you
-already have an API key, you can set it as an environment variable
-called `OPENAI_API_KEY`. If you do not have one yet,
-you can get a key here: https://platform.openai.com/account/api-keys
-
-```bash
-export OPENAI_API_KEY=<your-api-key>
-```
+> **Note**
+>
+> ChatDBG needs to be connected to an [OpenAI account](https://openai.com/api/). _Your account will need to have a positive balance for this to work_ ([check your balance](https://platform.openai.com/account/usage)). If you have never purchased credits, you will need to purchase at least $1 in credits (if your API account was created before August 13, 2023) or $0.50 (if you have a newer API account) in order to have access to GPT-4, which ChatDBG uses. [Get a key here.](https://platform.openai.com/account/api-keys)
+>
+> Once you have an API key, set it as an environment variable called `OPENAI_API_KEY`.
+>
+> ```bash
+> export OPENAI_API_KEY=<your-api-key>
+> ```
 
 Install ChatDBG using `pip` (you need to do this whether you are debugging Python, C, or C++ code):
 

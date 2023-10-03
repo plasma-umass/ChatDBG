@@ -1,11 +1,11 @@
 #!env python3
-import lldb
 import asyncio
 import os
+import pathlib
 import re
 import sys
 
-import pathlib
+import lldb
 
 the_path = pathlib.Path(__file__).parent.resolve()
 
@@ -14,9 +14,9 @@ rust_panic_log_filename = "panic_log.txt"
 
 sys.path.append(os.path.abspath(the_path))
 
-import chatdbg_utils
-
 from typing import Tuple, Union
+
+import chatdbg_utils
 
 
 def __lldb_init_module(debugger: lldb.SBDebugger, internal_dict: dict) -> None:
@@ -267,4 +267,5 @@ def why(
 def why_prompt(
     debugger: lldb.SBDebugger, command: str, result: str, internal_dict: dict
 ) -> None:
+    """Output the prompt that `why` would generate (for debugging purposes only)."""
     why(debugger, command, result, internal_dict, really_run=False)

@@ -1,13 +1,12 @@
-import openai
-import openai_async
 import os
 import sys
 import textwrap
 
 import chatdbg_utils
+import openai
 
 
-async def why(self, arg):
+def why(self, arg):
     user_prompt = "Explain what the root cause of this error is, given the following source code and traceback, and generate code that fixes the error."
     user_prompt += "\n"
     user_prompt += "source code:\n```\n"
@@ -64,35 +63,20 @@ async def why(self, arg):
     user_prompt += f"```\n{stack_trace}```\n"
     user_prompt += f"Exception: {exception_name} ({exception_value})\n"
 
-    # print(user_prompt)
-    # return
-
-    import httpx
-
     model = chatdbg_utils.get_model()
     if not model:
         return
 
-    text = ""
     try:
-        completion = await openai_async.chat_complete(
-            openai.api_key or "",
-            timeout=30,
-            payload={
-                "model": model,
-                "messages": [{"role": "user", "content": user_prompt}],
-            },
+        completion = openai.ChatCompletion.create(
+            model=model,
+            request_timeout=30,
+            messages=[{"role": "user", "content": user_prompt}],
         )
-        json_payload = completion.json()
-        if not "choices" in json_payload:
-            raise openai.error.AuthenticationError
-        text = json_payload["choices"][0]["message"]["content"]
-    except (openai.error.AuthenticationError, httpx.LocalProtocolError):
+        text = completion.choices[0].message.content
+        print(chatdbg_utils.word_wrap_except_code_blocks(text))
+    except openai.error.AuthenticationError:
         print(
-            "You need a valid OpenAI key to use commentator. You can get a key here: https://openai.com/api/"
+            "You need a valid OpenAI key to use ChatDBG. You can get a key here: https://openai.com/api/"
         )
         print("Set the environment variable OPENAI_API_KEY to your key value.")
-    except Exception as e:
-        print(f"EXCEPTION {e}")
-        pass
-    print(chatdbg_utils.word_wrap_except_code_blocks(text))

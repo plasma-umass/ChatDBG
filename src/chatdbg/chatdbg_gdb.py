@@ -1,14 +1,13 @@
 # Add 'source <path to chatdbg>/chatdbg_gdb.py' to ~/.gdbinit
 
 import asyncio
-import gdb
 import os
-import openai
-import openai_async
+import pathlib
 import sys
 import textwrap
 
-import pathlib
+import gdb
+import openai
 
 the_path = pathlib.Path(__file__).parent.resolve()
 

@@ -13,6 +13,9 @@ the_path = pathlib.Path(__file__).parent.resolve()
 
 sys.path.append(os.path.abspath(the_path))
 
+# The file produced by the panic handler if the Rust program is using the chatdbg crate.
+rust_panic_log_filename = "panic_log.txt"
+
 import chatdbg_utils
 
 def read_lines_list(file_path: str, start_line: int, end_line: int) -> [str]:
@@ -57,10 +60,10 @@ def stop_handler(event):
         last_error_type = event.stop_signal
 
 gdb.events.stop.connect(stop_handler)
-        
+
 # Implement the command `why`
 class Why(gdb.Command):
-
+    """Provides root cause analysis for a failure."""
     def __init__(self):
         gdb.Command.__init__(self, "why", gdb.COMMAND_USER)
 
@@ -77,9 +80,6 @@ class Why(gdb.Command):
             last_error_type = 'SIGSEGV'
         the_prompt = buildPrompt()
         if the_prompt:
-            #print(the_prompt[0])
-            #print(the_prompt[1])
-            #print(the_prompt[2])
             # Call `explain` function with pieces of the_prompt  as arguments.
             asyncio.run(chatdbg_utils.explain(the_prompt[0], the_prompt[1], the_prompt[2], really_run))
         
@@ -149,6 +149,15 @@ def buildPrompt() -> str:
             # Couldn't find source for some reason. Skip file.
             pass
 
+    # If the Rust panic log exists, append it to the error reason.
+    global last_error_type
+    try:
+        with open(rust_panic_log_filename, "r") as log:
+            panic_log = log.read()
+        last_error_type = panic_log + "\n" + last_error_type
+    except:
+        pass
+    
     return (source_code, stack_trace, last_error_type)
 
 

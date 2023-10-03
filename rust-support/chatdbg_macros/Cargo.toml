@@ -2,6 +2,12 @@
 name = "chatdbg_macros"
 version = "0.1.3"
 edition = "2021"
+description = "Rust-specific (macro) support for ChatDBG (https://github.com/plasma-umass/chatdbg)."
+authors = ["Noah Lev Bartell-Mangel <noahlevb@gmail.com>"]
+license = "Apache-2.0"
+readme = "../../README.md"
+homepage = "https://github.com/plasma-umass/ChatDBG/"
+repository = "https://github.com/plasma-umass/ChatDBG/"
 
 [dependencies]
 quote = "1.0.33"

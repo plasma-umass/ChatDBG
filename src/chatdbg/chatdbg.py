@@ -1,9 +1,7 @@
 #! /usr/bin/env python3
 
-import asyncio
 import os
 import pathlib
-import re
 import sys
 import traceback
 
@@ -18,7 +16,7 @@ import chatdbg_why
 
 class ChatDBG(chatdbg_pdb.Pdb):
     def do_why(self, arg):
-        asyncio.run(chatdbg_why.why(self, arg))
+        chatdbg_why.why(self, arg)
 
 
 import importlib.metadata

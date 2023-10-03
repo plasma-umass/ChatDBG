@@ -221,7 +221,6 @@ line_prefix = "\n-> "  # Probably a better default
 
 
 class Pdb(bdb.Bdb, cmd.Cmd):
-
     _previous_sigint_handler = None
 
     def __init__(

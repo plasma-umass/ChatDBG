@@ -72,6 +72,7 @@ def word_wrap_except_code_blocks(text: str) -> str:
 def read_lines_width() -> int:
     return 10
 
+
 def read_lines(file_path: str, start_line: int, end_line: int) -> str:
     """
     Read lines from a file and return a string containing the lines between start_line and end_line.
@@ -101,9 +102,7 @@ def read_lines(file_path: str, start_line: int, end_line: int) -> str:
     return "\n".join(lines[start_line:end_line])
 
 
-async def explain(
-    source_code: str, traceback: str, exception: str, really_run=True
-) -> None:
+def explain(source_code: str, traceback: str, exception: str, really_run=True) -> None:
     import httpx
 
     user_prompt = "Explain what the root cause of this error is, given the following source code context for each stack frame and a traceback, and propose a fix. In your response, never refer to the frames given below (as in, 'frame 0'). Instead, always refer only to specific lines and filenames of source code.\n"

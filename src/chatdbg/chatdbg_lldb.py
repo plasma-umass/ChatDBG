@@ -1,8 +1,6 @@
 #!env python3
-import asyncio
 import os
 import pathlib
-import re
 import sys
 
 import lldb
@@ -258,9 +256,7 @@ def why(
         print("Execution stopped at a breakpoint, not an error.")
         return
     the_prompt = buildPrompt(debugger)
-    asyncio.run(
-        chatdbg_utils.explain(the_prompt[0], the_prompt[1], the_prompt[2], really_run)
-    )
+    chatdbg_utils.explain(the_prompt[0], the_prompt[1], the_prompt[2], really_run)
 
 
 @lldb.command("why_prompt")

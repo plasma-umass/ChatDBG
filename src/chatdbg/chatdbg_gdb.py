@@ -1,13 +1,10 @@
 # Add 'source <path to chatdbg>/chatdbg_gdb.py' to ~/.gdbinit
 
-import asyncio
 import os
 import pathlib
 import sys
-import textwrap
 
 import gdb
-import openai
 
 the_path = pathlib.Path(__file__).parent.resolve()
 
@@ -65,6 +62,7 @@ def stop_handler(event):
 
 gdb.events.stop.connect(stop_handler)
 
+
 # Implement the command `why`
 class Why(gdb.Command):
     """Provides root cause analysis for a failure."""
@@ -86,10 +84,8 @@ class Why(gdb.Command):
         the_prompt = buildPrompt()
         if the_prompt:
             # Call `explain` function with pieces of the_prompt  as arguments.
-            asyncio.run(
-                chatdbg_utils.explain(
-                    the_prompt[0], the_prompt[1], the_prompt[2], really_run
-                )
+            chatdbg_utils.explain(
+                the_prompt[0], the_prompt[1], the_prompt[2], really_run
             )
 
 

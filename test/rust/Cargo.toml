@@ -1,0 +1,18 @@
+[package]
+name = "chatdbg_rust_tests"
+version = "1.0.0"
+edition = "2021"
+
+[[bin]]
+name = "test-failed-assert"
+path = "test-failed-assert.rs"
+
+[dependencies]
+chatdbg = { path = "../../rust-support/chatdbg" }
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+

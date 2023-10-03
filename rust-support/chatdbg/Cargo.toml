@@ -10,4 +10,5 @@ homepage = "https://github.com/plasma-umass/ChatDBG/"
 repository = "https://github.com/plasma-umass/ChatDBG/"
 
 [dependencies]
+chatdbg_macros = { path = "../chatdbg_macros" }
 lazy_static = "1.4.0"

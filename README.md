@@ -119,14 +119,12 @@ panic = "abort"
 panic = "abort"
 ```
 
-2. In your program, run `chatdbg::chatdbg()` as early as possible.
+2. In your program, apply the `#[chatdbg::main]` attribute to your `main`
+function:
 
 ```rust
-use chatdbg;
-
+#[chatdbg::main]
 fn main() {
-   chatdbg::chatdbg();
-   // Insert the above line as early as possible in your main function
 ```
 
 Now you can run your Rust code with `lldb` (`gdb` is not yet supported).

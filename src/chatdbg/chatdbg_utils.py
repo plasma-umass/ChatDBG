@@ -142,9 +142,8 @@ def explain(source_code: str, traceback: str, exception: str, really_run=True) -
         output_tokens = completion.usage.completion_tokens
         context_window = "8K" if model == "gpt-4" else "4K" # FIXME: true as of Oct 3, 2023
         cost = calculate_cost(input_tokens, output_tokens, model, context_window)
+        text += f"\n(Total cost: approximately ${cost:.2f} USD.)"
         print(word_wrap_except_code_blocks(text))
-        print()
-        text += f"(Total cost: approximately ${cost:.2f} USD.)"
     except openai.error.AuthenticationError:
         print(
             "You need a valid OpenAI key to use ChatDBG. You can get a key here: https://openai.com/api/"

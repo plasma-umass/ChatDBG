@@ -127,7 +127,6 @@ def explain(source_code: str, traceback: str, exception: str, really_run=True) -
     input_tokens = num_tokens_from_string(user_prompt, model)
     
     if not really_run:
-        print(model)
         print(user_prompt)
         print(f"Total input tokens: {input_tokens}")
         return
@@ -139,7 +138,8 @@ def explain(source_code: str, traceback: str, exception: str, really_run=True) -
             messages=[{"role": "user", "content": user_prompt}],
         )
         text = completion.choices[0].message.content
-        output_tokens = completion.usage.total_tokens
+        input_tokens = completion.usage.prompt_tokens
+        output_tokens = completion.usage.completion_tokens
         context_window = "8K" if model == "gpt-4" else "4K" # FIXME: true as of Oct 3, 2023
         cost = calculate_cost(input_tokens, output_tokens, model, context_window)
         print(word_wrap_except_code_blocks(text))

@@ -144,7 +144,7 @@ def explain(source_code: str, traceback: str, exception: str, really_run=True) -
         cost = calculate_cost(input_tokens, output_tokens, model, context_window)
         print(word_wrap_except_code_blocks(text))
         print()
-        print(f"(Estimated cost of this operation was ${cost} USD)")
+        text += f"(Total cost: approximately ${cost:.2f} USD.)"
     except openai.error.AuthenticationError:
         print(
             "You need a valid OpenAI key to use ChatDBG. You can get a key here: https://openai.com/api/"

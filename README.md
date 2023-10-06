@@ -2,7 +2,7 @@
 
 by [Emery Berger](https://emeryberger.com)
 
-ChatDBG is an experimental debugger for C/C++/Python/Rust code that integrates large language models into a standard debugger (`pdb`, `lldb`, and `gdb`) to help debug your code. With ChatDBG, you can ask your debugger `why` your program failed, and it will provide a diagnosis and suggest a fix.
+ChatDBG is an experimental debugger for C/C++/Python/Rust code that integrates large language models into a standard debugger (`pdb`, `lldb`, `gdb`, and `windbg`) to help debug your code. With ChatDBG, you can ask your debugger `why` your program failed, and it will provide a diagnosis and suggest a fix.
 
 As far as we are aware, ChatDBG is the *first* debugger to automatically perform root cause analysis and to provide suggested fixes.
 
@@ -71,6 +71,29 @@ python3 -c 'import chatdbg; print(f"source {chatdbg.__path__[0]}/chatdbg_gdb.py"
 
 This will install ChatDBG as a GDB extension.
 </details>
+
+### Installing as a `WinDBG` extension
+
+<details>
+<summary>
+<B><TT>WinDBG</TT> installation instructions</B>
+</summary>
+
+0. **Install `vcpkg`**: Follow instructions [here](https://vcpkg.io/en/getting-started) if `vcpkg` is not installed already.
+1. **Navigate to the `src\chatdbg` directory**: `cd src\chatdbg`
+2. **Install needed dependencies**: Run`vcpkg install`
+3. **Build the chatdbg.dll extension**: Run`mkdir build & cd build & cmake .. & cmake --build . & cd ..`
+
+**Using ChatDBG**:
+
+ * Load into WinDBGX:
+   * Run `windbgx your_executable_here.exe`
+   * Click the menu items `View` -> `Command browser`
+   * Type `.load debug\chatdbg.dll`
+ * After running code and hitting an exception / signal:
+   * Type `!why` in Command browser
+</details>
+
 
 ## Usage
 

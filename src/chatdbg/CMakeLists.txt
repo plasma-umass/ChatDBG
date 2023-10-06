@@ -12,7 +12,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_library(chatdbg SHARED chatdbg.cpp)
 
 # Add include of source directory
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Add Windows Debugger SDK includes and libraries
 target_include_directories(chatdbg PRIVATE "C:/Program Files (x86)/Windows Kits/10/Debuggers/include")

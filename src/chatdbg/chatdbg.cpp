@@ -5,10 +5,10 @@
  https://github.com/plasma-umass/ChatDBG
  @author Emery Berger <https://emeryberger.com>
 
- * build with `build-chatdbg.bat`
+ * build with `mkdir build & cd build & cmake .. & cmake --build .`
  * load into WinDBGX:
      View -> Command browser
-       type ".load chatdbg.dll"
+       type ".load debug\chatdbg.dll"
  * after running code and hitting an exception / signal:
      type "!why" in Command browser
 
@@ -36,6 +36,7 @@
 #include "appendlines.hpp"
 #include "wordwrap.hpp"
 #include "getmodel.hpp"
+#include "joinstrings.hpp"
 
 const auto MaxStackFrames =
     20; // maximum number of stack frames to use for a stack trace
@@ -44,12 +45,46 @@ const auto MaxTypeLength = 1024;
 const auto MaxValueLength = 1024;
 
 // Declare the IDebugClient interface
-extern "C" HRESULT DebugCreate(_In_ REFIID InterfaceId, _Out_ PVOID *Interface);
+///extern "C" HRESULT DebugCreate(_In_ REFIID InterfaceId, _Out_ PVOID *Interface);
 
 IDebugClient *g_client;
 IDebugControl *g_control;
 IDebugSymbols *g_symbols;
 IDebugSymbols3 *g_symbols3;
+
+
+std::string GetDebugFailureReason()
+{
+    HRESULT hr;
+    DEBUG_LAST_EVENT_INFO_EXCEPTION exceptionInfo = {};
+    char description[1024] = {};
+    
+    ULONG eventType, processId, threadId, extraInfoUsed, descriptionUsed;
+
+    // Query the reason for the debugger break
+    hr = g_control->GetLastEventInformation(&eventType,
+					    &processId,
+					    &threadId,
+					    &exceptionInfo, sizeof(exceptionInfo),
+					    &extraInfoUsed,
+					    description, sizeof(description),
+					    &descriptionUsed);
+
+    if (FAILED(hr))
+    {
+        return "Failed to retrieve the debug event information.";
+    }
+
+    if (exceptionInfo.ExceptionRecord.ExceptionCode == EXCEPTION_BREAKPOINT)
+    {
+        return "Breakpoint hit.";
+    }
+    else
+    {
+        return std::string("stop reason = ") + description + "\n";
+    }
+}
+
 
 extern "C" __declspec(dllexport) HRESULT CALLBACK
     DebugExtensionInitialize(PULONG Version, PULONG Flags) {
@@ -182,34 +217,36 @@ std::string call_openai_api(const std::string &user_prompt,
 			    const std::string &key) {
     openai::start();
 
-    auto completion = openai::completion().create(R"(
-    {
-        "model": get_model(),
-        "messages": [{"role":"user", "content", user_prompt}],
-    }
-    )"_json);
-
-    return std::string{ completion.dump(2) };
+  auto model_str = get_model().c_str();
+  auto user_prompt_str = user_prompt.c_str();
   
+  nlohmann::json payload = {
+    { "model", "gpt-4" },
+    { "messages", { {{"role", "user"},
+		     {"content", user_prompt_str }}} },
+  };
 
-#if 0
-    if (res && res->status == 200) {
-        auto response_json = nlohmann::json::parse(res->body);
-        std::string text = response_json["choices"][0]["message"]["content"];
-        return word_wrap(text);
-    } else {
-        std::string error_msg = "Error occurred: ";
-        if(res)
-            error_msg += res->status == 0 ? "Unable to connect to the server." : std::to_string(res->status) + " - " + res->body;
-        else
-            error_msg += "Unable to receive a response.";
-        return error_msg;
-    }
-#endif
+  //  g_control->Output(DEBUG_OUTPUT_NORMAL, payload.dump(4).c_str());
+  
+  auto completer = openai::chat();
+  try {
+    g_control->Output(DEBUG_OUTPUT_STATUS, "ChatDBG: processing...");
+    auto res = completer.create(payload);
+    g_control->Output(DEBUG_OUTPUT_STATUS, "ChatDBG: processing complete.");
+    //    g_control->Output(DEBUG_OUTPUT_NORMAL, res.dump(4).c_str());
+    std::string text = res["choices"][0]["message"]["content"];
+    return word_wrap(text);  // std::string{"woot"};
+  } catch (const std::exception& e) {
+    // handle the exception
+    g_control->Output(DEBUG_OUTPUT_ERROR, "ChatDBG: An error occurred during processing.");
+    g_control->Output(DEBUG_OUTPUT_ERROR, e.what());
+    g_control->Output(DEBUG_OUTPUT_STATUS, "ChatDBG: Error occurred during processing.");
+    return std::string{ "" };
+  }
 }
 
-extern "C" __declspec(dllexport) HRESULT CALLBACK
-    why(PDEBUG_CLIENT4 Client, PCSTR Args) {
+HRESULT CALLBACK why_base(bool reallyRun, PDEBUG_CLIENT4 Client, PCSTR Args)
+{
   // Get and print the module name
   char nameBuffer[MAX_PATH] = {};
   ULONG64 moduleBase = 0;
@@ -222,13 +259,13 @@ extern "C" __declspec(dllexport) HRESULT CALLBACK
     if (g_symbols->GetModuleNames(DEBUG_ANY_ID, moduleBase, NULL, 0, NULL,
                                   nameBuffer, MAX_PATH, &nameSize, NULL, 0,
                                   NULL) == S_OK) {
-      g_control->Output(DEBUG_OUTPUT_NORMAL, "hello world %s\n", nameBuffer);
+      // Failed to get module name
     }
   }
 
-  // If unable to get module name, print unknown
+  // If unable to get module name, exit
   if (strlen(nameBuffer) == 0) {
-    g_control->Output(DEBUG_OUTPUT_NORMAL, "hello world unknown\n");
+    g_control->Output(DEBUG_OUTPUT_ERROR, "ChatDBG: could not find module name for debuggee.\n");
     return S_OK;
   }
 
@@ -236,8 +273,10 @@ extern "C" __declspec(dllexport) HRESULT CALLBACK
   ULONG framesFilled;
 
   std::vector<std::string> output;
-  // output.push_back(std::format("Hello {}", nameBuffer));
 
+  output.push_back(std::string("Explain what the root cause of this error is, given the following source code context for each stack frame and a traceback, and propose a fix. In your response, never refer to the frames given below (as in, 'frame 0'). Instead, always refer only to specific lines and filenames of source code.\n\n"));
+  output.push_back(std::string("Source code for each stack frame:\n\n"));
+  
   auto framesOutput = 0;
 
   // Get up to MaxStackFrames stack frames from the current call stack
@@ -273,7 +312,6 @@ extern "C" __declspec(dllexport) HRESULT CALLBACK
     
     output.push_back(std::format("frame {}: {}({}) at {}:{}", framesOutput,
                                  functionName, args.back(), fileName, lineNo));
-    // outputArguments(output);
     outputLocals(output);
 
     auto startLine = lineNo < 10 ? 1 : lineNo - 10;
@@ -282,64 +320,48 @@ extern "C" __declspec(dllexport) HRESULT CALLBACK
     
     hasDebugSymbols = true;
   }
-  g_control->Output(DEBUG_OUTPUT_NORMAL, get_model().c_str());
-  g_control->Output(DEBUG_OUTPUT_NORMAL, "\n");
-  for (auto &s : output) {
-    g_control->Output(DEBUG_OUTPUT_NORMAL, s.c_str());
-    g_control->Output(DEBUG_OUTPUT_NORMAL, "\n");
+
+  if (!hasDebugSymbols) {
+    g_control->Output(DEBUG_OUTPUT_ERROR,
+                      "ChatDBG needs debug information to work properly. "
+                      "Recompile your code with the /Zi flag.\n");
+    return S_OK;
+  }
+  
+  output.push_back(GetDebugFailureReason());
+  
+  // Convert output into a single string.
+  auto prompt = joinStrings(output);
+  
+  if (!reallyRun) {
+    g_control->Output(DEBUG_OUTPUT_NORMAL, prompt.c_str());
+    return S_OK;
   }
 
-  std::string prompt { "What is the capitol of France?" };
   auto openai_key_str = std::getenv("OPENAI_API_KEY");
   
   if (!openai_key_str) {
-    g_control->Output(DEBUG_OUTPUT_WARNING, "You need to define the environment variable OPENAI_API_KEY.\n");
+    g_control->Output(DEBUG_OUTPUT_ERROR, "ChatDBG needs the environment variable OPENAI_API_KEY to be set.\n");
     return S_OK;
   }
-  auto openai_key = std::string(openai_key_str);
   
-  g_control->Output(DEBUG_OUTPUT_NORMAL, std::string(openai_key).c_str());
+  auto openai_key = std::string(openai_key_str);
   auto result = call_openai_api(prompt, openai_key);
+
   g_control->Output(DEBUG_OUTPUT_NORMAL, result.c_str());
   
-  if (!hasDebugSymbols) {
-    g_control->Output(DEBUG_OUTPUT_NORMAL,
-                      "ChatDBG needs debug information to work properly. "
-                      "Recompile your code with the /Zi flag.\n");
-  }
-
   return S_OK;
 }
 
 extern "C" __declspec(dllexport) HRESULT CALLBACK
-    why2(PDEBUG_CLIENT4 Client, PCSTR Args) {
-  IDebugControl *localControl = nullptr;
-  HRESULT hr =
-      Client->QueryInterface(__uuidof(IDebugControl), (void **)&localControl);
-  if (FAILED(hr) || localControl == nullptr) {
-    OutputDebugString("QueryInterface for IDebugControl in why failed\n");
-    return E_UNEXPECTED;
-  }
-
-  if (g_control == nullptr || g_symbols == nullptr)
-    return E_UNEXPECTED;
-
-  char nameBuffer[MAX_PATH] = {};
-  ULONG64 moduleBase = 0;
-
-  // Get the base address of the first loaded module
-  if (g_symbols->GetModuleByIndex(0, &moduleBase) == S_OK) {
-    ULONG nameSize;
-    // Get the base name of the module
-    if (g_symbols->GetModuleNames(DEBUG_ANY_ID, moduleBase, NULL, 0, NULL,
-                                  nameBuffer, MAX_PATH, &nameSize, NULL, 0,
-                                  NULL) == S_OK) {
-      g_control->Output(DEBUG_OUTPUT_NORMAL, "hello world %s\n", nameBuffer);
-      return S_OK;
-    }
-  }
-
-  // If unable to get module name, print unknown
-  g_control->Output(DEBUG_OUTPUT_NORMAL, "hello world unknown\n");
-  return S_OK;
+    why(PDEBUG_CLIENT4 Client, PCSTR Args) {
+  return why_base(true, Client, Args);
 }
+
+extern "C" __declspec(dllexport) HRESULT CALLBACK
+    why_prompt(PDEBUG_CLIENT4 Client, PCSTR Args) {
+  return why_base(false, Client, Args);
+}
+
+
+

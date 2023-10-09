@@ -79,10 +79,12 @@ This will install ChatDBG as a GDB extension.
 <B><TT>WinDBG</TT> installation instructions</B>
 </summary>
 
-0. **Install `vcpkg`**: Follow instructions [here](https://vcpkg.io/en/getting-started) if `vcpkg` is not installed already.
+1. **Install WinDBG**: Follow instructions [here](https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/) if `WinDBG` is not installed already.
+1. **Install `vcpkg`**: Follow instructions [here](https://vcpkg.io/en/getting-started) if `vcpkg` is not installed already.
+1. **Install Debugging Tools for Windows**: Install the Windows SDK [here](https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/) and check the box `Debugging Tools for Windows`.
 1. **Navigate to the `src\chatdbg` directory**: `cd src\chatdbg`
-2. **Install needed dependencies**: Run`vcpkg install`
-3. **Build the chatdbg.dll extension**: Run`mkdir build & cd build & cmake .. & cmake --build . & cd ..`
+1. **Install needed dependencies**: Run`vcpkg install`
+1. **Build the chatdbg.dll extension**: Run`mkdir build & cd build & cmake .. & cmake --build . & cd ..`
 
 **Using ChatDBG**:
 

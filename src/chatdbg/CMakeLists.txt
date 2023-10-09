@@ -17,8 +17,8 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/incl
 # Add Windows Debugger SDK includes and libraries
 target_include_directories(chatdbg PRIVATE "C:/Program Files (x86)/Windows Kits/10/Debuggers/include")
 target_link_libraries(chatdbg PRIVATE 
-    "C:/Program Files (x86)/Windows Kits/10/Debuggers/lib/arm64/dbgeng.lib" 
-    "C:/Program Files (x86)/Windows Kits/10/Debuggers/lib/arm64/dbghelp.lib")
+    "C:/Program Files (x86)/Windows Kits/10/Debuggers/lib/%VSCMD_ARG_HOST_ARCH%/dbgeng.lib" 
+    "C:/Program Files (x86)/Windows Kits/10/Debuggers/lib/%VSCMD_ARG_HOST_ARCH%/dbghelp.lib")
 
 # Include vcpkg toolchain file using the environment variable
 set(CMAKE_TOOLCHAIN_FILE $ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake CACHE STRING "Vcpkg toolchain file")

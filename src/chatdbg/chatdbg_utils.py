@@ -1,5 +1,4 @@
 import os
-import tiktoken
 import openai
 
 from llm_utils import llm_utils
@@ -55,13 +54,6 @@ def read_lines(file_path: str, start_line: int, end_line: int) -> str:
     return "\n".join(lines[start_line:end_line])
 
 
-def num_tokens_from_string(string: str, model: str) -> int:
-    """Returns the number of tokens in a text string."""
-    encoding = tiktoken.encoding_for_model(model)
-    num_tokens = len(encoding.encode(string))
-    return num_tokens
-
-
 def explain(source_code: str, traceback: str, exception: str, really_run=True) -> None:
     import httpx
 
@@ -77,7 +69,7 @@ def explain(source_code: str, traceback: str, exception: str, really_run=True) -
     if not model:
         return
 
-    input_tokens = num_tokens_from_string(user_prompt, model)
+    input_tokens = llm_utils.count_tokens(model, user_prompt)
     
     if not really_run:
         print(user_prompt)

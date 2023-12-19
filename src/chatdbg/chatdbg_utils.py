@@ -1,8 +1,8 @@
 import os
-import sys
-import textwrap
 import tiktoken
 import openai
+
+from llm_utils import llm_utils
 
 
 def get_model() -> str:
@@ -20,53 +20,6 @@ def get_model() -> str:
             return ""
 
     return model
-
-
-def word_wrap_except_code_blocks(text: str) -> str:
-    """
-    Wraps text except for code blocks.
-
-    Splits the text into paragraphs and wraps each paragraph,
-    except for paragraphs that are inside of code blocks denoted
-    by ` ``` `. Returns the updated text.
-
-    Args:
-        text: The text to wrap.
-
-    Returns:
-        The wrapped text.
-    """
-    # Split text into paragraphs
-    paragraphs = text.split("\n\n")
-    wrapped_paragraphs = []
-    # Check if currently in a code block.
-    in_code_block = False
-    # Loop through each paragraph and apply appropriate wrapping.
-    for paragraph in paragraphs:
-        # Check for the presence of triple quotes in the paragraph
-        if "```" in paragraph:
-            # Split paragraph by triple quotes
-            parts = paragraph.split("```")
-            for i, part in enumerate(parts):
-                # If we are inside a code block, do not wrap the text
-                if in_code_block:
-                    wrapped_paragraphs.append(part)
-                else:
-                    # Otherwise, apply text wrapping to the part
-                    wrapped_paragraphs.append(textwrap.fill(part))
-                # Toggle the in_code_block flag for each triple quote encountered
-                if i < len(parts) - 1:
-                    wrapped_paragraphs.append("```")
-                    in_code_block = not in_code_block
-        else:
-            # If the paragraph does not contain triple quotes and is not inside a code block, wrap the text
-            if not in_code_block:
-                wrapped_paragraphs.append(textwrap.fill(paragraph))
-            else:
-                wrapped_paragraphs.append(paragraph)
-    # Join all paragraphs into a single string
-    wrapped_text = "\n\n".join(wrapped_paragraphs)
-    return wrapped_text
 
 
 def read_lines_width() -> int:
@@ -143,7 +96,7 @@ def explain(source_code: str, traceback: str, exception: str, really_run=True) -
         context_window = "8K" if model == "gpt-4" else "4K" # FIXME: true as of Oct 3, 2023
         cost = calculate_cost(input_tokens, output_tokens, model, context_window)
         text += f"\n(Total cost: approximately ${cost:.2f} USD.)"
-        print(word_wrap_except_code_blocks(text))
+        print(llm_utils.word_wrap_except_code_blocks(text))
     except openai.error.AuthenticationError:
         print(
             "You need a valid OpenAI key to use ChatDBG. You can get a key here: https://openai.com/api/"

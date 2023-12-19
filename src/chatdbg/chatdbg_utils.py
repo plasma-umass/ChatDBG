@@ -70,7 +70,7 @@ def explain(source_code: str, traceback: str, exception: str, really_run=True) -
         return
 
     input_tokens = llm_utils.count_tokens(model, user_prompt)
-    
+
     if not really_run:
         print(user_prompt)
         print(f"Total input tokens: {input_tokens}")
@@ -85,8 +85,12 @@ def explain(source_code: str, traceback: str, exception: str, really_run=True) -
         text = completion.choices[0].message.content
         input_tokens = completion.usage.prompt_tokens
         output_tokens = completion.usage.completion_tokens
-        context_window = "8K" if model == "gpt-4" else "4K" # FIXME: true as of Oct 3, 2023
-        cost = llm_utils.calculate_cost(input_tokens, output_tokens, model, context_window)
+        context_window = (
+            "8K" if model == "gpt-4" else "4K"
+        )  # FIXME: true as of Oct 3, 2023
+        cost = llm_utils.calculate_cost(
+            input_tokens, output_tokens, model, context_window
+        )
         text += f"\n(Total cost: approximately ${cost:.2f} USD.)"
         print(llm_utils.word_wrap_except_code_blocks(text))
     except openai.error.AuthenticationError:

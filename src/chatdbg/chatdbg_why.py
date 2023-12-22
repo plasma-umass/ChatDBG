@@ -1,9 +1,9 @@
 import os
-import sys
-import textwrap
 
 import chatdbg_utils
 import openai
+
+from llm_utils import llm_utils
 
 
 def why(self, arg):
@@ -74,7 +74,7 @@ def why(self, arg):
             messages=[{"role": "user", "content": user_prompt}],
         )
         text = completion.choices[0].message.content
-        print(chatdbg_utils.word_wrap_except_code_blocks(text))
+        print(llm_utils.word_wrap_except_code_blocks(text))
     except openai.error.AuthenticationError:
         print(
             "You need a valid OpenAI key to use ChatDBG. You can get a key here: https://openai.com/api/"

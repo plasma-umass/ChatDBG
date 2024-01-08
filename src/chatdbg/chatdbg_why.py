@@ -68,15 +68,26 @@ def why(self, arg):
         return
 
     try:
-        completion = openai.ChatCompletion.create(
-            model=model,
-            request_timeout=30,
-            messages=[{"role": "user", "content": user_prompt}],
-        )
-        text = completion.choices[0].message.content
-        print(llm_utils.word_wrap_except_code_blocks(text))
-    except openai.error.AuthenticationError:
-        print(
-            "You need a valid OpenAI key to use ChatDBG. You can get a key here: https://openai.com/api/"
-        )
+        client = openai.OpenAI(timeout=30)
+    except openai.OpenAIError:
+        print("You need an OpenAI key to use this tool.")
+        print("You can get a key here: https://platform.openai.com/api-keys")
         print("Set the environment variable OPENAI_API_KEY to your key value.")
+        return
+
+    try:
+        completion = client.chat.completions.create(
+            model=model, messages=[{"role": "user", "content": user_prompt}]
+        )
+    except openai.NotFoundError:
+        print(f"'{model}' either does not exist or you do not have access to it.")
+        return
+    except openai.RateLimitError:
+        print("You have exceeded a rate limit or have no remaining funds.")
+        return
+    except openai.APITimeoutError:
+        print("The OpenAI API timed out.")
+        return
+
+    text = completion.choices[0].message.content
+    print(llm_utils.word_wrap_except_code_blocks(text))

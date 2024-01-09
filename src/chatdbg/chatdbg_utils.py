@@ -75,18 +75,31 @@ def explain(source_code: str, traceback: str, exception: str, really_run=True) -
         return
 
     try:
-        completion = openai.ChatCompletion.create(
-            model=model,
-            request_timeout=30,
-            messages=[{"role": "user", "content": user_prompt}],
-        )
-        text = completion.choices[0].message.content
-        input_tokens = completion.usage.prompt_tokens
-        output_tokens = completion.usage.completion_tokens
-        cost = llm_utils.calculate_cost(input_tokens, output_tokens, model)
-        text += f"\n(Total cost: approximately ${cost:.2f} USD.)"
-        print(llm_utils.word_wrap_except_code_blocks(text))
-    except openai.error.AuthenticationError:
-        print("You need a valid OpenAI key to use ChatDBG.")
+        client = openai.OpenAI(timeout=30)
+    except openai.OpenAIError:
+        print("You need an OpenAI key to use this tool.")
         print("You can get a key here: https://platform.openai.com/api-keys")
         print("Set the environment variable OPENAI_API_KEY to your key value.")
+        return
+
+    try:
+        completion = client.chat.completions.create(
+            model=model, messages=[{"role": "user", "content": user_prompt}]
+        )
+    except openai.NotFoundError:
+        print(f"'{model}' either does not exist or you do not have access to it.")
+        return
+    except openai.RateLimitError:
+        print("You have exceeded a rate limit or have no remaining funds.")
+        return
+    except openai.APITimeoutError:
+        print("The OpenAI API timed out.")
+        return
+
+    text = completion.choices[0].message.content
+    print(llm_utils.word_wrap_except_code_blocks(text))
+
+    input_tokens = completion.usage.prompt_tokens
+    output_tokens = completion.usage.completion_tokens
+    cost = llm_utils.calculate_cost(input_tokens, output_tokens, model)
+    print(f"\n(Total cost: approximately ${cost:.2f} USD.)")

@@ -2,19 +2,22 @@
 
 import os
 import pathlib
+import pdb
 import sys
-import traceback
 
 the_path = pathlib.Path(__file__).parent.resolve()
 the_abs_path = os.path.abspath(the_path)
 if the_abs_path not in sys.path:
     sys.path.insert(0, the_abs_path)
 
-import chatdbg_pdb
 import chatdbg_why
 
 
-class ChatDBG(chatdbg_pdb.Pdb):
+class ChatDBG(pdb.Pdb):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.prompt = "(ChatDBG Pdb) "
+
     def do_why(self, arg):
         chatdbg_why.why(self, arg)
 
@@ -60,42 +63,5 @@ def main():
         print(_usage)
         sys.exit(2)
 
-    commands = [optarg for opt, optarg in opts if opt in ["-c", "--command"]]
-
-    module_indicated = any(opt in ["-m"] for opt, optarg in opts)
-    cls = chatdbg_pdb._ModuleTarget if module_indicated else chatdbg_pdb._ScriptTarget
-    target = cls(args[0])
-
-    target.check()
-
-    sys.argv[:] = args  # Hide "pdb.py" and pdb options from argument list
-
-    # Note on saving/restoring sys.argv: it's a good idea when sys.argv was
-    # modified by the script being debugged. It's a bad idea when it was
-    # changed by the user from the command line. There is a "restart" command
-    # which allows explicit specification of command line arguments.
-    pdb = ChatDBG()
-    pdb.rcLines.extend(commands)
-    while True:
-        try:
-            pdb._run(target)
-            if pdb._user_requested_quit:
-                break
-            print("The program finished and will be restarted")
-        except chatdbg_pdb.Restart:
-            print("Restarting", target, "with arguments:")
-            print("\t" + " ".join(sys.argv[1:]))
-        except SystemExit:
-            # In most cases SystemExit does not warrant a post-mortem session.
-            print("The program exited via sys.exit(). Exit status:", end=" ")
-            print(sys.exc_info()[1])
-        except SyntaxError:
-            traceback.print_exc()
-            sys.exit(1)
-        except:
-            traceback.print_exc()
-            print("Uncaught exception. Entering post mortem debugging")
-            print("Running 'cont' or 'step' will restart the program")
-            t = sys.exc_info()[2]
-            pdb.interaction(None, t)
-            print("Post mortem debugger finished. The " + target + " will be restarted")
+    pdb.Pdb = ChatDBG
+    pdb.main()

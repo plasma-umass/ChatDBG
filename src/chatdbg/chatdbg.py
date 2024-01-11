@@ -15,6 +15,7 @@ class ChatDBG(pdb.Pdb):
     def do_why(self, arg):
         chatdbg_why.why(self, arg)
 
+
 _usage = f"""\
 usage: chatdbg [-c command] ... [-m module | pyfile] [arg] ...
 

@@ -1,16 +1,10 @@
 #! /usr/bin/env python3
 
-import os
-import pathlib
+import importlib
 import pdb
 import sys
 
-the_path = pathlib.Path(__file__).parent.resolve()
-the_abs_path = os.path.abspath(the_path)
-if the_abs_path not in sys.path:
-    sys.path.insert(0, the_abs_path)
-
-import chatdbg_why
+from . import chatdbg_why
 
 
 class ChatDBG(pdb.Pdb):
@@ -20,9 +14,6 @@ class ChatDBG(pdb.Pdb):
 
     def do_why(self, arg):
         chatdbg_why.why(self, arg)
-
-
-import importlib.metadata
 
 _usage = f"""\
 usage: chatdbg [-c command] ... [-m module | pyfile] [arg] ...

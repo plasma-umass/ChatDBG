@@ -1,6 +1,6 @@
 # ChatDBG
 
-by [Emery Berger](https://emeryberger.com)
+by [Emery Berger](https://emeryberger.com), [Kyla Levin](https://ravenblood000.github.io/KylaHLevin/index.html), [Nicolas van Kempen](https://nvankempen.com/)
 
 [![PyPI Latest Release](https://img.shields.io/pypi/v/chatdbg.svg)](https://pypi.org/project/chatdbg/)
 [![Downloads](https://static.pepy.tech/badge/chatdbg)](https://pepy.tech/project/chatdbg)

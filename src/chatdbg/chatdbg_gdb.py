@@ -176,7 +176,7 @@ class PrintTest(gdb.Command):
     """print all variables in a run while recursing through pointers, keeping track of seen addresses
     """
     def __init__(self):
-        gdb.Command.__init__(self, "wzd", gdb.COMMAND_DATA, gdb.COMPLETE_SYMBOL, True)
+        super().__init__(self, "print-test", gdb.COMMAND_DATA, gdb.COMPLETE_SYMBOL, True)
 
     def invoke(self, arg, from_tty):
         help_string = 'Usage: wzd [recurse_max]\n\nrecurse_max: The maximum number of times to recurse through nested structs or pointers to pointers. Default: 3'

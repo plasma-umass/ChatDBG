@@ -222,7 +222,6 @@ class PrintTest(gdb.Command):
         # Set var type
         if val.type.code is gdb.TYPE_CODE_PTR:
             diction['type'] = 'pointer' # Default type name is "none"
-            diction['test'] = name + " " + str(val.address)
         elif val.type.code is gdb.TYPE_CODE_ARRAY:
             diction['type'] = 'array' # Default type name is "none"
         else:

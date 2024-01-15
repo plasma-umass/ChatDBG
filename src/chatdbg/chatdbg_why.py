@@ -1,9 +1,10 @@
 import os
 
-from . import chatdbg_utils
+from llm_utils import llm_utils
 import openai
 
-from llm_utils import llm_utils
+from . import chatdbg_utils
+
 
 
 def why(self, arg):

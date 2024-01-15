@@ -1,21 +1,12 @@
 #!env python3
-import os
-import pathlib
-import sys
-from typing import Any
+from typing import Any, Optional, Tuple
 
 import lldb
 
-the_path = pathlib.Path(__file__).parent.resolve()
+from . import chatdbg_utils
 
 # The file produced by the panic handler if the Rust program is using the chatdbg crate.
 rust_panic_log_filename = "panic_log.txt"
-
-sys.path.append(os.path.abspath(the_path))
-
-from typing import Tuple, Union
-
-from . import chatdbg_utils
 
 
 def __lldb_init_module(debugger: lldb.SBDebugger, internal_dict: dict) -> None:
@@ -53,7 +44,7 @@ def is_debug_build_prev(debugger, command, result, internal_dict) -> bool:
 # From lldbinit
 
 
-def get_process() -> Union[None, lldb.SBProcess]:
+def get_process() -> Optional[lldb.SBProcess]:
     """
     Get the process that the current target owns.
     :return: An lldb object representing the process (lldb.SBProcess) that this target owns.

@@ -2,6 +2,7 @@
 import os
 import pathlib
 import sys
+from typing import Any
 
 import lldb
 
@@ -14,7 +15,7 @@ sys.path.append(os.path.abspath(the_path))
 
 from typing import Tuple, Union
 
-import chatdbg_utils
+from . import chatdbg_utils
 
 
 def __lldb_init_module(debugger: lldb.SBDebugger, internal_dict: dict) -> None:
@@ -120,7 +121,7 @@ def truncate_string(string, n):
         return string[:n] + "..."
 
 
-def buildPrompt(debugger: any) -> Tuple[str, str, str]:
+def buildPrompt(debugger: Any) -> Tuple[str, str, str]:
     import os
 
     target = get_target()
@@ -149,7 +150,6 @@ def buildPrompt(debugger: any) -> Tuple[str, str, str]:
         full_func_name = frame.GetFunctionName()
         func_name = full_func_name.split("(")[0]
         arg_list = []
-        type_list = []
 
         # Build up an array of argument values to the function, with type info.
         for i in range(len(frame.GetFunction().GetType().GetFunctionArgumentTypes())):

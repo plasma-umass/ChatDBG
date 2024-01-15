@@ -14,10 +14,10 @@ sys.path.append(os.path.abspath(the_path))
 # The file produced by the panic handler if the Rust program is using the chatdbg crate.
 rust_panic_log_filename = "panic_log.txt"
 
-import chatdbg_utils
+from . import chatdbg_utils
 
 
-def read_lines_list(file_path: str, start_line: int, end_line: int) -> [str]:
+def read_lines_list(file_path: str, start_line: int, end_line: int) -> list[str]:
     """
     Read lines from a file and return a list containing the lines between start_line and end_line.
 
@@ -45,7 +45,7 @@ def read_lines_list(file_path: str, start_line: int, end_line: int) -> [str]:
 
 
 # Set the prompt to gdb-ChatDBG
-gdb.prompt_hook = lambda x: "(gdb-ChatDBG) "
+gdb.prompt_hook = lambda current_prompt: "(gdb-ChatDBG) "
 
 last_error_type = ""
 

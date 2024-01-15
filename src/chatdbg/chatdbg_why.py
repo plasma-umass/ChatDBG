@@ -1,6 +1,6 @@
 import os
 
-import chatdbg_utils
+from . import chatdbg_utils
 import openai
 
 from llm_utils import llm_utils

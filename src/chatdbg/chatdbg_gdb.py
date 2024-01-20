@@ -175,7 +175,7 @@ class PrintTest(gdb.Command):
         super().__init__("print-test", gdb.COMMAND_DATA, gdb.COMPLETE_SYMBOL, True)
 
     def invoke(self, arg, from_tty):
-        help_string = "Usage: wzd [recurse_max]\n\nrecurse_max: The maximum number of times to recurse through nested structs or pointers to pointers. Default: 3"
+        help_string = "Usage: print-test [recurse_max]\n\nrecurse_max: The maximum number of times to recurse through nested structs or pointers to pointers. Default: 3"
         if arg == "--help":
             print(help_string)
             return
@@ -192,28 +192,28 @@ class PrintTest(gdb.Command):
         frame = gdb.selected_frame()
         block = gdb.block_for_pc(frame.pc())
 
-        # Second pass through vars, converting each to JSON
         all_vars = []
         addresses = {}
         for symbol in block:
             if symbol.is_argument or symbol.is_variable:
-                variable = {}  # Create python dictionary for each variable
                 sym_val = frame.read_var(symbol)
+                # Returns python dictionary for each variable
                 variable = self._val_to_json(
                     symbol.name, sym_val, recurse_max, addresses
                 )
-                # Store address
-                addresses[frame.read_var(symbol).address.format_string()] = symbol.name
                 js = json.dumps(variable, indent=4)
                 all_vars.append(js)
 
-        print(addresses)
-        # Print all JSON objects
+        # Print all addresses and JSON objects
+        # print(addresses)
         for j in all_vars:
             print(j)
 
     # Converts a gdb.Value to a JSON object
     def _val_to_json(self, name, val, max_recurse, address_book):
+        # Store address
+        address_book.setdefault(str(val.address.format_string()), name)
+
         diction = {}
         # Set var name
         diction["name"] = name
@@ -243,11 +243,12 @@ class PrintTest(gdb.Command):
                                 deref_val = deref_val.referenced_value()
                             elif deref_val.type.code is gdb.TYPE_CODE_STRUCT:
                                 value = self._val_to_json(
-                                    None, deref_val, max_recurse - i - 1, address_book
+                                    value + name, deref_val, max_recurse - i - 1, address_book
                                 )
                                 break
                             else:
                                 break
+                        # Append to -> string or not, depending on type of value
                         if isinstance(value, dict):
                             diction["value"] = value
                         else:

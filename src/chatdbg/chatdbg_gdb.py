@@ -12,33 +12,6 @@ import chatdbg_utils
 rust_panic_log_filename = "panic_log.txt"
 
 
-def read_lines_list(file_path: str, start_line: int, end_line: int) -> list[str]:
-    """
-    Read lines from a file and return a list containing the lines between start_line and end_line.
-
-    Args:
-        file_path (str): The path of the file to read.
-        start_line (int): The line number of the first line to include (1-indexed).
-        end_line (int): The line number of the last line to include.
-
-    Returns:
-        [str]: A list of the lines between start_line and end_line.
-
-    """
-    # open the file for reading
-    with open(file_path, "r") as f:
-        # read all the lines from the file
-        lines = f.readlines()
-        # remove trailing newline characters
-        lines = [line.rstrip() for line in lines]
-    # convert start_line to 0-based indexing
-    start_line = max(0, start_line - 1)
-    # ensure end_line is within range
-    end_line = min(len(lines), end_line)
-    # return the requested lines as a list
-    return lines[start_line:end_line]
-
-
 # Set the prompt to gdb-ChatDBG
 gdb.prompt_hook = lambda current_prompt: "(gdb-ChatDBG) "
 
@@ -147,7 +120,7 @@ def buildPrompt() -> tuple[str, str, str]:
         )
         try:
             source_code += f"/* frame {i} */\n"
-            lines = read_lines_list(file_name, line_num - 10, line_num)
+            lines = chatdbg_utils.read_lines_adding_numbers(file_name, line_num - 10, line_num)
             source_code += "\n".join(lines) + "\n"
             # Get the spaces before the last line.
             num_spaces = len(lines[-1]) - len(lines[-1].lstrip())

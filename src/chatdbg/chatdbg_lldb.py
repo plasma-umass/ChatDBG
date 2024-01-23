@@ -183,10 +183,10 @@ def buildPrompt(debugger: Any) -> Tuple[str, str, str]:
         max_line_length = 100
 
         try:
-            lines = chatdbg_utils.read_lines(full_file_name, line_num - 10, line_num)
+            lines = chatdbg_utils.read_lines_adding_numbers(full_file_name, line_num - 10, line_num)
             stack_trace += (
                 truncate_string(
-                    f'frame {index}: {func_name}({",".join(arg_list)}) at {file_name}:{line_num}:{col_num}\n',
+                    f'frame {index}: {func_name}({",".join(arg_list)}) at {file_name}:{line_num}:{col_num}',
                     max_line_length - 3,
                 )
                 + "\n"
@@ -198,10 +198,7 @@ def buildPrompt(debugger: Any) -> Tuple[str, str, str]:
                     + "\n"
                 )
             source_code += f"/* frame {index} in {file_name} */\n"
-            source_code += lines + "\n"
-            source_code += (
-                "-" * (chatdbg_utils.read_lines_width() + col_num - 1) + "^" + "\n\n"
-            )
+            source_code += lines + "\n\n"
         except:
             # Couldn't find the source for some reason. Skip the file.
             continue
@@ -214,7 +211,7 @@ def buildPrompt(debugger: Any) -> Tuple[str, str, str]:
         error_reason = panic_log + "\n" + error_reason
     except:
         pass
-    return (source_code, stack_trace, error_reason)
+    return (source_code.strip(), stack_trace.strip(), error_reason.strip())
 
 
 @lldb.command("why")

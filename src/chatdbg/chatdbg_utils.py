@@ -1,4 +1,6 @@
 import os
+import textwrap
+
 import openai
 
 from llm_utils import llm_utils
@@ -20,48 +22,45 @@ def get_model() -> str:
 
     return model
 
+def read_lines_adding_numbers(filename: str, start: int, end: int) -> str:
+    def format_group_code_block(group: list[str], first: int) -> str:
+        while group and not group[0].strip():
+            group = group[1:]
+            first += 1
+        while group and not group[-1].strip():
+            group = group[:-1]
 
-def read_lines_width() -> int:
-    return 10
+        last = first + len(group) - 1
+        max_line_number_length = len(str(last))
+        result = "\n".join(
+            [
+                "{0:>{1}} {2}".format(first + i, max_line_number_length, line)
+                for i, line in enumerate(group)
+            ]
+        )
+        return result
 
-
-def read_lines(file_path: str, start_line: int, end_line: int) -> str:
-    """
-    Read lines from a file and return a string containing the lines between start_line and end_line.
-
-    Args:
-        file_path (str): The path of the file to read.
-        start_line (int): The line number of the first line to include (1-indexed).
-        end_line (int): The line number of the last line to include.
-
-    Returns:
-        str: A string containing the lines between start_line and end_line.
-
-    """
-    # open the file for reading
-    with open(file_path, "r") as f:
-        # read all the lines from the file
-        lines = f.readlines()
-        # remove trailing newline characters
-        lines = [line.rstrip() for line in lines]
-        # add line numbers
-        lines = [f"   {index+1:<6} {line}" for index, line in enumerate(lines)]
-    # convert start_line to 0-based indexing
-    start_line = max(0, start_line - 1)
-    # ensure end_line is within range
-    end_line = min(len(lines), end_line)
-    # return the requested lines as a string
-    return "\n".join(lines[start_line:end_line])
+    (lines, first) = llm_utils.read_lines(filename, start, end)
+    return format_group_code_block(lines, first)
 
 
 def explain(source_code: str, traceback: str, exception: str, really_run=True) -> None:
-    user_prompt = "Explain what the root cause of this error is, given the following source code context for each stack frame and a traceback, and propose a fix. In your response, never refer to the frames given below (as in, 'frame 0'). Instead, always refer only to specific lines and filenames of source code.\n"
-    user_prompt += "\n"
-    user_prompt += "Source code for each stack frame:\n```\n"
-    user_prompt += source_code + "\n```\n"
-    user_prompt += traceback + "\n\n"
-    user_prompt += "stop reason = " + exception + "\n"
-    text = ""
+    user_prompt = f"""
+Explain what the root cause of this error is, given the following source code
+context for each stack frame and a traceback, and propose a fix. In your
+response, never refer to the frames given below (as in, 'frame 0'). Instead,
+always refer only to specific lines and filenames of source code.
+
+Source code for each stack frame:
+```
+{source_code}
+```
+
+Traceback:
+{traceback}
+
+Stop reason: {exception}
+    """.strip()
 
     model = get_model()
     if not model:

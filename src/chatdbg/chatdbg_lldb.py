@@ -117,16 +117,14 @@ def truncate_string(string, n):
 
 
 def buildPrompt(debugger: Any) -> Tuple[str, str, str]:
-    import os
-
     target = get_target()
     if not target:
-        return ""
+        return ("", "", "")
     thread = get_thread()
     if not thread:
-        return ""
+        return ("", "", "")
     if thread.GetStopReason() == lldb.eStopReasonBreakpoint:
-        return ""
+        return ("", "", "")
     frame = thread.GetFrameAtIndex(0)
     stack_trace = ""
     source_code = ""

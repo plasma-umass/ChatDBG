@@ -88,7 +88,7 @@ class Why(gdb.Command):
 Why()
 
 
-def buildPrompt() -> str:
+def buildPrompt() -> tuple[str, str, str]:
     thread = gdb.selected_thread()
     if not thread:
         return ""

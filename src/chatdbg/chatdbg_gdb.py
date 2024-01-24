@@ -5,6 +5,8 @@ import sys
 
 import gdb
 
+import llm_utils
+
 sys.path.append(os.path.abspath(pathlib.Path(__file__).parent.resolve()))
 import chatdbg_utils
 
@@ -120,11 +122,9 @@ def buildPrompt() -> tuple[str, str, str]:
         )
         try:
             source_code += f"/* frame {i} */\n"
-            lines = chatdbg_utils.read_lines_adding_numbers(file_name, line_num - 10, line_num)
-            source_code += "\n".join(lines) + "\n"
-            # Get the spaces before the last line.
-            num_spaces = len(lines[-1]) - len(lines[-1].lstrip())
-            source_code += " " * num_spaces + "^" + "-" * (79 - num_spaces) + "\n"
+            (lines, first) = llm_utils.read_lines(filename, line_num - 10, line_num)
+            block = llm_utils.number_group_of_lines(lines, first)
+            source_code += f"{block}\n\n"
         except:
             # Couldn't find source for some reason. Skip file.
             pass
@@ -216,7 +216,10 @@ class PrintTest(gdb.Command):
                                 deref_val = deref_val.referenced_value()
                             elif deref_val.type.code is gdb.TYPE_CODE_STRUCT:
                                 value = self._val_to_json(
-                                    value + name, deref_val, max_recurse - i - 1, address_book
+                                    value + name,
+                                    deref_val,
+                                    max_recurse - i - 1,
+                                    address_book,
                                 )
                                 break
                             else:

@@ -3,7 +3,7 @@ import textwrap
 
 import openai
 
-from llm_utils import llm_utils
+import llm_utils
 
 
 def get_model() -> str:
@@ -21,27 +21,6 @@ def get_model() -> str:
             return ""
 
     return model
-
-def read_lines_adding_numbers(filename: str, start: int, end: int) -> str:
-    def format_group_code_block(group: list[str], first: int) -> str:
-        while group and not group[0].strip():
-            group = group[1:]
-            first += 1
-        while group and not group[-1].strip():
-            group = group[:-1]
-
-        last = first + len(group) - 1
-        max_line_number_length = len(str(last))
-        result = "\n".join(
-            [
-                "{0:>{1}} {2}".format(first + i, max_line_number_length, line)
-                for i, line in enumerate(group)
-            ]
-        )
-        return result
-
-    (lines, first) = llm_utils.read_lines(filename, start, end)
-    return format_group_code_block(lines, first)
 
 
 def explain(source_code: str, traceback: str, exception: str, really_run=True) -> None:

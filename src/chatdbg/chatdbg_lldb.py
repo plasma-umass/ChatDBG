@@ -6,6 +6,8 @@ from typing import Any, Optional, Tuple
 import lldb
 import json
 
+import llm_utils
+
 sys.path.append(os.path.abspath(pathlib.Path(__file__).parent.resolve()))
 import chatdbg_utils
 
@@ -177,16 +179,18 @@ def buildPrompt(debugger: Any) -> Tuple[str, str, str]:
         file_name = file_spec.GetFilename()
         directory = file_spec.GetDirectory()
         full_file_name = os.path.join(directory, file_name)
-        line_num = line_entry.GetLine()
+        lineno = line_entry.GetLine()
         col_num = line_entry.GetColumn()
 
         max_line_length = 100
 
         try:
-            lines = chatdbg_utils.read_lines_adding_numbers(full_file_name, line_num - 10, line_num)
+            (lines, first) = llm_utils.read_lines(full_file_name, lineno - 10, lineno)
+            block = llm_utils.number_group_of_lines(lines, first)
+
             stack_trace += (
                 truncate_string(
-                    f'frame {index}: {func_name}({",".join(arg_list)}) at {file_name}:{line_num}:{col_num}',
+                    f'frame {index}: {func_name}({",".join(arg_list)}) at {file_name}:{lineno}:{col_num}',
                     max_line_length - 3,
                 )
                 + "\n"
@@ -198,7 +202,7 @@ def buildPrompt(debugger: Any) -> Tuple[str, str, str]:
                     + "\n"
                 )
             source_code += f"/* frame {index} in {file_name} */\n"
-            source_code += lines + "\n\n"
+            source_code += block + "\n\n"
         except:
             # Couldn't find the source for some reason. Skip the file.
             continue
@@ -256,6 +260,7 @@ def why_prompt(
     """Output the prompt that `why` would generate (for debugging purposes only)."""
     why(debugger, command, result, internal_dict, really_run=False)
 
+
 @lldb.command("print-test")
 def print_test(
     debugger: lldb.SBDebugger,
@@ -279,21 +284,29 @@ def print_test(
         if recurse_max < 1:
             print("recurse_max value must be at least 1.\n")
             return
-    frame = lldb.debugger.GetSelectedTarget().GetProcess().GetSelectedThread().GetSelectedFrame()
+    frame = (
+        lldb.debugger.GetSelectedTarget()
+        .GetProcess()
+        .GetSelectedThread()
+        .GetSelectedFrame()
+    )
 
     all_vars = []
     addresses = {}
     for var in frame.get_all_variables():
         # Returns python dictionary for each variable, converts to JSON
-        variable = helper_result(debugger, command, result, internal_dict, var, recurse_max, addresses)
+        variable = helper_result(
+            debugger, command, result, internal_dict, var, recurse_max, addresses
+        )
         js = json.dumps(variable, indent=4)
-        all_vars.append(js)       
+        all_vars.append(js)
 
     # Print all addresses and JSON objects
     # print(addresses)
     for j in all_vars:
         print(j)
     return
+
 
 def helper_result(
     debugger: lldb.SBDebugger,
@@ -302,14 +315,14 @@ def helper_result(
     internal_dict: dict,
     var: lldb.SBValue,
     recurse_max: int,
-    address_book: dict
+    address_book: dict,
 ) -> dict:
     # Store address
     address_book.setdefault(str(var.GetAddress()), var.GetName())
 
     json = {}
-    json['name'] = var.GetName()
-    json['type'] = var.GetTypeName()
+    json["name"] = var.GetName()
+    json["type"] = var.GetTypeName()
     # Dereference pointers
     if "*" in var.GetType().GetName():
         if var.GetValueAsUnsigned() != 0:
@@ -318,7 +331,7 @@ def helper_result(
                 deref_val = var.Dereference()
                 # If dereferenced value is "seen", then get name from address book
                 if str(deref_val.GetAddress()) in address_book:
-                    json['value'] = address_book[str(deref_val.GetAddress())]
+                    json["value"] = address_book[str(deref_val.GetAddress())]
                 else:
                     # Recurse up to max_recurse times
                     for i in range(recurse_max - 1):
@@ -326,28 +339,46 @@ def helper_result(
                             value += "->"
                             deref_val = deref_val.Dereference()
                         elif len(deref_val.GetType().get_fields_array()) > 0:
-                            value = helper_result(debugger, command, result, internal_dict, deref_val, recurse_max - i - 1, address_book)
+                            value = helper_result(
+                                debugger,
+                                command,
+                                result,
+                                internal_dict,
+                                deref_val,
+                                recurse_max - i - 1,
+                                address_book,
+                            )
                             break
                         else:
                             break
                     # Append to -> string or not, depending on type of value
-                    if isinstance(value, dict): 
+                    if isinstance(value, dict):
                         json["value"] = value
                     else:
-                        json["value"] = value + str(deref_val)[str(deref_val).find("= ") + 2:]
+                        json["value"] = (
+                            value + str(deref_val)[str(deref_val).find("= ") + 2 :]
+                        )
             except Exception as e:
                 json["value"] = value + "Exception"
         else:
-            json['value'] = "nullptr"
+            json["value"] = "nullptr"
     # Recurse through struct fields
     elif len(var.GetType().get_fields_array()) > 0:
         fields = []
         for i in range(var.GetNumChildren()):
             f = var.GetChildAtIndex(i)
             fields.append(
-                helper_result(debugger, command, result, internal_dict, f, recurse_max - 1, address_book)
+                helper_result(
+                    debugger,
+                    command,
+                    result,
+                    internal_dict,
+                    f,
+                    recurse_max - 1,
+                    address_book,
+                )
             )
         json["value"] = fields
     else:
-        json['value'] = str(var)[str(var).find("= ") + 2:]
+        json["value"] = str(var)[str(var).find("= ") + 2 :]
     return json

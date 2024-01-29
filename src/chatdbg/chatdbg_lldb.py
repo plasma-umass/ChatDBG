@@ -295,7 +295,7 @@ def print_test(
     addresses = {}
     for var in frame.get_all_variables():
         # Returns python dictionary for each variable, converts to JSON
-        variable = helper_result(
+        variable = _val_to_json(
             debugger, command, result, internal_dict, var, recurse_max, addresses
         )
         js = json.dumps(variable, indent=4)
@@ -308,7 +308,7 @@ def print_test(
     return
 
 
-def helper_result(
+def _val_to_json(
     debugger: lldb.SBDebugger,
     command: str,
     result: str,
@@ -339,7 +339,7 @@ def helper_result(
                             value += "->"
                             deref_val = deref_val.Dereference()
                         elif len(deref_val.GetType().get_fields_array()) > 0:
-                            value = helper_result(
+                            value = _val_to_json(
                                 debugger,
                                 command,
                                 result,
@@ -368,7 +368,7 @@ def helper_result(
         for i in range(var.GetNumChildren()):
             f = var.GetChildAtIndex(i)
             fields.append(
-                helper_result(
+                _val_to_json(
                     debugger,
                     command,
                     result,
@@ -382,3 +382,12 @@ def helper_result(
     else:
         json["value"] = str(var)[str(var).find("= ") + 2 :]
     return json
+
+@lldb.command("converse")
+def converse(
+    debugger: lldb.SBDebugger,
+    command: str,
+    result: str,
+    internal_dict: dict,
+) -> None:
+    return "Running converse..."

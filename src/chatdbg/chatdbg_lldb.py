@@ -433,9 +433,6 @@ def converse(
 
     the_prompt = buildPrompt(debugger)
 
-    # print("Prompt 1:", the_prompt[0])
-    # print("Prompt 2:", the_prompt[1])
-    # print("Prompt 3:", the_prompt[2])
 
     if args.show_prompt:
         print("===================== Prompt =====================")

@@ -5,110 +5,116 @@ import openai
 
 import llm_utils
 
-# import argparse
-# import importlib
-# from typing import Any, Optional
-# from rich.console import Console
+import argparse
+from typing import Any, Optional
+from rich.console import Console
 
-# class RichArgParser(argparse.ArgumentParser):
-#     def __init__(self, *args: Any, **kwargs: Any):
-#         self.console = Console(highlight=False)
-#         super().__init__(*args, **kwargs)
+class RichArgParser(argparse.ArgumentParser):
+    def __init__(self, *args: Any, **kwargs: Any):
+        self.console = Console(highlight=False)
+        super().__init__(*args, **kwargs)
 
-#     def _print_message(self, message: Optional[str], file: Any = None) -> None:
-#         if message:
-#             self.console.print(message)
+    def _print_message(self, message: Optional[str], file: Any = None) -> None:
+        if message:
+            self.console.print(message)
 
-# class ChatDBGArgumentFormatter(argparse.HelpFormatter):
-#     # RawDescriptionHelpFormatter.
-#     def _fill_text(self, text, width, indent):
-#         return "".join(indent + line for line in text.splitlines(keepends=True))
+class ChatDBGArgumentFormatter(argparse.HelpFormatter):
+    # RawDescriptionHelpFormatter.
+    def _fill_text(self, text, width, indent):
+        return "".join(indent + line for line in text.splitlines(keepends=True))
 
-#     # RawTextHelpFormatter.
-#     def _split_lines(self, text, width):
-#         return text.splitlines()
+    # RawTextHelpFormatter.
+    def _split_lines(self, text, width):
+        return text.splitlines()
 
-#     # ArgumentDefaultsHelpFormatter.
-#     # Ignore if help message is multiline.
-#     def _get_help_string(self, action):
-#         help = action.help
-#         if "\n" not in help and "%(default)" not in action.help:
-#             if action.default is not argparse.SUPPRESS:
-#                 defaulting_nargs = [argparse.OPTIONAL, argparse.ZERO_OR_MORE]
-#                 if action.option_strings or action.nargs in defaulting_nargs:
-#                     help += " (default: %(default)s)"
-#         return help
+    # ArgumentDefaultsHelpFormatter.
+    # Ignore if help message is multiline.
+    def _get_help_string(self, action):
+        help = action.help
+        if "\n" not in help and "%(default)" not in action.help:
+            if action.default is not argparse.SUPPRESS:
+                defaulting_nargs = [argparse.OPTIONAL, argparse.ZERO_OR_MORE]
+                if action.option_strings or action.nargs in defaulting_nargs:
+                    help += " (default: %(default)s)"
+        return help
 
-# def use_argparse():
-#     description = textwrap.dedent(
-#             rf"""
-#                 [b]ChatDBG[/b]: A Python debugger that uses AI to tell you `why`.
-#                 [blue][link=https://github.com/plasma-umass/ChatDBG]https://github.com/plasma-umass/ChatDBG[/link][/blue]
+def use_argparse(full_command):
+    description = textwrap.dedent(
+            rf"""
+                [b]ChatDBG[/b]: A Python debugger that uses AI to tell you `why`.
+                [blue][link=https://github.com/plasma-umass/ChatDBG]https://github.com/plasma-umass/ChatDBG[/link][/blue]
 
-#                 usage:
-#                 [b]chatdbg [-c command] ... [-m module | pyfile] [arg] ...[/b]
+                usage:
+                [b]chatdbg [-c command] ... [-m module | pyfile] [arg] ...[/b]
 
-#                 Debug the Python program given by pyfile. Alternatively,
-#                 an executable module or package to debug can be specified using
-#                 the -m switch.
+                Debug the Python program given by pyfile. Alternatively,
+                an executable module or package to debug can be specified using
+                the -m switch.
 
-#                 Initial commands are read from .pdbrc files in your home directory
-#                 and in the current directory, if they exist.  Commands supplied with
-#                 -c are executed after commands from .pdbrc files.
+                Initial commands are read from .pdbrc files in your home directory
+                and in the current directory, if they exist.  Commands supplied with
+                -c are executed after commands from .pdbrc files.
 
-#                 To let the script run until an exception occurs, use "-c continue".
-#                 You can then type `why` to get an explanation of the root cause of
-#                 the exception, along with a suggested fix. NOTE: you must have an
-#                 OpenAI key saved as the environment variable OPENAI_API_KEY.
-#                 You can get a key here: https://openai.com/api/
+                To let the script run until an exception occurs, use "-c continue".
+                You can then type `why` to get an explanation of the root cause of
+                the exception, along with a suggested fix. NOTE: you must have an
+                OpenAI key saved as the environment variable OPENAI_API_KEY.
+                You can get a key here: https://openai.com/api/
 
-#                 To let the script run up to a given line X in the debugged file, use
-#                 "-c 'until X'".
-#             """
-#     ).strip()
+                To let the script run up to a given line X in the debugged file, use
+                "-c 'until X'".
+            """
+    ).strip()
+    parser = RichArgParser(
+        prog="chatdbg",
+        usage=argparse.SUPPRESS,
+        description=description,
+        formatter_class=ChatDBGArgumentFormatter
+    )
+    parser.add_argument(
+        "--llm",
+        type=str,
+        default="gpt-4-turbo-preview",
+        help=textwrap.dedent(
+            """
+                the language model to use, e.g., 'gpt-3.5-turbo' or 'gpt-4'
+                the default mode tries gpt-4-turbo-preview and falls back to gpt-4
+            """
+        ).strip(),
+    )
+    parser.add_argument(
+        "-p",
+        "--show-prompt",
+        action="store_true",
+        help="when enabled, only print prompt and exit (for debugging purposes)",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=60,
+        help="the timeout for API calls in seconds",
+    )
+    parser.add_argument(
+        "--max-error-tokens",
+        type=int,
+        default=1920,
+        help="the maximum number of tokens from the error message to send in the prompt",
+    )
+    parser.add_argument(
+        "--max-code-tokens",
+        type=int,
+        default=1920,
+        help="the maximum number of code locations tokens to send in the prompt",
+    )
 
-#     parser = RichArgParser(
-#         prog="chatdbg",
-#         usage=argparse.SUPPRESS,
-#         description=description,
-#         formatter_class=ChatDBGArgumentFormatter
-#     )
-
-#     parser.add_argument(
-#             "-v",
-#             "--version",
-#             action="version",
-#             version=f"%(prog)s v{importlib.metadata.metadata('ChatDBG')['Version']}",
-#             help="print the version of ChatDBG and exit",
-#         )
-    
-#     parser.add_argument(
-#         "--llm",
-#         type=str,
-#         default="gpt-4",
-#         help=textwrap.dedent(
-#             """
-#                 the language model to use, e.g., 'gpt-3.5-turbo' or 'gpt-4'
-#                 the default mode tries gpt-4 and falls back to gpt-3.5-turbo
-#             """
-#         ).strip(),
-#     )
-
-#     parser.add_argument(
-#         "-p",
-#         "--show-prompt",
-#         action="store_true",
-#         help="when enabled, only print prompt and exit (for debugging purposes)",
-#     )
-
-#     args = parser.parse_args()
-#     return args
+    args = parser.parse_args(full_command)
+    return args
 
 def get_model() -> str:
-    all_models = ["gpt-4", "gpt-3.5-turbo"]
+    all_models = ["gpt-4-turbo-preview", "gpt-4", "gpt-3.5-turbo"]
 
     if not "OPENAI_API_MODEL" in os.environ:
-        model = "gpt-4"
+        model = "gpt-4-turbo-preview"
     else:
         model = os.environ["OPENAI_API_MODEL"]
         if model not in all_models:

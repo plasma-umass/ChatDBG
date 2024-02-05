@@ -7,9 +7,14 @@ import lldb
 import json
 
 import llm_utils
+import subprocess
+import openai
+
 
 sys.path.append(os.path.abspath(pathlib.Path(__file__).parent.resolve()))
 import chatdbg_utils
+import conversation
+
 
 # The file produced by the panic handler if the Rust program is using the chatdbg crate.
 rust_panic_log_filename = "panic_log.txt"
@@ -383,6 +388,10 @@ def _val_to_json(
         json["value"] = str(var)[str(var).find("= ") + 2 :]
     return json
 
+
+_DEFAULT_FALLBACK_MODELS = ["gpt-4", "gpt-3.5-turbo"]
+
+
 @lldb.command("converse")
 def converse(
     debugger: lldb.SBDebugger,
@@ -390,4 +399,55 @@ def converse(
     result: str,
     internal_dict: dict,
 ) -> None:
-    return "Running converse..."
+    # Perform typical "why" checks
+    # Check if there is debug info.
+    if not is_debug_build(debugger, command, result, internal_dict):
+        print(
+            "Your program must be compiled with debug information (`-g`) to use `converse`."
+        )
+        return
+    # Check if program is attached to a debugger.
+    if not get_target():
+        print("Must be attached to a program to ask `converse`.")
+        return
+    # Check if code has been run before executing the `why` command.
+    thread = get_thread()
+    if not thread:
+        print("Must run the code first to ask `converse`.")
+        return
+    # Check why code stopped running.
+    if thread.GetStopReason() == lldb.eStopReasonBreakpoint:
+        # Check if execution stopped at a breakpoint or an error.
+        print("Execution stopped at a breakpoint, not an error.")
+        return
+
+    args = chatdbg_utils.use_argparse(command.split())
+    print(args)
+
+    try:
+        client = openai.OpenAI(timeout=args.timeout)
+    except openai.OpenAIError:
+        print("You need an OpenAI key to use this tool.")
+        print("You can get a key here: https://platform.openai.com/api-keys")
+        print("Set the environment variable OPENAI_API_KEY to your key value.")
+        sys.exit(1)
+
+    the_prompt = buildPrompt(debugger)
+
+    # print("Prompt 1:", the_prompt[0])
+    # print("Prompt 2:", the_prompt[1])
+    # print("Prompt 3:", the_prompt[2])
+
+    if args.show_prompt:
+        print("===================== Prompt =====================")
+        conversation.converse(client, args, the_prompt[1])
+        print("==================================================")
+        sys.exit(0)
+
+    print("==================================================")
+    print("ChatDBG")
+    print("==================================================")
+    print(conversation.converse(client, args, the_prompt[1]))
+    print("==================================================")
+
+    sys.exit(0)

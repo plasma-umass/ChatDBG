@@ -422,7 +422,6 @@ def converse(
         return
 
     args = chatdbg_utils.use_argparse(command.split())
-    print(args)
 
     try:
         client = openai.OpenAI(timeout=args.timeout)

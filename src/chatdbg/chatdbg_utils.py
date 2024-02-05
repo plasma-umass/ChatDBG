@@ -94,18 +94,6 @@ def use_argparse(full_command):
         default=60,
         help="the timeout for API calls in seconds",
     )
-    parser.add_argument(
-        "--max-error-tokens",
-        type=int,
-        default=1920,
-        help="the maximum number of tokens from the error message to send in the prompt",
-    )
-    parser.add_argument(
-        "--max-code-tokens",
-        type=int,
-        default=1920,
-        help="the maximum number of code locations tokens to send in the prompt",
-    )
 
     args = parser.parse_args(full_command)
     return args

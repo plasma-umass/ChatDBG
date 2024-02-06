@@ -29,6 +29,9 @@ def get_truncated_error_message(args, diagnostic) -> str:
         if count > args.max_error_tokens:
             list.pop()
             break
+
+    if len(front) + len(back) == n:
+        return diagnostic
     return build_diagnostic_string()
 
 

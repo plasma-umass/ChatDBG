@@ -94,6 +94,13 @@ def use_argparse(full_command):
         default=60,
         help="the timeout for API calls in seconds",
     )
+    # This is only used in the conversation mode.
+    parser.add_argument(
+        "--max-error-tokens",
+        type=int,
+        default=1920,
+        help="the maximum number of tokens from the error message to send in the prompt",
+    )
 
     args = parser.parse_args(full_command)
     return args

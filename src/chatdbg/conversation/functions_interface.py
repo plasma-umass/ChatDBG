@@ -1,11 +1,9 @@
-import json
-import os
 from typing import Optional
 
 import llm_utils
 
 
-class Functions:
+class BaseFunctions:
     def __init__(self, args):
         self.args = args
 
@@ -15,20 +13,17 @@ class Functions:
             for schema in [self.get_code_surrounding_schema()]
         ]
 
-    def dispatch(self, function_call) -> Optional[str]:
-        arguments = json.loads(function_call.arguments)
-        print(
-            f"Calling: {function_call.name}({', '.join([f'{k}={v}' for k, v in arguments.items()])})"
-        )
-        try:
-            if function_call.name == "get_code_surrounding":
-                return self.get_code_surrounding(
-                    arguments["filename"], arguments["lineno"]
-                )
-            else:
-                raise ValueError("No such function.")
-        except Exception as e:
-            print(e)
+    def dispatch(self, name, arguments) -> Optional[str]:
+        if name == "get_code_surrounding":
+            filename = arguments["filename"]
+            lineno = arguments["lineno"]
+            result = self.get_code_surrounding(filename, lineno)
+
+            print(f"Calling get_code_surrounding({filename}, {lineno})...")
+            print(result)
+            print()
+
+            return result
         return None
 
     def get_code_surrounding_schema(self):

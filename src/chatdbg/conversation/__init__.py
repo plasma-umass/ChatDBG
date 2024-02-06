@@ -1,8 +1,9 @@
+import json
 import textwrap
 
 import llm_utils
 
-from . import functions
+from .functions_lldb import LldbFunctions
 
 
 def get_truncated_error_message(args, diagnostic) -> str:
@@ -36,7 +37,7 @@ def get_truncated_error_message(args, diagnostic) -> str:
 
 
 def converse(client, args, diagnostic):
-    fns = functions.Functions(args)
+    fns = LldbFunctions(args)
     available_functions_names = [fn["function"]["name"] for fn in fns.as_tools()]
     system_message = textwrap.dedent(
         f"""
@@ -65,7 +66,9 @@ def converse(client, args, diagnostic):
         choice = completion.choices[0]
         if choice.finish_reason == "tool_calls":
             for tool_call in choice.message.tool_calls:
-                function_response = fns.dispatch(tool_call.function)
+                name = tool_call.function.name
+                arguments = json.loads(tool_call.function.arguments)
+                function_response = fns.dispatch(name, arguments)
                 if function_response:
                     conversation.append(choice.message)
                     conversation.append(

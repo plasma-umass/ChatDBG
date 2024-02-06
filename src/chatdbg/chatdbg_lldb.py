@@ -180,22 +180,23 @@ def buildPrompt(debugger: Any) -> Tuple[str, str, str]:
                     var_list.append(f"{type} {name} = {value}")
 
         line_entry = frame.GetLineEntry()
-        file_spec = line_entry.GetFileSpec()
-        file_name = file_spec.GetFilename()
-        directory = file_spec.GetDirectory()
-        full_file_name = os.path.join(directory, file_name)
+        file_path = line_entry.GetFileSpec().fullpath
         lineno = line_entry.GetLine()
         col_num = line_entry.GetColumn()
+
+        # If we are in a subdirectory, use a relative path instead.
+        if file_path.startswith(os.getcwd()):
+            file_path = os.path.relpath(file_path)
 
         max_line_length = 100
 
         try:
-            (lines, first) = llm_utils.read_lines(full_file_name, lineno - 10, lineno)
+            (lines, first) = llm_utils.read_lines(file_path, lineno - 10, lineno)
             block = llm_utils.number_group_of_lines(lines, first)
 
             stack_trace += (
                 truncate_string(
-                    f'frame {index}: {func_name}({",".join(arg_list)}) at {file_name}:{lineno}:{col_num}',
+                    f'frame {index}: {func_name}({",".join(arg_list)}) at {file_path}:{lineno}:{col_num}',
                     max_line_length - 3,
                 )
                 + "\n"
@@ -206,7 +207,7 @@ def buildPrompt(debugger: Any) -> Tuple[str, str, str]:
                     + truncate_string(",".join(var_list), max_line_length)
                     + "\n"
                 )
-            source_code += f"/* frame {index} in {file_name} */\n"
+            source_code += f"/* frame {index} in {file_path} */\n"
             source_code += block + "\n\n"
         except:
             # Couldn't find the source for some reason. Skip the file.

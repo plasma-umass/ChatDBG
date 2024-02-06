@@ -53,9 +53,7 @@ def converse(client, args, diagnostic):
     ]
 
     if args.show_prompt:
-        print("System message:", system_message)
-        print("User message:", user_message)
-        return
+        return f"""System:\n{system_message}\n\nUser:\n{user_message}"""
 
     while True:
         completion = client.chat.completions.create(

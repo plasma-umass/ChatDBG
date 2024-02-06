@@ -197,7 +197,7 @@ def buildPrompt(debugger: Any) -> Tuple[str, str, str]:
             stack_trace += (
                 truncate_string(
                     f'frame {index}: {func_name}({",".join(arg_list)}) at {file_path}:{lineno}:{col_num}',
-                    max_line_length - 3, # 3 accounts for ellipsis
+                    max_line_length - 3,  # 3 accounts for ellipsis
                 )
                 + "\n"
             )
@@ -430,18 +430,4 @@ def converse(
         sys.exit(1)
 
     the_prompt = buildPrompt(debugger)
-
-
-    if args.show_prompt:
-        print("===================== Prompt =====================")
-        conversation.converse(client, args, the_prompt[1])
-        print("==================================================")
-        sys.exit(0)
-
-    print("==================================================")
-    print("ChatDBG")
-    print("==================================================")
     print(conversation.converse(client, args, the_prompt[1]))
-    print("==================================================")
-
-    sys.exit(0)

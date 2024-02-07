@@ -429,5 +429,4 @@ def converse(
         print("Set the environment variable OPENAI_API_KEY to your key value.")
         sys.exit(1)
 
-    the_prompt = buildPrompt(debugger)
-    print(conversation.converse(client, args, the_prompt[1]))
+    print(conversation.converse(client, args))

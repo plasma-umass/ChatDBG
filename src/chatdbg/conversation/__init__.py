@@ -1,42 +1,15 @@
+import argparse
 import json
 import textwrap
 
+import lldb
 import llm_utils
 
 from .functions_lldb import LldbFunctions
 
 
-def get_truncated_error_message(args, diagnostic) -> str:
-    """
-    Alternate taking front and back lines until the maximum number of tokens.
-    """
-    front: list[str] = []
-    back: list[str] = []
-    diagnostic_lines = diagnostic.splitlines()
-    n = len(diagnostic_lines)
-
-    def build_diagnostic_string():
-        return "\n".join(front) + "\n\n[...]\n\n" + "\n".join(reversed(back)) + "\n"
-
-    for i in range(n):
-        if i % 2 == 0:
-            line = diagnostic_lines[i // 2]
-            list = front
-        else:
-            line = diagnostic_lines[n - i // 2 - 1]
-            list = back
-        list.append(line)
-        count = llm_utils.count_tokens(args.llm, build_diagnostic_string())
-        if count > args.max_error_tokens:
-            list.pop()
-            break
-
-    if len(front) + len(back) == n:
-        return diagnostic
-    return build_diagnostic_string()
-
-
-def converse(client, args, diagnostic):
+# This is LLDB-only (for now?).
+def converse(client, args: argparse.Namespace):
     fns = LldbFunctions(args)
     available_functions_names = [fn["function"]["name"] for fn in fns.as_tools()]
     system_message = textwrap.dedent(
@@ -47,7 +20,17 @@ def converse(client, args, diagnostic):
             Once you have identified the problem, explain the diagnostic and provide a way to fix the issue if you can.
         """
     ).strip()
-    user_message = f"Here is my error message:\n\n```\n{get_truncated_error_message(args, diagnostic)}\n```\n\nWhat's the problem?"
+    user_message = f"""Here is the reason the program stopped execution:
+```
+{fns.get_error_message()}
+```
+
+Here is a summary of the stack frames:
+```
+{fns.get_frame_summary()}
+```
+
+What's the problem?"""
     conversation = [
         {"role": "system", "content": system_message},
         {"role": "user", "content": user_message},

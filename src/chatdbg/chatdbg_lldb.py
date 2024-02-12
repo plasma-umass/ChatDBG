@@ -272,6 +272,7 @@ def print_test(
     internal_dict: dict,
 ) -> None:
     """print all variables in a run while recursing through pointers, keeping track of seen addresses"""
+
     args = command.split()
     recurse_max = 3
     help_string = "Usage: print-test [recurse_max]\n\nrecurse_max: The maximum number of times to recurse through nested structs or pointers to pointers. Default: 3"
@@ -387,7 +388,7 @@ def _val_to_json(
     return json
 
 
-_DEFAULT_FALLBACK_MODELS = ["gpt-4", "gpt-3.5-turbo"]
+_DEFAULT_FALLBACK_MODELS = ["gpt-4-1106-preview", "gpt-4", "gpt-3.5-turbo"]
 
 
 @lldb.command("converse")

@@ -181,6 +181,20 @@ class ChatDBG(pdb.Pdb):
 
         super().interaction(frame, tb)
 
+    # def _check_about_command(self, str):
+    #     all_commands = self.completenames('')
+    #     words = str.split(' ')
+    #     word = words[0]
+    #     if word in all_commands:
+    #         if word in self._warned_keywords:
+    #             return True
+    #         else:
+    #             self.message(f"It looks like you may be issuing a Pdb command.")
+    #             self.message(f"If you did not mean to, start your line with :{word} instead of {word}.")
+    #             self._warned_keywords.add(words[0])
+    #             return True
+    #     else:
+    #         return True
 
     def onecmd(self, line: str) -> bool:
         """
@@ -239,13 +253,13 @@ class ChatDBG(pdb.Pdb):
     def _clear_history(self):
         self._history = [ ]
 
-    # override to make lines starting with : be chat lines.
     def default(self, line):
-        if line[:1] == ':': 
-            line = line[1:].strip()
-            self.do_chat(line)
-        else:
+        if line[:1] == '!': 
             super().default(line)
+        else:
+            if line[:1] == ':': 
+                line = line[1:].strip()
+            self.do_chat(line)
 
     def do_hist(self, arg):  
         """hist

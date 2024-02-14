@@ -66,7 +66,7 @@ function that is called in the code, that apppears in the argument list for a
 function call in the code, or that appears on the call stack.  
 
 The root cause of any error is likely due to a problem in the source code within
-the {os.path.dirname(sys.argv[0])} directory.
+the {os.getcwd()} directory.
 
 Keep your answers under about 8-10 sentences.  Conclude each response with
 either a propopsed fix if you have identified the root cause or a bullet list of
@@ -108,7 +108,7 @@ class ChatDBG(pdb.Pdb):
         self._error_specific_prompt = ''
 
     def _is_user_file(self, file_name):
-        return file_name.startswith(os.path.dirname(sys.argv[0]))
+        return file_name.startswith(os.getcwd())
 
     def grab_active_call_from_frame(self, tb):
         """

@@ -7,7 +7,6 @@ import lldb
 import json
 
 import llm_utils
-import subprocess
 import openai
 
 
@@ -39,20 +38,6 @@ def is_debug_build(debugger, command, result, internal_dict) -> bool:
                     has_debug_symbols = True
                     break
     return has_debug_symbols
-
-
-def is_debug_build_prev(debugger, command, result, internal_dict) -> bool:
-    target = debugger.GetSelectedTarget()
-    if target:
-        module = target.GetModuleAtIndex(0)
-        if module:
-            compile_unit = module.GetCompileUnitAtIndex(0)
-            if compile_unit.IsValid():
-                return True
-    return False
-
-
-# From lldbinit
 
 
 def get_process() -> Optional[lldb.SBProcess]:

@@ -1,3 +1,4 @@
+import os
 from typing import Optional
 
 import lldb
@@ -28,7 +29,8 @@ class LldbFunctions(BaseFunctions):
                 break
 
         summaries = []
-        for i, frame in enumerate(thread):
+        index = 0
+        for frame in thread:
             name = frame.GetDisplayFunctionName().split("(")[0]
             arguments = []
             for j in range(
@@ -38,7 +40,23 @@ class LldbFunctions(BaseFunctions):
                 if not arg:
                     continue
                 arguments.append(f"{arg.GetName()}={arg.GetValue()}")
-            summaries.append(f"{i}: {name}({', '.join(arguments)})")
+
+            line_entry = frame.GetLineEntry()
+            file_path = line_entry.GetFileSpec().fullpath
+            lineno = line_entry.GetLine()
+
+            # If we are in a subdirectory, use a relative path instead.
+            if file_path.startswith(os.getcwd()):
+                file_path = os.path.relpath(file_path)
+
+            # Skip frames for which we have no source -- likely system frames.
+            if not os.path.exists(file_path):
+                continue
+
+            summaries.append(
+                f"{index}: {name}({', '.join(arguments)}) at {file_path}:{lineno}"
+            )
+            index += 1
         return "\n".join(summaries)
 
     def get_error_message(self) -> Optional[str]:

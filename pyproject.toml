@@ -7,6 +7,9 @@ name = "ChatDBG"
 version = "0.2.2"
 authors = [
   { name="Emery Berger", email="emery.berger@gmail.com" },
+  { name="Kyla Levin", email="khlevin@umass.edu" },
+  { name="Nicolas van Kempen", email="nvankempen@umass.edu" },
+  { name="Stephen Freund", email="stephenfreund@gmail.com" }
 ]
 dependencies = ["llm_utils>=0.2.6", "openai>=1.6.1", "rich>=13.7.0"]
 description = "AI-assisted debugging. Uses AI to answer 'why'."

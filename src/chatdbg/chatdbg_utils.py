@@ -9,6 +9,7 @@ import argparse
 from typing import Any, Optional
 from rich.console import Console
 
+
 class RichArgParser(argparse.ArgumentParser):
     def __init__(self, *args: Any, **kwargs: Any):
         self.console = Console(highlight=False)
@@ -17,6 +18,7 @@ class RichArgParser(argparse.ArgumentParser):
     def _print_message(self, message: Optional[str], file: Any = None) -> None:
         if message:
             self.console.print(message)
+
 
 class ChatDBGArgumentFormatter(argparse.HelpFormatter):
     # RawDescriptionHelpFormatter.
@@ -38,9 +40,10 @@ class ChatDBGArgumentFormatter(argparse.HelpFormatter):
                     help += " (default: %(default)s)"
         return help
 
+
 def use_argparse(full_command):
     description = textwrap.dedent(
-            rf"""
+        rf"""
                 [b]ChatDBG[/b]: A Python debugger that uses AI to tell you `why`.
                 [blue][link=https://github.com/plasma-umass/ChatDBG]https://github.com/plasma-umass/ChatDBG[/link][/blue]
 
@@ -69,7 +72,7 @@ def use_argparse(full_command):
         prog="chatdbg",
         usage=argparse.SUPPRESS,
         description=description,
-        formatter_class=ChatDBGArgumentFormatter
+        formatter_class=ChatDBGArgumentFormatter,
     )
     parser.add_argument(
         "--llm",
@@ -105,11 +108,23 @@ def use_argparse(full_command):
     args = parser.parse_args(full_command)
     return args
 
-def get_model() -> str:
-    all_models = ["gpt-4-turbo-preview", "gpt-4", "gpt-3.5-turbo"]
 
+def get_model() -> str:
+    all_models = [
+        "gpt-3.5-turbo-1106",
+        "gpt-3.5-turbo",
+        "gpt-3.5-turbo-0613",
+        "gpt-3.5-turbo-0301",
+        "gpt-3.5-turbo-16k",
+        "gpt-3.5-turbo-16k-0613",
+        "gpt-4-1106-preview",
+        "gpt-4",
+        "gpt-4-0314",
+        "gpt-4-32k",
+        "gpt-4-32k-0314",
+    ]
     if not "OPENAI_API_MODEL" in os.environ:
-        model = "gpt-4-turbo-preview"
+        model = "gpt-4-1106-preview"
     else:
         model = os.environ["OPENAI_API_MODEL"]
         if model not in all_models:

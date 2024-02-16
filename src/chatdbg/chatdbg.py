@@ -95,6 +95,26 @@ class CopyingTextIOWrapper:
         # Delegate attribute access to the file object
         return getattr(self.file, attr)
 
+class ChatDBGPrinter:
+    def push_user_cmd(line): 
+        pass
+
+    def pop_user_cmd(): 
+        pass
+
+    def push_chat():
+        pass
+
+    def pop_chat():
+        pass
+
+    def push_chat_function(line):
+        pass
+
+    def pop_chat_function():
+        pass
+
+    
 
 class ChatDBG(pdb.Pdb):
     def __init__(self, *args, **kwargs):
@@ -139,9 +159,10 @@ class ChatDBG(pdb.Pdb):
         """
         head = tb
         if head != None:
-            while not self._is_user_file(head.tb_frame.f_code.co_filename):
+            while head != None and not self._is_user_file(head.tb_frame.f_code.co_filename):
                 head = head.tb_next
-
+            if head == None:
+                return None, None
             tail = head
             lib_entry = None
             while tail.tb_next != None:
@@ -160,10 +181,9 @@ class ChatDBG(pdb.Pdb):
         Override to remove all lib code from the stack and create more
         precise details about where to look for the error.
         """
+        tb_str = None
         if tb != None:
-            exc_type, exc_value, _ = sys.exc_info()
             tb, lib_entry_point = self._hide_lib_calls(tb)
-            
             if lib_entry_point != None:
                 tb_str = ''.join(traceback.format_tb(tb))
                 details = textwrap.dedent(f"""\
@@ -174,10 +194,46 @@ class ChatDBG(pdb.Pdb):
                     arguments and the specification for the function. You MUST
                     consider the order that the arguments are listed.\n""")
             else:
-                tb_str = ''.join(traceback.format_exception(exc_type, exc_value, tb))
-                details = ''
+                # Use last_type and last_value in this context -- see
+                # docs for the sys package.
+                if hasattr(sys, 'last_type'):
+                    exc_type, exc_value = sys.last_type, sys.last_value
+                    tb_str = ''.join(traceback.format_exception(exc_type, exc_value, tb))
+                    details = ''
+                else:
+                    tb_str = ''.join(traceback.format_tb(tb))
+                    details = textwrap.dedent(f"""\
+                    In addition to the above, you may call the `pdb` function
+                    with the following strings:       
+                                                                                     
+                        step
+                                Execute the current line, stop at the first possible occasion
+                                (either in a function that is called or in the current
+                                function).
+                        next
+                                Continue execution until the next line in the current function
+                                is reached or it returns.
+                    """)
             prompt = f"Here is the stack trace for the error:\n{tb_str}\n{details}\n"
             self._error_specific_prompt = prompt
+        else:
+            # In this case, the tb will be None, and it will Pdb will populate the stack
+            # with the full trace, including library functions, etc.  I don't see an
+            # easy to remove them.  We could take a different approach and hide the
+            # lib frames in Pdb's printing code, but that means they still exist if
+            # we issue up/down commands...
+            self._error_specific_prompt = textwrap.dedent(f"""\
+            In addition to the above, you may call the `pdb` function
+            with the following strings:      
+                                                                                                  
+                step
+                        Execute the current line, stop at the first possible occasion
+                        (either in a function that is called or in the current
+                        function).
+                next
+                        Continue execution until the next line in the current function
+                        is reached or it returns.
+            """)
 
         super().interaction(frame, tb)
 

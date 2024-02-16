@@ -1,13 +1,15 @@
 #! /usr/bin/env python3
 
 import importlib.metadata
+import atexit
 import inspect
 import os
 import pdb
 import pydoc
 import sys
 import textwrap
-import traceback
+import traceback 
+import json
 from io import StringIO
 
 import llm_utils
@@ -95,24 +97,60 @@ class CopyingTextIOWrapper:
         # Delegate attribute access to the file object
         return getattr(self.file, attr)
 
-class ChatDBGPrinter:
-    def push_user_cmd(line): 
-        pass
+class ChatDBGLog:
 
-    def pop_user_cmd(): 
-        pass
+    def __init__(self, log_file = 'chat.json'):
+        self.steps = [ ]
+        self.log_file = log_file
+        atexit.register(lambda: self.write())
 
-    def push_chat():
-        pass
+    def write(self):
+        with open(self.log_file, 'w') as file:
+            print(json.dumps(self.steps, indent=2), file=file)
 
-    def pop_chat():
-        pass
+    def user_command(self, line, output): 
+        x = {
+            'input' : line,
+            'output' : {
+                'type' : 'text',
+                'output' : output
+            }
+        }
+        self.steps.append(x)
 
-    def push_chat_function(line):
-        pass
+    def push_chat(self, line):
+        x = {
+            'input' : line,
+            'output' : {
+                'type' : 'chat',
+                'outputs' : [ ]
+            }
+        }
+        self.steps.append(x)
 
-    def pop_chat_function():
-        pass
+    def pop_chat(self, tokens, cost, time):
+        self.steps[-1]['stats'] = {
+            'tokens' : tokens,
+            'cost' : cost, 
+            'time' : time
+        }
+
+    def message(self, text):
+        self.steps[-1]['output']['outputs'].append(
+        {
+            'type' : 'text',
+            'output' : text
+        })
+
+    def function(self, line, output):
+        x = {
+            'input' : line,
+            'output' : {
+                'type' : 'text',
+                'output' : output
+            }
+        }
+        self.steps[-1]['output']['outputs'].append(x)
 
     
 
@@ -126,6 +164,9 @@ class ChatDBG(pdb.Pdb):
         self._assistant = None
         self._history = []
         self._error_specific_prompt = ''
+
+        self.log = ChatDBGLog()
+        
 
     def _is_user_file(self, file_name):
         return file_name.startswith(os.getcwd())
@@ -202,18 +243,7 @@ class ChatDBG(pdb.Pdb):
                     details = ''
                 else:
                     tb_str = ''.join(traceback.format_tb(tb))
-                    details = textwrap.dedent(f"""\
-                    In addition to the above, you may call the `pdb` function
-                    with the following strings:       
-                                                                                     
-                        step
-                                Execute the current line, stop at the first possible occasion
-                                (either in a function that is called or in the current
-                                function).
-                        next
-                                Continue execution until the next line in the current function
-                                is reached or it returns.
-                    """)
+                    details = ''
             prompt = f"Here is the stack trace for the error:\n{tb_str}\n{details}\n"
             self._error_specific_prompt = prompt
         else:
@@ -222,18 +252,7 @@ class ChatDBG(pdb.Pdb):
             # easy to remove them.  We could take a different approach and hide the
             # lib frames in Pdb's printing code, but that means they still exist if
             # we issue up/down commands...
-            self._error_specific_prompt = textwrap.dedent(f"""\
-            In addition to the above, you may call the `pdb` function
-            with the following strings:      
-                                                                                                  
-                step
-                        Execute the current line, stop at the first possible occasion
-                        (either in a function that is called or in the current
-                        function).
-                next
-                        Continue execution until the next line in the current function
-                        is reached or it returns.
-            """)
+            self._error_specific_prompt = ''
 
         super().interaction(frame, tb)
 
@@ -265,8 +284,10 @@ class ChatDBG(pdb.Pdb):
             try:
                 return super().onecmd(line)
             finally:
+                output = hist_file.getvalue()
+                self.log.user_command(line, output)
                 if line not in [ 'hist', 'test_prompt' ]:
-                    self._history += [ (line, hist_file.getvalue()) ]
+                    self._history += [ (line, output) ]
                 self.stdout = hist_file.getfile()
 
     def message(self, msg) -> None:
@@ -298,8 +319,8 @@ class ChatDBG(pdb.Pdb):
  
     def format_history_entry(self, entry, indent = ''):
         line, output = entry
-        output = llm_utils.word_wrap_except_code_blocks(output, 
-                                                        self.text_width)
+        # output = llm_utils.word_wrap_except_code_blocks(output, 
+        #                                                 self.text_width)
         if output:
             entry = f"(ChatDBG pdb) {line}\n{output}"
         else:
@@ -408,13 +429,15 @@ class ChatDBG(pdb.Pdb):
         def client_print(line=''):
             line = llm_utils.word_wrap_except_code_blocks(line, 
                                                           self.text_width - 10)
+            self.log.message(line)
             line = textwrap.indent(line, 
                                    self.chat_prefix, 
                                    lambda _ : True)
             print(line, file=self.stdout, flush=True)
 
-        self._assistant.run(prompt, client_print)
-
+        self.log.push_chat(prompt)
+        tokens, cost, time = self._assistant.run(prompt, client_print)
+        self.log.pop_chat(tokens, cost, time)
 
     def _make_assistant(self):
 
@@ -437,6 +460,7 @@ class ChatDBG(pdb.Pdb):
             """
             command = f'info {name}'
             result = self._capture_onecmd(command)
+            self.log.function(command, result)
             self.message(self.format_history_entry((command, result), 
                                                    indent = self.chat_prefix))
             return result
@@ -460,6 +484,8 @@ class ChatDBG(pdb.Pdb):
             """
             cmd = command if command != 'list' else 'll'
             result = self._capture_onecmd(cmd)
+            self.log.function(command, result)
+
             self.message(self.format_history_entry((command, result), 
                                                    indent = self.chat_prefix))
 

@@ -137,9 +137,11 @@ class Assistant:
         intermediate function calls.
         All output is printed to the given file.
         """
+        start_time = time.perf_counter()
+
         try:
             if self.assistant == None:
-                return
+                return 0,0,0
             
             assert len(prompt) <= 32768
             
@@ -191,20 +193,25 @@ class Assistant:
             if run.status == 'failed':
                 message = f"\n**Internal Failure ({run.last_error.code}):** {run.last_error.message}"
                 client_print(message)
-                return
+                return 0,0,0
 
             messages = self.threads.messages.list(thread_id=self.thread.id, 
                                                 after=last_printed_message_id, 
                                                 order='asc')
             self._print_messages(messages, client_print)
 
+            end_time = time.perf_counter()
+            elapsed_time = end_time - start_time
+
             cost = llm_utils.calculate_cost(run.usage.prompt_tokens, 
                                             run.usage.completion_tokens,
                                             self.assistant.model)
             client_print()
             client_print(f'[Cost: ~${cost:.2f} USD]')
+            return run.usage.total_tokens, cost, elapsed_time
         except OpenAIError as e:
             client_print(f"*** OpenAI Error: {e}")
+            return 0,0,0
 
 
 

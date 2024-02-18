@@ -3,6 +3,7 @@ import inspect
 import json
 import textwrap
 import time
+import sys
 
 import llm_utils
 from openai import *
@@ -39,7 +40,7 @@ class Assistant:
             You can get a key here: https://platform.openai.com/api-keys
             Set the environment variable OPENAI_API_KEY to your key value.
             """))
-            return
+            sys.exit(0)
     
 
         self.assistants = self.client.beta.assistants

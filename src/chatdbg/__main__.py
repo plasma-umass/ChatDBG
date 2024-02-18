@@ -5,8 +5,9 @@ import sys
 the_path = pathlib.Path(__file__).parent.resolve()
 
 sys.path.insert(0, os.path.abspath(the_path))
-sys.path.insert(0, os.path.abspath('.'))
 
-from . import chatdbg
+from .chatdbg import *
 
-chatdbg.main()
+# from . import chatdbg
+
+# chatdbg.main()

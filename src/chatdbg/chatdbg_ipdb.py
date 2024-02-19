@@ -1,17 +1,8 @@
 """
-c.InteractiveShellApp.exec_lines = [
-     'from IPython.core.debugger import Pdb',
-     'from chatdbg.chatdbg_ipdb import IChatDBG, Chat',
-     'get_ipython().InteractiveTB.debugger_cls = IChatDBG',
-     'print("Loaded ChatDBG.")'
-     ]
+in ipython_config.py:
 
-c.InteractiveShellApp.extensions = ['chatdbg.chatdbg_ipdb']
-
+c.InteractiveShellApp.extensions = ['chatdbg.chatdbg_pdb', 'ipyflow']
 """
-
-from IPython.terminal.debugger import TerminalPdb, Pdb
-from IPython.core.getipython import get_ipython
 
 from colors import strip_color
 import importlib.metadata
@@ -44,12 +35,17 @@ _valid_models = [
     'gpt-3.5-turbo'  # no parallel calls
 ]
 
+def chat_get_env(option_name, default_value):
+    env_name = 'CHATDBG_' + option_name.upper()
+    return os.getenv(env_name, default_value)
+
 class Chat(Configurable):
-    model = Unicode(default_value='gpt-4-1106-preview', help="The OpenAI model").tag(config=True)
-    debug = Bool(default_value=False, help="Log OpenAI calls").tag(config=True)
-    log = Unicode(default_value='log.json', help="The log file").tag(config=True)
-    tag = Unicode(default_value='', help="Any extra info for log file").tag(config=True)
-    context = Int(default_value=5, help='lines of source code to show when displaying stacktrace information').tag(config=True)
+    model = Unicode(chat_get_env('model', 'gpt-4-1106-preview'), help="The OpenAI model").tag(config=True)
+    # model = Unicode(default_value='gpt-3.5-turbo-1106', help="The OpenAI model").tag(config=True)
+    debug = Bool(chat_get_env('debug',False), help="Log OpenAI calls").tag(config=True)
+    log = Unicode(chat_get_env('log','log.json'), help="The log file").tag(config=True)
+    tag = Unicode(chat_get_env('tag', ''), help="Any extra info for log file").tag(config=True)
+    context = Int(chat_get_env('context', 5), help='lines of source code to show when displaying stacktrace information').tag(config=True)
 
     def to_json(self):
         """Serialize the object to a JSON string."""
@@ -61,11 +57,16 @@ class Chat(Configurable):
             'context': self.context
         }
 
+_config = None
 
 def load_ipython_extension(ipython):
     # Create an instance of your configuration class with IPython's config
     global _config
+    from chatdbg.chatdbg_ipdb import ChatDBG, Chat
+    ipython.InteractiveTB.debugger_cls = ChatDBG
     _config = Chat(config=ipython.config)
+    print("*** Loaded ChatDBG ***")
+
 
 
 _basic_instructions=f"""\
@@ -96,7 +97,12 @@ with the following strings:
             The current line in the current frame is indicated by "->".
             
 Call the `info` function to get the documentation and source code for any
-function that is visible in the current frame.
+function or method that is visible in the current frame.  The argument to
+info can be the name of the function or an expression of the form `obj.method_name` 
+to see the information for the method_name method of object obj.
+
+Call the `how` function to get the list of lines executed to produce
+the value currently stored in a global variable used in the current frame.
 
 Call the `pdb` and `info` functions as many times as you would like.
 
@@ -218,18 +224,47 @@ class ChatDBGLog:
 
     
 
+try:
+    import IPython
+    ipython = IPython.get_ipython()
+    if ipython != None:
+        if isinstance(ipython, IPython.terminal.interactiveshell.TerminalInteractiveShell):
+            # ipython --pdb
+            ChatDBGSuper = IPython.terminal.debugger.TerminalPdb
+            _user_file_prefixes = [ os.getcwd(), '<ipython'  ]
 
-class IChatDBG(TerminalPdb):
+        else:
+            # inside jupyter
+            from IPython.core.debugger import InterruptiblePdb
+            ChatDBGSuper = InterruptiblePdb
+            _user_file_prefixes = [ os.getcwd(), IPython.paths.tempfile.gettempdir() ]
+    else: 
+        # ichatpdb on command line
+        ChatDBGSuper = IPython.terminal.debugger.TerminalPdb
+        _user_file_prefixes = [ os.getcwd() ]
+except NameError as e:
+    print(f'{e}')
+    ChatDBGSuper = pdb.Pdb
+
+print(f'Super: {ChatDBGSuper}')
+print(f'paths: {_user_file_prefixes}')
+
+class ChatDBG(ChatDBGSuper):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        self.prompt = '(ChatDBG pdb) '
+        self.prompt = '(ChatDBG ipdb) '
         self.chat_prefix = '   '
         self.text_width = 80
         self._assistant = None
         self._history = []
         self._error_specific_prompt = ''
 
+        global _config
+        if _config == None:
+            _config = Chat()
+
+        print(_config.context)
         self.do_context(_config.context)
 
         self.log = ChatDBGLog()
@@ -237,8 +272,12 @@ class IChatDBG(TerminalPdb):
         
 
     def _is_user_file(self, file_name):
-        return (file_name.startswith(os.getcwd()) and not file_name.endswith('.pyx')) \
-                or file_name.startswith('<ipython')
+        if file_name.endswith('.pyx'):
+            return False
+        for prefix in _user_file_prefixes:
+            if file_name.startswith(prefix):
+                return True
+        return False
 
     def format_stack_trace(self, context=None):
         old_stdout = self.stdout
@@ -345,7 +384,8 @@ class IChatDBG(TerminalPdb):
 
     def precmd(self, line):
         # skip TerminalPdf's ? and ?? replacement
-        line = super(Pdb, self).precmd(line)
+        if ChatDBGSuper != pdb.Pdb:
+            line = super(IPython.core.debugger.Pdb, self).precmd(line)
         return line
 
     def do_hist(self, arg):  
@@ -387,6 +427,39 @@ class IChatDBG(TerminalPdb):
         except Exception:
             self.do_pydoc(arg)
             self.message(f'You MUST assume that `{arg}` is specified and implemented correctly.')
+
+    def do_how(self, arg):
+        from ipyflow import singletons   
+        from ipyflow import cells 
+        from ipyflow import code
+
+        try:
+            index = self.curindex
+            _x = None
+            while index > 0:
+                # print(index)
+                pos, _ = singletons.flow().get_position(self.stack[index][0])
+                if pos >= 0: 
+                    cell = cells().at_counter(pos)
+                    # print(cell.used_symbols)
+                    _x = next((x for x in cell.used_symbols if x.name == arg), None)
+                if _x != None: 
+                    break
+                index -= 1
+            if _x != None:
+                # print('found it')
+                # print(_x)
+                # print(_x.__dict__)
+                # print(_x._get_timestamps_for_version(version=-1))
+                # print(code(_x))
+                result = str(code(_x)).rstrip()
+            else:
+                result = f"*** No information avaiable for {arg}, only {cell.used_symbols}.  Run the command `p {arg}` to see its value."
+        except Exception as e:
+            # traceback.print_exc()
+            result = f"*** Bad frame for call to how ({e})"
+
+        self.message(result)
 
     def do_test_prompt(self, arg):
         """test_prompt
@@ -491,7 +564,7 @@ class IChatDBG(TerminalPdb):
             """
             {
                 "name": "info",
-                "description": "Get the documentation and source code (if available) for any function visible in the current frame",
+                "description": "Get the documentation and source code (if available) for any function or method visible in the current frame.  The argument to info can be the name of the function or an expression of the form `obj.method_name`  to see the information for the method_name method of object obj.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -542,6 +615,33 @@ class IChatDBG(TerminalPdb):
             result += strip_color(self._stack_prompt())
             return result
 
+        def how(name):
+            """
+            {
+                "name": "how",
+                "description": "Return the code to compute a global variable used in the current frame",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "The variable to look at."
+                        }
+                    },
+                    "required": [ "name"  ]
+                }
+            }
+
+            """
+            command = f'how {name}'
+            result = self._capture_onecmd(command)
+            self.message(self.format_history_entry((command, result), 
+                                                   indent = self.chat_prefix))
+            result = strip_color(result)        
+            self.log.function(command, result)
+            return result
+
+
         self._clear_history()
         instructions = self._instructions()
         
@@ -556,6 +656,7 @@ class IChatDBG(TerminalPdb):
                                     model=_config.model, 
                                     debug=_config.debug)
         self._assistant.add_function(pdb)
+        self._assistant.add_function(how)
         self._assistant.add_function(info)
 
 

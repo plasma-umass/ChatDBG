@@ -15,7 +15,8 @@ dependencies = [
   "llm-utils>=0.2.6",
   "openai>=1.6.1",
   "rich>=13.7.0",
-  "ansicolors>=1.1.8"
+  "ansicolors>=1.1.8",
+  "traitlets>=5.14.1"
 ]
 description = "AI-assisted debugging. Uses AI to answer 'why'."
 readme = "README.md"

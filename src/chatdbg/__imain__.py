@@ -6,8 +6,11 @@ the_path = pathlib.Path(__file__).parent.resolve()
 
 sys.path.insert(0, os.path.abspath(the_path))
 
-from .chatdbg import *
+from .chatdbg_ipdb import *
 
-# from . import chatdbg
+import ipdb
 
-# chatdbg.main()
+ipdb.__main__._get_debugger_cls = lambda : ChatDBG
+
+def main():
+    ipdb.__main__.main()

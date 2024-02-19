@@ -23,6 +23,7 @@ classifiers = [
 
 [project.scripts]
 chatdbg = "chatdbg.__main__:main"
+ichatdbg = "chatdbg.__imain__:main"
 
 [project.urls]
 "Homepage" = "https://github.com/plasma-umass/ChatDBG"

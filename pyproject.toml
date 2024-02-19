@@ -16,7 +16,9 @@ dependencies = [
   "openai>=1.6.1",
   "rich>=13.7.0",
   "ansicolors>=1.1.8",
-  "traitlets>=5.14.1"
+  "traitlets>=5.14.1",
+  "ipdb>=0.13.13",
+  "ipython>=8.21.0"
 ]
 description = "AI-assisted debugging. Uses AI to answer 'why'."
 readme = "README.md"

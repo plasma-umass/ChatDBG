@@ -2,12 +2,6 @@ import os
 import pathlib
 import sys
 
-the_path = pathlib.Path(__file__).parent.resolve()
+from . import chatdbg
 
-sys.path.insert(0, os.path.abspath(the_path))
-
-from .chatdbg import *
-
-# from . import chatdbg
-
-# chatdbg.main()
+chatdbg.main()

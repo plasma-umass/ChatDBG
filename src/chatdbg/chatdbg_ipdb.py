@@ -37,7 +37,8 @@ _valid_models = [
 
 def chat_get_env(option_name, default_value):
     env_name = 'CHATDBG_' + option_name.upper()
-    return os.getenv(env_name, default_value)
+    t = type(default_value)
+    return t(os.getenv(env_name, default_value))
 
 class Chat(Configurable):
     model = Unicode(chat_get_env('model', 'gpt-4-1106-preview'), help="The OpenAI model").tag(config=True)
@@ -230,7 +231,8 @@ try:
     if ipython != None:
         if isinstance(ipython, IPython.terminal.interactiveshell.TerminalInteractiveShell):
             # ipython --pdb
-            ChatDBGSuper = IPython.terminal.debugger.TerminalPdb
+            from IPython.terminal.debugger import TerminalPdb
+            ChatDBGSuper = TerminalPdb
             _user_file_prefixes = [ os.getcwd(), '<ipython'  ]
 
         else:
@@ -240,7 +242,8 @@ try:
             _user_file_prefixes = [ os.getcwd(), IPython.paths.tempfile.gettempdir() ]
     else: 
         # ichatpdb on command line
-        ChatDBGSuper = IPython.terminal.debugger.TerminalPdb
+        from IPython.terminal.debugger import TerminalPdb
+        ChatDBGSuper = TerminalPdb
         _user_file_prefixes = [ os.getcwd() ]
 except NameError as e:
     print(f'{e}')
@@ -264,7 +267,6 @@ class ChatDBG(ChatDBGSuper):
         if _config == None:
             _config = Chat()
 
-        print(_config.context)
         self.do_context(_config.context)
 
         self.log = ChatDBGLog()

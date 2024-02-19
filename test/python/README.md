@@ -4,5 +4,5 @@
 * Run, for example:
 
     ```
-    chatpdb -c continue marbles.py
+    chatdbg -c continue marbles.py
     ```

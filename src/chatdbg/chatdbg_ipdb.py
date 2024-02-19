@@ -4,8 +4,7 @@ in ipython_config.py:
 c.InteractiveShellApp.extensions = ['chatdbg.chatdbg_pdb', 'ipyflow']
 """
 
-from colors import strip_color
-import importlib.metadata
+import yaml
 import atexit
 import inspect
 import os
@@ -17,6 +16,8 @@ import traceback
 import json
 from datetime import datetime
 from io import StringIO
+import re
+import IPython
 
 import llm_utils
 
@@ -40,11 +41,20 @@ def chat_get_env(option_name, default_value):
     t = type(default_value)
     return t(os.getenv(env_name, default_value))
 
+def make_arrow(pad):
+    """generate the leading arrow in front of traceback or debugger"""
+    if pad >= 2:
+        return '-'*(pad-2) + '> '
+    elif pad == 1:
+        return '>'
+    return ''
+
+
 class Chat(Configurable):
     model = Unicode(chat_get_env('model', 'gpt-4-1106-preview'), help="The OpenAI model").tag(config=True)
     # model = Unicode(default_value='gpt-3.5-turbo-1106', help="The OpenAI model").tag(config=True)
     debug = Bool(chat_get_env('debug',False), help="Log OpenAI calls").tag(config=True)
-    log = Unicode(chat_get_env('log','log.json'), help="The log file").tag(config=True)
+    log = Unicode(chat_get_env('log','log.yaml'), help="The log file").tag(config=True)
     tag = Unicode(chat_get_env('tag', ''), help="Any extra info for log file").tag(config=True)
     context = Int(chat_get_env('context', 5), help='lines of source code to show when displaying stacktrace information').tag(config=True)
 
@@ -68,12 +78,25 @@ def load_ipython_extension(ipython):
     _config = Chat(config=ipython.config)
     print("*** Loaded ChatDBG ***")
 
+def strip_color(s):
+    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+    return ansi_escape.sub('', s)
+
+# Custom representer for literal scalar representation
+def literal_presenter(dumper, data):
+    if '\n' in data:
+        return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='|')
+    return dumper.represent_scalar('tag:yaml.org,2002:str', data)
+
+yaml.add_representer(str, literal_presenter)
 
 
-_basic_instructions=f"""\
+_intro=f"""\
 You are a debugging assistant.  You will be given a Python stack trace for an
 error and answer questions related to the root cause of the error.
+"""
 
+_pbd_function=f"""\
 Call the `pdb` function to run Pdb debugger commands on the stopped program. The
 Pdb debugger keeps track of a current frame. You may call the `pdb` function
 with the following strings:
@@ -96,23 +119,29 @@ with the following strings:
     list
             List the source code for the current frame. 
             The current line in the current frame is indicated by "->".
-            
+
+Call `pdb` to print any variable value or expression that you believe may
+contribute to the error.
+"""
+
+_info_function="""\
 Call the `info` function to get the documentation and source code for any
 function or method that is visible in the current frame.  The argument to
 info can be the name of the function or an expression of the form `obj.method_name` 
 to see the information for the method_name method of object obj.
 
-Call the `how` function to get the list of lines executed to produce
-the value currently stored in a global variable used in the current frame.
-
-Call the `pdb` and `info` functions as many times as you would like.
-
-Call `pdb` to print any variable value or expression that you believe may
-contribute to the error.
-
 Unless it is from a common, widely-used library, you MUST call `info` on any
 function that is called in the code, that apppears in the argument list for a
 function call in the code, or that appears on the call stack.  
+"""
+
+_how_function="""\
+Call the `how` function to get the code used to produce
+the value currently stored a variable.  
+"""
+
+_general_instructions="""\
+Call the provided functions as many times as you would like.
 
 The root cause of any error is likely due to a problem in the source code within
 the {os.getcwd()} directory.
@@ -161,15 +190,16 @@ class ChatDBGLog:
         self.chat_step = None
 
     def dump(self): 
-        full_json = {
+        full_json = [{
             'meta' : self.meta,
             'steps' : self.steps,
             'instructions' : self._instructions,
             'stdout' : self.stdout_wrapper.getvalue(),
             'stderr' : self.stderr_wrapper.getvalue()
-        }
-        with open(_config.log, 'w') as file:
-            print(json.dumps(full_json, indent=2), file=file)
+        }]
+        
+        with open(_config.log, 'a') as file:
+            yaml.dump(full_json, file, default_flow_style=False)
 
     def instructions(self, instructions):
         self._instructions = instructions
@@ -224,9 +254,8 @@ class ChatDBGLog:
         self.chat_step['output']['outputs'].append(x)
 
     
-
+_supports_flow = False
 try:
-    import IPython
     ipython = IPython.get_ipython()
     if ipython != None:
         if isinstance(ipython, IPython.terminal.interactiveshell.TerminalInteractiveShell):
@@ -240,6 +269,7 @@ try:
             from IPython.core.debugger import InterruptiblePdb
             ChatDBGSuper = InterruptiblePdb
             _user_file_prefixes = [ os.getcwd(), IPython.paths.tempfile.gettempdir() ]
+            _supports_flow = True
     else: 
         # ichatpdb on command line
         from IPython.terminal.debugger import TerminalPdb
@@ -248,9 +278,6 @@ try:
 except NameError as e:
     print(f'{e}')
     ChatDBGSuper = pdb.Pdb
-
-print(f'Super: {ChatDBGSuper}')
-print(f'paths: {_user_file_prefixes}')
 
 class ChatDBG(ChatDBGSuper):
     def __init__(self, *args, **kwargs):
@@ -289,12 +316,16 @@ class ChatDBG(ChatDBGSuper):
             self.print_stack_trace(context)
         finally:
             self.stdout = old_stdout
-        return buf.getvalue()
+        return strip_color(buf.getvalue())
 
     def interaction(self, frame, tb_or_exc):
         if isinstance(tb_or_exc, BaseException):
             details = "".join(traceback.format_exception_only(tb_or_exc)).rstrip()
             self._error_specific_prompt = f"The program encountered the following error:\n```\n{details}\n```\n"
+        else:
+            if sys.exception() != None:
+                details = "".join(traceback.format_exception_only(sys.exception())).rstrip()
+                self._error_specific_prompt = f"The program encountered the following error:\n```\n{details}\n```\n"
 
         super().interaction(frame, tb_or_exc)
  
@@ -368,9 +399,9 @@ class ChatDBG(ChatDBGSuper):
     def format_history_entry(self, entry, indent = ''):
         line, output = entry
         if output:
-            entry = f"(ChatDBG pdb) {line}\n{output}"
+            entry = f"{self.prompt} {line}\n{output}"
         else:
-            entry = f"(ChatDBG pdb) {line}"
+            entry = f"{self.prompt} {line}"
         return textwrap.indent(entry, indent, lambda _ : True) 
 
     def _clear_history(self):
@@ -431,11 +462,15 @@ class ChatDBG(ChatDBGSuper):
             self.message(f'You MUST assume that `{arg}` is specified and implemented correctly.')
 
     def do_how(self, arg):
-        from ipyflow import singletons   
-        from ipyflow import cells 
-        from ipyflow import code
-
+        if not _supports_flow:
+            self.message("*** `how` is only supported in Jupyter notebooks")
+            return
+        
         try:
+            from ipyflow import singletons   
+            from ipyflow import cells 
+            from ipyflow.models import statements
+
             index = self.curindex
             _x = None
             while index > 0:
@@ -454,7 +489,11 @@ class ChatDBG(ChatDBGSuper):
                 # print(_x.__dict__)
                 # print(_x._get_timestamps_for_version(version=-1))
                 # print(code(_x))
-                result = str(code(_x)).rstrip()
+                time_stamps = _x._get_timestamps_for_version(version=-1)
+                time_stamps = [ts for ts in time_stamps if ts.cell_num > -1]
+                result = str(statements().format_multi_slice(time_stamps,
+                                                        blacken=True,
+                                                        format_type=None)).rstrip()
             else:
                 result = f"*** No information avaiable for {arg}, only {cell.used_symbols}.  Run the command `p {arg}` to see its value."
         except Exception as e:
@@ -474,8 +513,11 @@ class ChatDBG(ChatDBGSuper):
         self.message(self._get_prompt(arg))
 
     def _instructions(self):
+        how_fn = _how_function if _supports_flow else ''
+        instructions = f"{_intro}\n{_pbd_function}\n{_info_function}\n{how_fn}\n{_general_instructions}"
+
         stack_dump = f'The program has this stack trace:\n```\n{self.format_stack_trace()}\n```\n'
-        return _basic_instructions + '\n' + stack_dump + self._error_specific_prompt
+        return instructions + '\n' + stack_dump + self._error_specific_prompt
 
     def print_stack_trace(self, context=None):
         # override to print the skips into stdout...
@@ -659,8 +701,122 @@ class ChatDBG(ChatDBGSuper):
                                     debug=_config.debug)
         self._assistant.add_function(pdb)
         self._assistant.add_function(how)
-        self._assistant.add_function(info)
+
+        if _supports_flow:
+            self._assistant.add_function(info)
 
 
+    # def format_stack_entry(self, frame_lineno, lprefix=': ', context=None):
+    #     from IPython.utils import coloransi, py3compat 
+    #     import linecache
+
+    #     if context is None:
+    #         context = self.context
+    #     try:
+    #         context = int(context)
+    #         if context <= 0:
+    #             print("Context must be a positive integer", file=self.stdout)
+    #     except (TypeError, ValueError):
+    #             print("Context must be a positive integer", file=self.stdout)
+
+    #     import reprlib
+
+    #     ret = []
+
+    #     Colors = self.color_scheme_table.active_colors
+    #     ColorsNormal = Colors.Normal
+    #     tpl_link = "%s%%s%s" % (Colors.filenameEm, ColorsNormal)
+    #     tpl_call = "%s%%s%s%%s%s" % (Colors.vName, Colors.valEm, ColorsNormal)
+    #     tpl_line = "%%s%s%%s %s%%s" % (Colors.lineno, ColorsNormal)
+    #     tpl_line_em = "%%s%s%%s %s%%s%s" % (Colors.linenoEm, Colors.line, ColorsNormal)
+
+    #     frame, lineno = frame_lineno
+
+    #     return_value = ''
+    #     loc_frame = self._get_frame_locals(frame)
+    #     if "__return__" in loc_frame:
+    #         rv = loc_frame["__return__"]
+    #         # return_value += '->'
+    #         return_value += reprlib.repr(rv) + "\n"
+    #     ret.append(return_value)
+
+    #     #s = filename + '(' + `lineno` + ')'
+    #     filename = self.canonic(frame.f_code.co_filename)
+    #     link = tpl_link % py3compat.cast_unicode(filename)
+
+    #     if frame.f_code.co_name:
+    #         func = frame.f_code.co_name
+    #     else:
+    #         func = "<lambda>"
+
+    #     call = ""
+    #     if func != "?":
+    #         if "__args__" in loc_frame:
+    #             args = reprlib.repr(loc_frame["__args__"])
+    #         else:
+    #             args = '()'
+    #         call = tpl_call % (func, args)
+
+    #     # The level info should be generated in the same format pdb uses, to
+    #     # avoid breaking the pdbtrack functionality of python-mode in *emacs.
+    #     if frame is self.curframe:
+    #         ret.append('> ')
+    #     else:
+    #         ret.append("  ")
+    #     ret.append("%s(%s)%s\n" % (link, lineno, call))
+
+    #     try:
+    #         ilines, istart = inspect.getsourcelines(frame.f_code)
+    #         iend = istart + len(ilines) - 1
+    #     except Exception as e:
+    #         print(e)
+    #         istart, iend = 0, 99999
+
+    #     start = max(istart, lineno - 1 - context//2)
+    #     lines = linecache.getlines(filename)
+    #     start = min(start, len(lines) - context)
+    #     start = max(start, 0)
+    #     end = min(iend, start + context)
+    #     lines = lines[start : end]
+
+    #     for i, line in enumerate(lines):
+    #         show_arrow = start + 1 + i == lineno
+    #         linetpl = (frame is self.curframe or show_arrow) and tpl_line_em or tpl_line
+    #         ret.append(
+    #             self.__format_line(
+    #                 linetpl, filename, start + 1 + i, line, arrow=show_arrow
+    #             )
+    #         )
+    #     return "".join(ret)
 
 
+    # def __format_line(self, tpl_line, filename, lineno, line, arrow=False):
+    #     bp_mark = ""
+    #     bp_mark_color = ""
+
+    #     new_line, err = self.parser.format2(line, 'str')
+    #     if not err:
+    #         line = new_line
+
+    #     bp = None
+    #     if lineno in self.get_file_breaks(filename):
+    #         bps = self.get_breaks(filename, lineno)
+    #         bp = bps[-1]
+
+    #     if bp:
+    #         Colors = self.color_scheme_table.active_colors
+    #         bp_mark = str(bp.number)
+    #         bp_mark_color = Colors.breakpoint_enabled
+    #         if not bp.enabled:
+    #             bp_mark_color = Colors.breakpoint_disabled
+
+    #     numbers_width = 7
+    #     if arrow:
+    #         # This is the line with the error
+    #         pad = numbers_width - len(str(lineno)) - len(bp_mark)
+    #         num = '%s%s' % (make_arrow(pad), str(lineno))
+    #     else:
+    #         num = '%*s' % (numbers_width - len(bp_mark), str(lineno))
+
+    #     return tpl_line % (bp_mark_color + bp_mark, num, line)
+    

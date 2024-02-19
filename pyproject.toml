@@ -8,7 +8,7 @@ version = "0.2.2"
 authors = [
   { name="Emery Berger", email="emery.berger@gmail.com" },
 ]
-dependencies = ["llm_utils>=0.2.6", "openai>=1.6.1", "rich>=13.7.0"]
+dependencies = ["llm_utils>=0.2.6", "openai>=1.6.1", "rich>=13.7.0", "ipdb>=0.13.13", "ipython>=8.21.0", "PyYAML>=6.0.1"]
 description = "AI-assisted debugging. Uses AI to answer 'why'."
 readme = "README.md"
 requires-python = ">=3.7"

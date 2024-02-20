@@ -22,20 +22,17 @@ def __lldb_init_module(debugger: lldb.SBDebugger, internal_dict: dict) -> None:
     debugger.HandleCommand("settings set prompt '(ChatDBG lldb) '")
 
 
-def is_debug_build(debugger, command, result, internal_dict) -> bool:
+def is_debug_build(debugger: lldb.SBDebugger) -> bool:
     """Returns False if not compiled with debug information."""
     target = debugger.GetSelectedTarget()
     if not target:
         return False
-
-    has_debug_symbols = False
     for module in target.module_iter():
         for cu in module.compile_unit_iter():
             for line_entry in cu:
                 if line_entry.GetLine() > 0:
-                    has_debug_symbols = True
-                    break
-    return has_debug_symbols
+                    return True
+    return False
 
 
 def get_process() -> Optional[lldb.SBProcess]:
@@ -216,7 +213,7 @@ def why(
     Root cause analysis for an error.
     """
     # Check if there is debug info.
-    if not is_debug_build(debugger, command, result, internal_dict):
+    if not is_debug_build(debugger):
         print(
             "Your program must be compiled with debug information (`-g`) to use `why`."
         )
@@ -383,7 +380,7 @@ def converse(
 ) -> None:
     # Perform typical "why" checks
     # Check if there is debug info.
-    if not is_debug_build(debugger, command, result, internal_dict):
+    if not is_debug_build(debugger):
         print(
             "Your program must be compiled with debug information (`-g`) to use `converse`."
         )

@@ -397,7 +397,7 @@ def converse(
         print("Execution stopped at a breakpoint, not an error.")
         return
 
-    args = chatdbg_utils.parse_known_args(command.split())
+    args, remaining = chatdbg_utils.parse_known_args(command.split())
 
     try:
         client = openai.OpenAI(timeout=args.timeout)

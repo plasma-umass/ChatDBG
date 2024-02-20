@@ -1,12 +1,10 @@
+import argparse
 import os
 import textwrap
-
-import openai
+from typing import Any, List, Optional, Tuple
 
 import llm_utils
-
-import argparse
-from typing import Any, Optional
+import openai
 from rich.console import Console
 
 
@@ -41,31 +39,11 @@ class ChatDBGArgumentFormatter(argparse.HelpFormatter):
         return help
 
 
-def parse_known_args(full_command):
+def parse_known_args(argument_string: str) -> Tuple[argparse.Namespace, List[str]]:
     description = textwrap.dedent(
         rf"""
             [b]ChatDBG[/b]: A Python debugger that uses AI to tell you `why`.
             [blue][link=https://github.com/plasma-umass/ChatDBG]https://github.com/plasma-umass/ChatDBG[/link][/blue]
-
-            usage:
-            [b]chatdbg [-c command] ... [-m module | pyfile] [arg] ...[/b]
-
-            Debug the Python program given by pyfile. Alternatively,
-            an executable module or package to debug can be specified using
-            the -m switch.
-
-            Initial commands are read from .pdbrc files in your home directory
-            and in the current directory, if they exist.  Commands supplied with
-            -c are executed after commands from .pdbrc files.
-
-            To let the script run until an exception occurs, use "-c continue".
-            You can then type `why` to get an explanation of the root cause of
-            the exception, along with a suggested fix. NOTE: you must have an
-            OpenAI key saved as the environment variable OPENAI_API_KEY.
-            You can get a key here: https://openai.com/api/
-
-            To let the script run up to a given line X in the debugged file, use
-            "-c 'until X'".
         """
     ).strip()
     parser = RichArgParser(
@@ -78,12 +56,7 @@ def parse_known_args(full_command):
         "--llm",
         type=str,
         default="gpt-4-turbo-preview",
-        help=textwrap.dedent(
-            """
-                the language model to use, e.g., 'gpt-3.5-turbo' or 'gpt-4'
-                the default mode tries gpt-4-turbo-preview and falls back to gpt-4
-            """
-        ).strip(),
+        help="the language model to use, e.g., 'gpt-3.5-turbo' or 'gpt-4'",
     )
     parser.add_argument(
         "-p",
@@ -97,16 +70,8 @@ def parse_known_args(full_command):
         default=60,
         help="the timeout for API calls in seconds",
     )
-    # This is only used in the conversation mode.
-    parser.add_argument(
-        "--max-error-tokens",
-        type=int,
-        default=1920,
-        help="the maximum number of tokens from the error message to send in the prompt",
-    )
 
-    args = parser.parse_args(full_command)
-    return args
+    return parser.parse_known_args(argument_string)
 
 
 def get_model() -> str:

@@ -207,41 +207,34 @@ def why(
     command: str,
     result: str,
     internal_dict: dict,
-    really_run=True,
 ) -> None:
     """
-    Root cause analysis for an error.
+    The why command is where we use the refined stack trace system.
+    We send information once to GPT, and receive an explanation.
+    There is a bit of work to determine what context we end up sending to GPT.
+    Notably, we send a summary of all stack frames, including locals.
     """
-    # Check if there is debug info.
     if not is_debug_build(debugger):
         print(
             "Your program must be compiled with debug information (`-g`) to use `why`."
         )
-        return
-    # Check if program is attached to a debugger.
+        sys.exit(1)
+    # Check if debugger is attached to a program.
     if not get_target():
         print("Must be attached to a program to ask `why`.")
-        return
-    # Check if code has been run before executing the `why` command.
+        sys.exit(1)
+    # Check if the program has been run prior to executing the `why` command.
     thread = get_thread()
     if not thread:
         print("Must run the code first to ask `why`.")
-        return
-    # Check why code stopped running.
+        sys.exit(1)
     if thread.GetStopReason() == lldb.eStopReasonBreakpoint:
-        # Check if execution stopped at a breakpoint or an error.
         print("Execution stopped at a breakpoint, not an error.")
-        return
+        sys.exit(1)
+
     the_prompt = buildPrompt(debugger)
-    chatdbg_utils.explain(the_prompt[0], the_prompt[1], the_prompt[2], really_run)
-
-
-@lldb.command("why_prompt")
-def why_prompt(
-    debugger: lldb.SBDebugger, command: str, result: str, internal_dict: dict
-) -> None:
-    """Output the prompt that `why` would generate (for debugging purposes only)."""
-    why(debugger, command, result, internal_dict, really_run=False)
+    args, _ = chatdbg_utils.parse_known_args(command)
+    chatdbg_utils.explain(the_prompt[0], the_prompt[1], the_prompt[2], args)
 
 
 @lldb.command("print-test")

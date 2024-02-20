@@ -41,7 +41,7 @@ class Why(gdb.Command):
     def __init__(self):
         gdb.Command.__init__(self, "why", gdb.COMMAND_USER)
 
-    def invoke(self, arg, from_tty, really_run=True):
+    def invoke(self, arg, from_tty):
         try:
             frame = gdb.selected_frame()
         except:
@@ -53,11 +53,10 @@ class Why(gdb.Command):
             # which _probably_ means a SEGV.
             last_error_type = "SIGSEGV"
         the_prompt = buildPrompt()
+        args, _ = chatdbg_utils.parse_known_args(arg.split())
         if the_prompt:
             # Call `explain` function with pieces of the_prompt  as arguments.
-            chatdbg_utils.explain(
-                the_prompt[0], the_prompt[1], the_prompt[2], really_run
-            )
+            chatdbg_utils.explain(the_prompt[0], the_prompt[1], the_prompt[2], args)
 
 
 Why()

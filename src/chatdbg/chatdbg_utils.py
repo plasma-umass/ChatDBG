@@ -39,7 +39,7 @@ class ChatDBGArgumentFormatter(argparse.HelpFormatter):
         return help
 
 
-def parse_known_args(argument_string: str) -> Tuple[argparse.Namespace, List[str]]:
+def parse_known_args(argv: List[str]) -> Tuple[argparse.Namespace, List[str]]:
     description = textwrap.dedent(
         rf"""
             [b]ChatDBG[/b]: A Python debugger that uses AI to tell you `why`.
@@ -71,7 +71,7 @@ def parse_known_args(argument_string: str) -> Tuple[argparse.Namespace, List[str
         help="the timeout for API calls in seconds",
     )
 
-    return parser.parse_known_args(argument_string)
+    return parser.parse_known_args(argv)
 
 
 def get_model() -> str:
@@ -102,7 +102,9 @@ def get_model() -> str:
     return model
 
 
-def explain(source_code: str, traceback: str, exception: str, really_run=True) -> None:
+def explain(
+    source_code: str, traceback: str, exception: str, args: argparse.Namespace
+) -> None:
     user_prompt = f"""
 Explain what the root cause of this error is, given the following source code
 context for each stack frame and a traceback, and propose a fix. In your
@@ -126,7 +128,7 @@ Stop reason: {exception}
 
     input_tokens = llm_utils.count_tokens(model, user_prompt)
 
-    if not really_run:
+    if args.show_prompt:
         print(user_prompt)
         print(f"Total input tokens: {input_tokens}")
         return

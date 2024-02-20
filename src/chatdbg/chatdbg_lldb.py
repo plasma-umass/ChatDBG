@@ -588,25 +588,3 @@ def chat(debugger: lldb.SBDebugger, command: str, result: str, internal_dict: di
         print(line, file=sys.stdout, flush=True)
 
     _assistant.run(command, client_print)
-
-
-@lldb.command("test")
-def test(debugger: lldb.SBDebugger, command: str, result: str, internal_dict: dict):
-    # Get the command interpreter from the debugger
-    interpreter = debugger.GetCommandInterpreter()
-
-    # Create an object to hold the result of the command execution
-    result = lldb.SBCommandReturnObject()
-
-    # Execute a command (e.g., "version" to get the LLDB version)
-    interpreter.HandleCommand(command, result)
-
-    # Check if the command was executed successfully
-    if result.Succeeded():
-        # Get the output of the command
-        output = result.GetOutput()
-        print("Command Output:", output)
-    else:
-        # Get the error message if the command failed
-        error = result.GetError()
-        print("Command Error:", error)

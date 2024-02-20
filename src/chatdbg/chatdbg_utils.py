@@ -74,34 +74,6 @@ def parse_known_args(argv: List[str]) -> Tuple[argparse.Namespace, List[str]]:
     return parser.parse_known_args(argv)
 
 
-def get_model() -> str:
-    all_models = [
-        "gpt-3.5-turbo-1106",
-        "gpt-3.5-turbo",
-        "gpt-3.5-turbo-0613",
-        "gpt-3.5-turbo-0301",
-        "gpt-3.5-turbo-16k",
-        "gpt-3.5-turbo-16k-0613",
-        "gpt-4-1106-preview",
-        "gpt-4",
-        "gpt-4-0314",
-        "gpt-4-32k",
-        "gpt-4-32k-0314",
-    ]
-    if not "OPENAI_API_MODEL" in os.environ:
-        model = "gpt-4-1106-preview"
-    else:
-        model = os.environ["OPENAI_API_MODEL"]
-        if model not in all_models:
-            print(
-                f'The environment variable OPENAI_API_MODEL is currently set to "{model}".'
-            )
-            print(f"The only valid values are {all_models}.")
-            return ""
-
-    return model
-
-
 def explain(
     source_code: str, traceback: str, exception: str, args: argparse.Namespace
 ) -> None:
@@ -122,11 +94,7 @@ Traceback:
 Stop reason: {exception}
     """.strip()
 
-    model = get_model()
-    if not model:
-        return
-
-    input_tokens = llm_utils.count_tokens(model, user_prompt)
+    input_tokens = llm_utils.count_tokens(args.llm, user_prompt)
 
     if args.show_prompt:
         print(user_prompt)
@@ -143,10 +111,10 @@ Stop reason: {exception}
 
     try:
         completion = client.chat.completions.create(
-            model=model, messages=[{"role": "user", "content": user_prompt}]
+            model=args.llm, messages=[{"role": "user", "content": user_prompt}]
         )
     except openai.NotFoundError:
-        print(f"'{model}' either does not exist or you do not have access to it.")
+        print(f"'{args.llm}' either does not exist or you do not have access to it.")
         return
     except openai.RateLimitError:
         print("You have exceeded a rate limit or have no remaining funds.")
@@ -160,5 +128,5 @@ Stop reason: {exception}
 
     input_tokens = completion.usage.prompt_tokens
     output_tokens = completion.usage.completion_tokens
-    cost = llm_utils.calculate_cost(input_tokens, output_tokens, model)
+    cost = llm_utils.calculate_cost(input_tokens, output_tokens, args.llm)
     print(f"\n(Total cost: approximately ${cost:.2f} USD.)")

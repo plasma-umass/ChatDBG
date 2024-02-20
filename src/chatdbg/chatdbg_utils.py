@@ -44,29 +44,29 @@ class ChatDBGArgumentFormatter(argparse.HelpFormatter):
 def use_argparse(full_command):
     description = textwrap.dedent(
         rf"""
-                [b]ChatDBG[/b]: A Python debugger that uses AI to tell you `why`.
-                [blue][link=https://github.com/plasma-umass/ChatDBG]https://github.com/plasma-umass/ChatDBG[/link][/blue]
+            [b]ChatDBG[/b]: A Python debugger that uses AI to tell you `why`.
+            [blue][link=https://github.com/plasma-umass/ChatDBG]https://github.com/plasma-umass/ChatDBG[/link][/blue]
 
-                usage:
-                [b]chatdbg [-c command] ... [-m module | pyfile] [arg] ...[/b]
+            usage:
+            [b]chatdbg [-c command] ... [-m module | pyfile] [arg] ...[/b]
 
-                Debug the Python program given by pyfile. Alternatively,
-                an executable module or package to debug can be specified using
-                the -m switch.
+            Debug the Python program given by pyfile. Alternatively,
+            an executable module or package to debug can be specified using
+            the -m switch.
 
-                Initial commands are read from .pdbrc files in your home directory
-                and in the current directory, if they exist.  Commands supplied with
-                -c are executed after commands from .pdbrc files.
+            Initial commands are read from .pdbrc files in your home directory
+            and in the current directory, if they exist.  Commands supplied with
+            -c are executed after commands from .pdbrc files.
 
-                To let the script run until an exception occurs, use "-c continue".
-                You can then type `why` to get an explanation of the root cause of
-                the exception, along with a suggested fix. NOTE: you must have an
-                OpenAI key saved as the environment variable OPENAI_API_KEY.
-                You can get a key here: https://openai.com/api/
+            To let the script run until an exception occurs, use "-c continue".
+            You can then type `why` to get an explanation of the root cause of
+            the exception, along with a suggested fix. NOTE: you must have an
+            OpenAI key saved as the environment variable OPENAI_API_KEY.
+            You can get a key here: https://openai.com/api/
 
-                To let the script run up to a given line X in the debugged file, use
-                "-c 'until X'".
-            """
+            To let the script run up to a given line X in the debugged file, use
+            "-c 'until X'".
+        """
     ).strip()
     parser = RichArgParser(
         prog="chatdbg",

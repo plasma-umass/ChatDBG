@@ -368,9 +368,6 @@ def _val_to_json(
     return json
 
 
-_DEFAULT_FALLBACK_MODELS = ["gpt-4-1106-preview", "gpt-4", "gpt-3.5-turbo"]
-
-
 @lldb.command("converse")
 def converse(
     debugger: lldb.SBDebugger,

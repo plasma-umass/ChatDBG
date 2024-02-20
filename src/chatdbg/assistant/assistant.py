@@ -34,16 +34,10 @@ class Assistant:
         try:
             self.client = OpenAI(timeout=30)
         except OpenAIError:
-            print(
-                textwrap.dedent(
-                    """\
-            You need an OpenAI key to use this tool.
-            You can get a key here: https://platform.openai.com/api-keys
-            Set the environment variable OPENAI_API_KEY to your key value.
-            """
-                )
-            )
-            sys.exit(0)
+            print("You need an OpenAI key to use this tool.")
+            print("You can get a key here: https://platform.openai.com/api-keys")
+            print("Set the environment variable OPENAI_API_KEY to your key value.")
+            sys.exit(1)
 
         self.assistants = self.client.beta.assistants
         self.threads = self.client.beta.threads
@@ -68,14 +62,13 @@ class Assistant:
                 self._log(response)
                 assert response.deleted
             except Exception as e:
-                print(
-                    f"Assistant {id} was not deleted ({e}).\nYou can do so at https://platform.openai.com/assistants."
-                )
+                print(f"Assistant {id} was not deleted ({e}).")
+                print("You can do so at https://platform.openai.com/assistants.")
 
     def add_function(self, function):
         """
         Add a new function to the list of function tools for the assistant.
-        The function should have the necessary json spec as is pydoc string.
+        The function should have the necessary json spec as its pydoc string.
         """
         function_json = json.loads(function.__doc__)
         assert "name" in function_json, "Bad JSON in pydoc for function tool."

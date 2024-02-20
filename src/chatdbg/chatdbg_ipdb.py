@@ -13,7 +13,7 @@ import pdb
 import pydoc
 import sys
 import textwrap
-import traceback 
+import traceback
 import json
 from datetime import datetime
 from io import StringIO
@@ -26,51 +26,62 @@ from traitlets.config import Configurable
 from traitlets import Unicode, Bool, Int
 
 _valid_models = [
-    'gpt-4-turbo-preview', 
-    'gpt-4-0125-preview', 
-    'gpt-4-1106-preview', 
-    'gpt-3.5-turbo-0125', 
-    'gpt-3.5-turbo-1106',
-    'gpt-4',         # no parallel calls
-    'gpt-3.5-turbo'  # no parallel calls
+    "gpt-4-turbo-preview",
+    "gpt-4-0125-preview",
+    "gpt-4-1106-preview",
+    "gpt-3.5-turbo-0125",
+    "gpt-3.5-turbo-1106",
+    "gpt-4",  # no parallel calls
+    "gpt-3.5-turbo",  # no parallel calls
 ]
 
+
 def chat_get_env(option_name, default_value):
-    env_name = 'CHATDBG_' + option_name.upper()
+    env_name = "CHATDBG_" + option_name.upper()
     t = type(default_value)
     return t(os.getenv(env_name, default_value))
 
+
 class Chat(Configurable):
-    model = Unicode(chat_get_env('model', 'gpt-4-1106-preview'), help="The OpenAI model").tag(config=True)
+    model = Unicode(
+        chat_get_env("model", "gpt-4-1106-preview"), help="The OpenAI model"
+    ).tag(config=True)
     # model = Unicode(default_value='gpt-3.5-turbo-1106', help="The OpenAI model").tag(config=True)
-    debug = Bool(chat_get_env('debug',False), help="Log OpenAI calls").tag(config=True)
-    log = Unicode(chat_get_env('log','log.json'), help="The log file").tag(config=True)
-    tag = Unicode(chat_get_env('tag', ''), help="Any extra info for log file").tag(config=True)
-    context = Int(chat_get_env('context', 5), help='lines of source code to show when displaying stacktrace information').tag(config=True)
+    debug = Bool(chat_get_env("debug", False), help="Log OpenAI calls").tag(config=True)
+    log = Unicode(chat_get_env("log", "log.json"), help="The log file").tag(config=True)
+    tag = Unicode(chat_get_env("tag", ""), help="Any extra info for log file").tag(
+        config=True
+    )
+    context = Int(
+        chat_get_env("context", 5),
+        help="lines of source code to show when displaying stacktrace information",
+    ).tag(config=True)
 
     def to_json(self):
         """Serialize the object to a JSON string."""
         return {
-            'model': self.model,
-            'debug': self.debug,
-            'log': self.log,
-            'tag': self.tag,
-            'context': self.context
+            "model": self.model,
+            "debug": self.debug,
+            "log": self.log,
+            "tag": self.tag,
+            "context": self.context,
         }
 
+
 _config = None
+
 
 def load_ipython_extension(ipython):
     # Create an instance of your configuration class with IPython's config
     global _config
     from chatdbg.chatdbg_ipdb import ChatDBG, Chat
+
     ipython.InteractiveTB.debugger_cls = ChatDBG
     _config = Chat(config=ipython.config)
     print("*** Loaded ChatDBG ***")
 
 
-
-_basic_instructions=f"""\
+_basic_instructions = f"""\
 You are a debugging assistant.  You will be given a Python stack trace for an
 error and answer questions related to the root cause of the error.
 
@@ -122,10 +133,12 @@ either a propopsed fix if you have identified the root cause or a bullet list of
 1-3 suggestions for how to continue debugging.
 """
 
+
 class CopyingTextIOWrapper:
     """
     File wrapper that will stash a copy of everything written.
     """
+
     def __init__(self, file):
         self.file = file
         self.buffer = StringIO()
@@ -144,124 +157,110 @@ class CopyingTextIOWrapper:
         # Delegate attribute access to the file object
         return getattr(self.file, attr)
 
-class ChatDBGLog:
 
+class ChatDBGLog:
     def __init__(self):
-        self.steps = [ ]
+        self.steps = []
         self.meta = {
-            'time' : datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            'command_line' : ' '.join(sys.argv),
-            'config' : _config.to_json(),
+            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "command_line": " ".join(sys.argv),
+            "config": _config.to_json(),
         }
-        self._instructions = ''
+        self._instructions = ""
         self.stdout_wrapper = CopyingTextIOWrapper(sys.stdout)
         self.stderr_wrapper = CopyingTextIOWrapper(sys.stderr)
         sys.stdout = self.stdout_wrapper
         sys.stderr = self.stdout_wrapper
         self.chat_step = None
 
-    def dump(self): 
+    def dump(self):
         full_json = {
-            'meta' : self.meta,
-            'steps' : self.steps,
-            'instructions' : self._instructions,
-            'stdout' : self.stdout_wrapper.getvalue(),
-            'stderr' : self.stderr_wrapper.getvalue()
+            "meta": self.meta,
+            "steps": self.steps,
+            "instructions": self._instructions,
+            "stdout": self.stdout_wrapper.getvalue(),
+            "stderr": self.stderr_wrapper.getvalue(),
         }
-        with open(_config.log, 'w') as file:
+        with open(_config.log, "w") as file:
             print(json.dumps(full_json, indent=2), file=file)
 
     def instructions(self, instructions):
         self._instructions = instructions
 
-    def user_command(self, line, output): 
+    def user_command(self, line, output):
         if self.chat_step != None:
             x = self.chat_step
             self.chat_step = None
         else:
-            x = {
-                'input' : line,
-                'output' : {
-                    'type' : 'text',
-                    'output' : output
-                }
-            }
+            x = {"input": line, "output": {"type": "text", "output": output}}
         self.steps.append(x)
 
     def push_chat(self, line, full_prompt):
         self.chat_step = {
-            'input' : line,
-            'full_prompt' : full_prompt,
-            'output' : {
-                'type' : 'chat',
-                'outputs' : [ ]
-            }
+            "input": line,
+            "full_prompt": full_prompt,
+            "output": {"type": "chat", "outputs": []},
         }
 
     def pop_chat(self, tokens, cost, time):
-        self.chat_step['stats'] = {
-            'tokens' : tokens,
-            'cost' : cost, 
-            'time' : time
-        }
+        self.chat_step["stats"] = {"tokens": tokens, "cost": cost, "time": time}
 
     def message(self, text):
-        self.chat_step['output']['outputs'].append(
-        {
-            'type' : 'text',
-            'output' : text
-        })
+        self.chat_step["output"]["outputs"].append({"type": "text", "output": text})
 
     def function(self, line, output):
         x = {
-            'type' : 'call',
-            'input' : line,
-            'output' : {
-                'type' : 'text',
-                'output' : output
-            }
+            "type": "call",
+            "input": line,
+            "output": {"type": "text", "output": output},
         }
-        self.chat_step['output']['outputs'].append(x)
+        self.chat_step["output"]["outputs"].append(x)
 
-    
 
 try:
     import IPython
+
     ipython = IPython.get_ipython()
     if ipython != None:
-        if isinstance(ipython, IPython.terminal.interactiveshell.TerminalInteractiveShell):
+        if isinstance(
+            ipython, IPython.terminal.interactiveshell.TerminalInteractiveShell
+        ):
             # ipython --pdb
             from IPython.terminal.debugger import TerminalPdb
+
             ChatDBGSuper = TerminalPdb
-            _user_file_prefixes = [ os.getcwd(), '<ipython'  ]
+            _user_file_prefixes = [os.getcwd(), "<ipython"]
 
         else:
             # inside jupyter
             from IPython.core.debugger import InterruptiblePdb
+
             ChatDBGSuper = InterruptiblePdb
-            _user_file_prefixes = [ os.getcwd(), IPython.paths.tempfile.gettempdir() ]
-    else: 
+            _user_file_prefixes = [os.getcwd(), IPython.paths.tempfile.gettempdir()]
+    else:
         # ichatpdb on command line
         from IPython.terminal.debugger import TerminalPdb
+
         ChatDBGSuper = TerminalPdb
-        _user_file_prefixes = [ os.getcwd() ]
+        _user_file_prefixes = [os.getcwd()]
 except NameError as e:
-    print(f'{e}')
+    print(f"{e}")
     ChatDBGSuper = pdb.Pdb
 
-print(f'Super: {ChatDBGSuper}')
-print(f'paths: {_user_file_prefixes}')
+print(f"Super: {ChatDBGSuper}")
+print(f"paths: {_user_file_prefixes}")
+
 
 class ChatDBG(ChatDBGSuper):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
-        self.prompt = '(ChatDBG ipdb) '
-        self.chat_prefix = '   '
+
+        self.prompt = "(ChatDBG ipdb) "
+        self.chat_prefix = "   "
         self.text_width = 80
         self._assistant = None
         self._history = []
-        self._error_specific_prompt = ''
+        self._error_specific_prompt = ""
 
         global _config
         if _config == None:
@@ -271,10 +270,9 @@ class ChatDBG(ChatDBGSuper):
 
         self.log = ChatDBGLog()
         atexit.register(lambda: self.log.dump())
-        
 
     def _is_user_file(self, file_name):
-        if file_name.endswith('.pyx'):
+        if file_name.endswith(".pyx"):
             return False
         for prefix in _user_file_prefixes:
             if file_name.startswith(prefix):
@@ -294,22 +292,25 @@ class ChatDBG(ChatDBGSuper):
     def interaction(self, frame, tb_or_exc):
         if isinstance(tb_or_exc, BaseException):
             details = "".join(traceback.format_exception_only(tb_or_exc)).rstrip()
-            self._error_specific_prompt = f"The program encountered the following error:\n```\n{details}\n```\n"
+            self._error_specific_prompt = (
+                f"The program encountered the following error:\n```\n{details}\n```\n"
+            )
 
         super().interaction(frame, tb_or_exc)
- 
-    def setup(self, f, tb):
 
+    def setup(self, f, tb):
         super().setup(f, tb)
 
         # hide lib frames
         for t in traceback.walk_tb(tb):
             file_name = t[0].f_code.co_filename
             if not self._is_user_file(file_name):
-                t[0].f_locals['__tracebackhide__'] = True
+                t[0].f_locals["__tracebackhide__"] = True
 
         # go up until we are not in a library
-        while self.curindex > 0 and self.curframe_locals.get('__tracebackhide__', False):
+        while self.curindex > 0 and self.curframe_locals.get(
+            "__tracebackhide__", False
+        ):
             self.curindex -= 1
             self.curframe = self.stack[self.curindex][0]
             self.curframe_locals = self.curframe.f_locals
@@ -332,20 +333,20 @@ class ChatDBG(ChatDBGSuper):
                 return super().onecmd(line)
             finally:
                 output = strip_color(hist_file.getvalue())
-                if line not in [ 'quit', 'EOF']:
+                if line not in ["quit", "EOF"]:
                     self.log.user_command(line, output)
-                if line not in [ 'hist', 'test_prompt' ] and not self.was_chat:
-                    self._history += [ (line, output) ]
+                if line not in ["hist", "test_prompt"] and not self.was_chat:
+                    self._history += [(line, output)]
                 self.stdout = hist_file.getfile()
 
     def message(self, msg) -> None:
-        """ 
+        """
         Override to remove tabs for messages so we can indent them.
         """
         return super().message(str(msg).expandtabs())
 
     def error(self, msg) -> None:
-        """ 
+        """
         Override to remove tabs for messages so we can indent them.
         """
         return super().error(str(msg).expandtabs())
@@ -361,26 +362,26 @@ class ChatDBG(ChatDBGSuper):
             super().onecmd(line)
             result = self.stdout.getvalue().rstrip()
             return result
-        finally: 
+        finally:
             self.stdout = stdout
             self.lastcmd = lastcmd
- 
-    def format_history_entry(self, entry, indent = ''):
+
+    def format_history_entry(self, entry, indent=""):
         line, output = entry
         if output:
             entry = f"(ChatDBG pdb) {line}\n{output}"
         else:
             entry = f"(ChatDBG pdb) {line}"
-        return textwrap.indent(entry, indent, lambda _ : True) 
+        return textwrap.indent(entry, indent, lambda _: True)
 
     def _clear_history(self):
-        self._history = [ ]
+        self._history = []
 
     def default(self, line):
-        if line[:1] == '!': 
+        if line[:1] == "!":
             super().default(line)
         else:
-            if line[:1] == ':': 
+            if line[:1] == ":":
                 line = line[1:].strip()
             self.do_chat(line)
 
@@ -390,11 +391,11 @@ class ChatDBG(ChatDBGSuper):
             line = super(IPython.core.debugger.Pdb, self).precmd(line)
         return line
 
-    def do_hist(self, arg):  
+    def do_hist(self, arg):
         """hist
         Print the history of user-issued commands since the last chat.
         """
-        entry_strs = [ self.format_history_entry(x) for x in self._history ]
+        entry_strs = [self.format_history_entry(x) for x in self._history]
         history_str = "\n".join(entry_strs)
         self.message(history_str)
 
@@ -405,9 +406,9 @@ class ChatDBG(ChatDBGSuper):
         try:
             obj = self._getval(arg)
             if obj.__doc__ != None:
-                pydoc.doc(obj, output = self.stdout)
+                pydoc.doc(obj, output=self.stdout)
             else:
-                self.message(f'No documentation is available.')
+                self.message(f"No documentation is available.")
         except NameError:
             # message already printed in _getval
             pass
@@ -422,17 +423,21 @@ class ChatDBG(ChatDBGSuper):
                 self.do_source(arg)
             else:
                 self.do_pydoc(arg)
-                self.message(f'You MUST assume that `{arg}` is specified and implemented correctly.')
+                self.message(
+                    f"You MUST assume that `{arg}` is specified and implemented correctly."
+                )
         except NameError:
             # message already printed in _getval
             pass
         except Exception:
             self.do_pydoc(arg)
-            self.message(f'You MUST assume that `{arg}` is specified and implemented correctly.')
+            self.message(
+                f"You MUST assume that `{arg}` is specified and implemented correctly."
+            )
 
     def do_how(self, arg):
-        from ipyflow import singletons   
-        from ipyflow import cells 
+        from ipyflow import singletons
+        from ipyflow import cells
         from ipyflow import code
 
         try:
@@ -441,11 +446,11 @@ class ChatDBG(ChatDBGSuper):
             while index > 0:
                 # print(index)
                 pos, _ = singletons.flow().get_position(self.stack[index][0])
-                if pos >= 0: 
+                if pos >= 0:
                     cell = cells().at_counter(pos)
                     # print(cell.used_symbols)
                     _x = next((x for x in cell.used_symbols if x.name == arg), None)
-                if _x != None: 
+                if _x != None:
                     break
                 index -= 1
             if _x != None:
@@ -467,15 +472,15 @@ class ChatDBG(ChatDBGSuper):
         """test_prompt
         [For debugging] Prints the prompts to be sent to the assistant.
         """
-        self.message('Instructions:')
+        self.message("Instructions:")
         self.message(self._instructions())
-        self.message('-' * 80)
-        self.message('Prompt:')
+        self.message("-" * 80)
+        self.message("Prompt:")
         self.message(self._get_prompt(arg))
 
     def _instructions(self):
-        stack_dump = f'The program has this stack trace:\n```\n{self.format_stack_trace()}\n```\n'
-        return _basic_instructions + '\n' + stack_dump + self._error_specific_prompt
+        stack_dump = f"The program has this stack trace:\n```\n{self.format_stack_trace()}\n```\n"
+        return _basic_instructions + "\n" + stack_dump + self._error_specific_prompt
 
     def print_stack_trace(self, context=None):
         # override to print the skips into stdout...
@@ -484,11 +489,11 @@ class ChatDBG(ChatDBGSuper):
         if context is None:
             context = self.context
         try:
-            context=int(context)
+            context = int(context)
             if context <= 0:
                 raise ValueError("Context must be a positive integer")
         except (TypeError, ValueError):
-                raise ValueError("Context must be a positive integer")
+            raise ValueError("Context must be a positive integer")
         try:
             skipped = 0
             for hidden, frame_lineno in zip(self.hidden_frames(self.stack), self.stack):
@@ -498,40 +503,44 @@ class ChatDBG(ChatDBGSuper):
                 if skipped:
                     print(
                         f"{Colors.excName}    [... skipping {skipped} hidden frame(s)]{ColorsNormal}\n",
-                        file=self.stdout
+                        file=self.stdout,
                     )
                     skipped = 0
                 self.print_stack_entry(frame_lineno, context=context)
             if skipped:
                 print(
                     f"{Colors.excName}    [... skipping {skipped} hidden frame(s)]{ColorsNormal}\n",
-                    file=self.stdout
+                    file=self.stdout,
                 )
         except KeyboardInterrupt:
             pass
 
-
     def _stack_prompt(self):
-        stack_frames = textwrap.indent(self._capture_onecmd('bt'), '')
-        stack = textwrap.dedent(f"""
+        stack_frames = textwrap.indent(self._capture_onecmd("bt"), "")
+        stack = (
+            textwrap.dedent(
+                f"""
             This is the current stack.  The current frame is indicated by 
             an arrow '>' at the start of the line.
-            ```""") + f'\n{stack_frames}\n```'
+            ```"""
+            )
+            + f"\n{stack_frames}\n```"
+        )
         return stack
 
     def _get_prompt(self, arg):
-        if arg == 'why':
+        if arg == "why":
             arg = "Explain the root cause of the error."
 
-        user_prompt = ''
+        user_prompt = ""
         if len(self._history) > 0:
-            hist = textwrap.indent(self._capture_onecmd('hist'), '')
+            hist = textwrap.indent(self._capture_onecmd("hist"), "")
             self._clear_history()
             hist = f"This is the history of some pdb commands I ran and the results.\n```\n{hist}\n```\n"
             user_prompt += hist
 
         stack = self._stack_prompt()
-        user_prompt += stack + '\n' + arg
+        user_prompt += stack + "\n" + arg
 
         return user_prompt
 
@@ -546,13 +555,10 @@ class ChatDBG(ChatDBGSuper):
         if self._assistant == None:
             self._make_assistant()
 
-        def client_print(line=''):
-            line = llm_utils.word_wrap_except_code_blocks(line, 
-                                                          self.text_width - 10)
+        def client_print(line=""):
+            line = llm_utils.word_wrap_except_code_blocks(line, self.text_width - 10)
             self.log.message(line)
-            line = textwrap.indent(line, 
-                                   self.chat_prefix, 
-                                   lambda _ : True)
+            line = textwrap.indent(line, self.chat_prefix, lambda _: True)
             print(line, file=self.stdout, flush=True)
 
         full_prompt = strip_color(full_prompt)
@@ -561,7 +567,6 @@ class ChatDBG(ChatDBGSuper):
         self.log.pop_chat(tokens, cost, time)
 
     def _make_assistant(self):
-
         def info(name):
             """
             {
@@ -579,11 +584,12 @@ class ChatDBG(ChatDBGSuper):
                 }
             }
             """
-            command = f'info {name}'
+            command = f"info {name}"
             result = self._capture_onecmd(command)
-            self.message(self.format_history_entry((command, result), 
-                                                   indent = self.chat_prefix))
-            result = strip_color(result)        
+            self.message(
+                self.format_history_entry((command, result), indent=self.chat_prefix)
+            )
+            result = strip_color(result)
             self.log.function(command, result)
             return result
 
@@ -604,11 +610,12 @@ class ChatDBG(ChatDBGSuper):
                 }
             }
             """
-            cmd = command if command != 'list' else 'll'
+            cmd = command if command != "list" else "ll"
             result = self._capture_onecmd(cmd)
 
-            self.message(self.format_history_entry((command, result), 
-                                                   indent = self.chat_prefix))
+            self.message(
+                self.format_history_entry((command, result), indent=self.chat_prefix)
+            )
 
             result = strip_color(result)
             self.log.function(command, result)
@@ -635,32 +642,29 @@ class ChatDBG(ChatDBGSuper):
             }
 
             """
-            command = f'how {name}'
+            command = f"how {name}"
             result = self._capture_onecmd(command)
-            self.message(self.format_history_entry((command, result), 
-                                                   indent = self.chat_prefix))
-            result = strip_color(result)        
+            self.message(
+                self.format_history_entry((command, result), indent=self.chat_prefix)
+            )
+            result = strip_color(result)
             self.log.function(command, result)
             return result
 
-
         self._clear_history()
         instructions = self._instructions()
-        
+
         self.log.instructions(instructions)
 
         if not _config.model in _valid_models:
-            print(f"'{_config.model}' is not a valid OpenAI model.  Choose from: {_valid_models}.")
+            print(
+                f"'{_config.model}' is not a valid OpenAI model.  Choose from: {_valid_models}."
+            )
             sys.exit(0)
 
-        self._assistant = Assistant("ChatDBG", 
-                                    self._instructions(), 
-                                    model=_config.model, 
-                                    debug=_config.debug)
+        self._assistant = Assistant(
+            "ChatDBG", self._instructions(), model=_config.model, debug=_config.debug
+        )
         self._assistant.add_function(pdb)
         self._assistant.add_function(how)
         self._assistant.add_function(info)
-
-
-
-

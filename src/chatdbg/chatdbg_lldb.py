@@ -422,14 +422,16 @@ def converse(
 
 _assistant = None
 
-def _format_history_entry(entry, indent = ''):
+
+def _format_history_entry(entry, indent=""):
     line, output = entry
     output = llm_utils.word_wrap_except_code_blocks(output, 120)
     if output:
         entry = f"(ChatDBG lldb) {line}\n{output}"
     else:
         entry = f"(ChatDBG lldb) {line}"
-    return textwrap.indent(entry, indent, lambda _ : True) 
+    return textwrap.indent(entry, indent, lambda _: True)
+
 
 def _capture_onecmd(debugger, cmd):
     # Get the command interpreter from the debugger
@@ -451,16 +453,23 @@ def _capture_onecmd(debugger, cmd):
         error = result.GetError()
         return f"Command Error: {error}"
 
+
 def _stack_prompt(debugger: lldb.SBDebugger):
-    stack_frames = textwrap.indent(_capture_onecmd(debugger, 'bt'), '')
-    stack = textwrap.dedent(f"""
+    stack_frames = textwrap.indent(_capture_onecmd(debugger, "bt"), "")
+    stack = (
+        textwrap.dedent(
+            f"""
         This is the current stack.  
         The current frame is indicated by a the text '  * ' at 
         the start of the line.
-        ```""") + f'\n{stack_frames}\n```'
+        ```"""
+        )
+        + f"\n{stack_frames}\n```"
+    )
     return stack
 
-_basic_instructions=f"""\
+
+_basic_instructions = f"""\
 You are a debugging assistant.  You will be given a Python stack trace for an
 error and answer questions related to the root cause of the error.
 
@@ -511,6 +520,7 @@ either a propopsed fix if you have identified the root cause or a bullet list of
 1-3 suggestions for how to continue debugging.
 """
 
+
 def _instructions(debugger: lldb.SBDebugger):
     source_code, traceback, exception = buildPrompt(debugger)
     return f"""
@@ -534,9 +544,7 @@ Stop reason: {exception}
 
 def _make_assistant(debugger: lldb.SBDebugger):
     global _assistant
-    _assistant = Assistant("ChatDBG", 
-                            _instructions(debugger), 
-                            debug=True)
+    _assistant = Assistant("ChatDBG", _instructions(debugger), debug=True)
 
     def lldb(command):
         """
@@ -559,11 +567,10 @@ def _make_assistant(debugger: lldb.SBDebugger):
 
         result = _capture_onecmd(debugger, cmd)
 
-        print(_format_history_entry((command, result), 
-                                    indent = '   '))
+        print(_format_history_entry((command, result), indent="   "))
 
         # help the LLM know where it is...
-        result += _stack_prompt()  
+        result += _stack_prompt()
 
         return result
 
@@ -571,31 +578,20 @@ def _make_assistant(debugger: lldb.SBDebugger):
 
 
 @lldb.command("chat")
-def chat(
-    debugger: lldb.SBDebugger,
-    command: str,
-    result: str,
-    internal_dict: dict):
-
+def chat(debugger: lldb.SBDebugger, command: str, result: str, internal_dict: dict):
     if _assistant == None:
         _make_assistant(debugger)
 
-    def client_print(line=''):
+    def client_print(line=""):
         line = llm_utils.word_wrap_except_code_blocks(line, 115)
-        line = textwrap.indent(line,
-                                '   ', 
-                                lambda _ : True)
+        line = textwrap.indent(line, "   ", lambda _: True)
         print(line, file=sys.stdout, flush=True)
 
     _assistant.run(command, client_print)
 
-@lldb.command("test")
-def test(
-    debugger: lldb.SBDebugger,
-    command: str,
-    result: str,
-    internal_dict: dict):
 
+@lldb.command("test")
+def test(debugger: lldb.SBDebugger, command: str, result: str, internal_dict: dict):
     # Get the command interpreter from the debugger
     interpreter = debugger.GetCommandInterpreter()
 

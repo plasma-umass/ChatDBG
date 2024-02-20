@@ -601,26 +601,31 @@ class ChatDBG(ChatDBGSuper):
                     if isinstance(target, ast.Name):
                         self.defined_symbols.add(target.id)
                 self.generic_visit(node)
-            
-        source = inspect.getsource(frame)
-        tree = ast.parse(source)
 
-        finder = SymbolFinder()
-        finder.visit(tree)
+        try:    
+            source = inspect.getsource(frame)
+            tree = ast.parse(source)
 
-        args, varargs, keywords, locals = inspect.getargvalues(frame)
-        parameter_symbols = set(args + [ varargs, keywords ])
-        parameter_symbols.discard(None)
+            finder = SymbolFinder()
+            finder.visit(tree)
 
-        return (finder.defined_symbols | parameter_symbols) & locals.keys()
+            args, varargs, keywords, locals = inspect.getargvalues(frame)
+            parameter_symbols = set(args + [ varargs, keywords ])
+            parameter_symbols.discard(None)
+
+            return (finder.defined_symbols | parameter_symbols) & locals.keys()
+        except:
+            return set()
 
     def _print_locals(self, frame):
         locals = frame.f_locals
-        print(f'        Variables in this frame:', file=self.stdout)
-        for name in sorted(self.get_defined_locals_and_params(frame)):
-            value = locals[name]
-            print(f"          {name}= {format_limited(value, limit=8)}", file=self.stdout)
-        print(file=self.stdout)
+        defined_locals = self.get_defined_locals_and_params(frame)
+        if len(defined_locals) > 0:
+            print(f'        Variables in this frame:', file=self.stdout)
+            for name in sorted(defined_locals):
+                value = locals[name]
+                print(f"          {name}= {format_limited(value, limit=8)}", file=self.stdout)
+            print(file=self.stdout)
 
     def _stack_prompt(self):
         stack_frames = textwrap.indent(self._capture_onecmd('bt'), '')

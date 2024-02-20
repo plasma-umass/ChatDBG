@@ -1,6 +1,6 @@
 import os
-import pathlib
 import sys
+import textwrap
 from typing import Any, Optional, Tuple
 
 import lldb
@@ -9,10 +9,7 @@ import json
 import llm_utils
 import openai
 
-import textwrap
 from assistant.assistant import Assistant
-
-sys.path.append(os.path.abspath(pathlib.Path(__file__).parent.resolve()))
 import chatdbg_utils
 import conversation
 
@@ -22,7 +19,6 @@ rust_panic_log_filename = "panic_log.txt"
 
 
 def __lldb_init_module(debugger: lldb.SBDebugger, internal_dict: dict) -> None:
-    # Update the prompt.
     debugger.HandleCommand("settings set prompt '(ChatDBG lldb) '")
 
 

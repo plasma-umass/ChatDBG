@@ -48,13 +48,13 @@ What's the problem?"""
 
         choice = completion.choices[0]
         if choice.finish_reason == "tool_calls":
+            responses = []
             for tool_call in choice.message.tool_calls:
                 name = tool_call.function.name
                 arguments = json.loads(tool_call.function.arguments)
                 function_response = fns.dispatch(name, arguments)
                 if function_response:
-                    conversation.append(choice.message)
-                    conversation.append(
+                    responses.append(
                         {
                             "tool_call_id": tool_call.id,
                             "role": "tool",
@@ -62,6 +62,9 @@ What's the problem?"""
                             "content": function_response,
                         }
                     )
+            if responses:
+                conversation.append(choice.message)
+                conversation.extend(responses)
         elif choice.finish_reason == "stop":
             text = completion.choices[0].message.content
             return llm_utils.word_wrap_except_code_blocks(text)

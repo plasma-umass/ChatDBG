@@ -49,7 +49,7 @@ def do_trace(file, x):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="log -> text")
     parser.add_argument("trace", help="the input")
-    parser.add_argument('index', nargs='?', default=':', help='slice of trace array to take')
+    parser.add_argument('index', nargs='?', default='-1', help='slice of trace array to take')
 
     args = parser.parse_args()
 

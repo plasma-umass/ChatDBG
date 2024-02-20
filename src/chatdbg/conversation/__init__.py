@@ -2,13 +2,11 @@ import argparse
 import json
 import textwrap
 
-import lldb
 import llm_utils
 
 from .functions_lldb import LldbFunctions
 
 
-# This is LLDB-only (for now?).
 def converse(client, args: argparse.Namespace):
     fns = LldbFunctions(args)
     available_functions_names = [fn["function"]["name"] for fn in fns.as_tools()]

@@ -4,27 +4,27 @@ in ipython_config.py:
 c.InteractiveShellApp.extensions = ['chatdbg.chatdbg_pdb', 'ipyflow']
 """
 
-import yaml
 import atexit
 import inspect
+import ast
 import os
 import pdb
 import pydoc
+import re
 import sys
 import textwrap
-import traceback 
-import json
+import traceback
 from datetime import datetime
 from io import StringIO
-import re
-import IPython
+import numpy as np
 
+import IPython
 import llm_utils
+import yaml
+from traitlets import Bool, Int, Unicode
+from traitlets.config import Configurable
 
 from .assistant.assistant import Assistant
-
-from traitlets.config import Configurable
-from traitlets import Unicode, Bool, Int
 
 _valid_models = [
     'gpt-4-turbo-preview', 
@@ -49,14 +49,44 @@ def make_arrow(pad):
         return '>'
     return ''
 
+def format_limited(value, limit=10):
+
+    if isinstance(value, list):
+        if len(value) > limit:
+            return str(value[:limit] + ['...'])
+        else:
+            return str(value)
+    elif isinstance(value, np.ndarray):
+        if value.size > limit:
+            return str(np.append(value[:limit], '...'))
+        else:
+            return str(value)
+    elif isinstance(value, dict):
+        if len(value) > limit:
+            limited_dict = dict(list(value.items())[:limit])
+            limited_dict['...'] = '...'
+            return str(limited_dict)
+        else:
+            return str(value)
+    else:
+        return str(value)
+
 
 class Chat(Configurable):
-    model = Unicode(chat_get_env('model', 'gpt-4-1106-preview'), help="The OpenAI model").tag(config=True)
-    # model = Unicode(default_value='gpt-3.5-turbo-1106', help="The OpenAI model").tag(config=True)
+    # model = Unicode(chat_get_env('model', 'gpt-4-1106-preview'), help="The OpenAI model").tag(config=True)
+    model = Unicode(default_value='gpt-3.5-turbo-1106', help="The OpenAI model").tag(config=True)
     debug = Bool(chat_get_env('debug',False), help="Log OpenAI calls").tag(config=True)
     log = Unicode(chat_get_env('log','log.yaml'), help="The log file").tag(config=True)
     tag = Unicode(chat_get_env('tag', ''), help="Any extra info for log file").tag(config=True)
+
+    # config for stack traces
     context = Int(chat_get_env('context', 5), help='lines of source code to show when displaying stacktrace information').tag(config=True)
+    show_locals = Bool(chat_get_env('show_locals', True), help='show local var values in stacktrace').tag(config=True)
+    show_libs = Bool(chat_get_env('show_libs', False), help='show library frames in stacktrace').tag(config=True)
+    show_how = Bool(chat_get_env('show_how', True), help='support the `how` command ').tag(config=True)
+
+
+    
 
     def to_json(self):
         """Serialize the object to a JSON string."""
@@ -73,7 +103,7 @@ _config = None
 def load_ipython_extension(ipython):
     # Create an instance of your configuration class with IPython's config
     global _config
-    from chatdbg.chatdbg_ipdb import ChatDBG, Chat
+    from chatdbg.chatdbg_ipdb import Chat, ChatDBG
     ipython.InteractiveTB.debugger_cls = ChatDBG
     _config = Chat(config=ipython.config)
     print("*** Loaded ChatDBG ***")
@@ -188,6 +218,7 @@ class ChatDBGLog:
         sys.stdout = self.stdout_wrapper
         sys.stderr = self.stdout_wrapper
         self.chat_step = None
+
 
     def dump(self): 
         full_json = [{
@@ -329,10 +360,8 @@ class ChatDBG(ChatDBGSuper):
 
         super().interaction(frame, tb_or_exc)
  
-    def setup(self, f, tb):
 
-        super().setup(f, tb)
-
+    def _hide_lib_frames(self, tb):
         # hide lib frames
         for t in traceback.walk_tb(tb):
             file_name = t[0].f_code.co_filename
@@ -345,6 +374,13 @@ class ChatDBG(ChatDBGSuper):
             self.curframe = self.stack[self.curindex][0]
             self.curframe_locals = self.curframe.f_locals
             self.lineno = None
+
+    def setup(self, f, tb):
+
+        super().setup(f, tb)
+
+        if not _config.show_libs:
+            self._hide_lib_frames(tb)
 
         self._error_stack_trace = f"The program has the following stack trace:\n```\n{self.format_stack_trace()}\n```\n"
 
@@ -467,8 +503,7 @@ class ChatDBG(ChatDBGSuper):
             return
         
         try:
-            from ipyflow import singletons   
-            from ipyflow import cells 
+            from ipyflow import cells, singletons
             from ipyflow.models import statements
 
             index = self.curindex
@@ -544,6 +579,8 @@ class ChatDBG(ChatDBGSuper):
                     )
                     skipped = 0
                 self.print_stack_entry(frame_lineno, context=context)
+                if _config.show_locals:
+                    self._print_locals(frame_lineno[0])
             if skipped:
                 print(
                     f"{Colors.excName}    [... skipping {skipped} hidden frame(s)]{ColorsNormal}\n",
@@ -552,6 +589,38 @@ class ChatDBG(ChatDBGSuper):
         except KeyboardInterrupt:
             pass
 
+
+    def get_defined_locals_and_params(self, frame):
+
+        class SymbolFinder(ast.NodeVisitor):
+            def __init__(self):
+                self.defined_symbols = set()
+
+            def visit_Assign(self, node):
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        self.defined_symbols.add(target.id)
+                self.generic_visit(node)
+            
+        source = inspect.getsource(frame)
+        tree = ast.parse(source)
+
+        finder = SymbolFinder()
+        finder.visit(tree)
+
+        args, varargs, keywords, locals = inspect.getargvalues(frame)
+        parameter_symbols = set(args + [ varargs, keywords ])
+        parameter_symbols.discard(None)
+
+        return (finder.defined_symbols | parameter_symbols) & locals.keys()
+
+    def _print_locals(self, frame):
+        locals = frame.f_locals
+        print(f'        Variables in this frame:', file=self.stdout)
+        for name in sorted(self.get_defined_locals_and_params(frame)):
+            value = locals[name]
+            print(f"          {name}= {format_limited(value, limit=8)}", file=self.stdout)
+        print(file=self.stdout)
 
     def _stack_prompt(self):
         stack_frames = textwrap.indent(self._capture_onecmd('bt'), '')
@@ -700,123 +769,20 @@ class ChatDBG(ChatDBGSuper):
                                     model=_config.model, 
                                     debug=_config.debug)
         self._assistant.add_function(pdb)
-        self._assistant.add_function(how)
+        self._assistant.add_function(info)
 
         if _supports_flow:
-            self._assistant.add_function(info)
+            self._assistant.add_function(how)
 
 
-    # def format_stack_entry(self, frame_lineno, lprefix=': ', context=None):
-    #     from IPython.utils import coloransi, py3compat 
-    #     import linecache
-
-    #     if context is None:
-    #         context = self.context
-    #     try:
-    #         context = int(context)
-    #         if context <= 0:
-    #             print("Context must be a positive integer", file=self.stdout)
-    #     except (TypeError, ValueError):
-    #             print("Context must be a positive integer", file=self.stdout)
-
-    #     import reprlib
-
-    #     ret = []
-
-    #     Colors = self.color_scheme_table.active_colors
-    #     ColorsNormal = Colors.Normal
-    #     tpl_link = "%s%%s%s" % (Colors.filenameEm, ColorsNormal)
-    #     tpl_call = "%s%%s%s%%s%s" % (Colors.vName, Colors.valEm, ColorsNormal)
-    #     tpl_line = "%%s%s%%s %s%%s" % (Colors.lineno, ColorsNormal)
-    #     tpl_line_em = "%%s%s%%s %s%%s%s" % (Colors.linenoEm, Colors.line, ColorsNormal)
-
-    #     frame, lineno = frame_lineno
-
-    #     return_value = ''
-    #     loc_frame = self._get_frame_locals(frame)
-    #     if "__return__" in loc_frame:
-    #         rv = loc_frame["__return__"]
-    #         # return_value += '->'
-    #         return_value += reprlib.repr(rv) + "\n"
-    #     ret.append(return_value)
-
-    #     #s = filename + '(' + `lineno` + ')'
-    #     filename = self.canonic(frame.f_code.co_filename)
-    #     link = tpl_link % py3compat.cast_unicode(filename)
-
-    #     if frame.f_code.co_name:
-    #         func = frame.f_code.co_name
-    #     else:
-    #         func = "<lambda>"
-
-    #     call = ""
-    #     if func != "?":
-    #         if "__args__" in loc_frame:
-    #             args = reprlib.repr(loc_frame["__args__"])
-    #         else:
-    #             args = '()'
-    #         call = tpl_call % (func, args)
-
-    #     # The level info should be generated in the same format pdb uses, to
-    #     # avoid breaking the pdbtrack functionality of python-mode in *emacs.
-    #     if frame is self.curframe:
-    #         ret.append('> ')
-    #     else:
-    #         ret.append("  ")
-    #     ret.append("%s(%s)%s\n" % (link, lineno, call))
-
-    #     try:
-    #         ilines, istart = inspect.getsourcelines(frame.f_code)
-    #         iend = istart + len(ilines) - 1
-    #     except Exception as e:
-    #         print(e)
-    #         istart, iend = 0, 99999
-
-    #     start = max(istart, lineno - 1 - context//2)
-    #     lines = linecache.getlines(filename)
-    #     start = min(start, len(lines) - context)
-    #     start = max(start, 0)
-    #     end = min(iend, start + context)
-    #     lines = lines[start : end]
-
-    #     for i, line in enumerate(lines):
-    #         show_arrow = start + 1 + i == lineno
-    #         linetpl = (frame is self.curframe or show_arrow) and tpl_line_em or tpl_line
-    #         ret.append(
-    #             self.__format_line(
-    #                 linetpl, filename, start + 1 + i, line, arrow=show_arrow
-    #             )
-    #         )
-    #     return "".join(ret)
-
-
-    # def __format_line(self, tpl_line, filename, lineno, line, arrow=False):
-    #     bp_mark = ""
-    #     bp_mark_color = ""
-
-    #     new_line, err = self.parser.format2(line, 'str')
-    #     if not err:
-    #         line = new_line
-
-    #     bp = None
-    #     if lineno in self.get_file_breaks(filename):
-    #         bps = self.get_breaks(filename, lineno)
-    #         bp = bps[-1]
-
-    #     if bp:
-    #         Colors = self.color_scheme_table.active_colors
-    #         bp_mark = str(bp.number)
-    #         bp_mark_color = Colors.breakpoint_enabled
-    #         if not bp.enabled:
-    #             bp_mark_color = Colors.breakpoint_disabled
-
-    #     numbers_width = 7
-    #     if arrow:
-    #         # This is the line with the error
-    #         pad = numbers_width - len(str(lineno)) - len(bp_mark)
-    #         num = '%s%s' % (make_arrow(pad), str(lineno))
-    #     else:
-    #         num = '%*s' % (numbers_width - len(bp_mark), str(lineno))
-
-    #     return tpl_line % (bp_mark_color + bp_mark, num, line)
     
+
+
+def main():
+    import pathlib
+    the_path = pathlib.Path(__file__).parent.resolve()
+    sys.path.insert(0, os.path.abspath(the_path))
+
+    import ipdb
+    ipdb.__main__._get_debugger_cls = lambda : ChatDBG
+    ipdb.__main__.main()

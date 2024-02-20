@@ -554,7 +554,7 @@ class ChatDBG(ChatDBGSuper):
         stack_dump = f'The program has this stack trace:\n```\n{self.format_stack_trace()}\n```\n'
         return instructions + '\n' + stack_dump + self._error_specific_prompt
 
-    def print_stack_trace(self, context=None):
+    def print_stack_trace(self, context=None, locals=None):
         # override to print the skips into stdout...
         Colors = self.color_scheme_table.active_colors
         ColorsNormal = Colors.Normal
@@ -566,6 +566,10 @@ class ChatDBG(ChatDBGSuper):
                 raise ValueError("Context must be a positive integer")
         except (TypeError, ValueError):
                 raise ValueError("Context must be a positive integer")
+        
+        if locals is None:
+            locals = _config.show_locals
+
         try:
             skipped = 0
             for hidden, frame_lineno in zip(self.hidden_frames(self.stack), self.stack):
@@ -579,7 +583,7 @@ class ChatDBG(ChatDBGSuper):
                     )
                     skipped = 0
                 self.print_stack_entry(frame_lineno, context=context)
-                if _config.show_locals:
+                if locals:
                     self._print_locals(frame_lineno[0])
             if skipped:
                 print(
@@ -628,12 +632,20 @@ class ChatDBG(ChatDBGSuper):
             print(file=self.stdout)
 
     def _stack_prompt(self):
-        stack_frames = textwrap.indent(self._capture_onecmd('bt'), '')
-        stack = textwrap.dedent(f"""
-            This is the current stack.  The current frame is indicated by 
-            an arrow '>' at the start of the line.
-            ```""") + f'\n{stack_frames}\n```'
-        return stack
+        stdout = self.stdout
+        buffer = StringIO()
+        self.stdout = buffer
+        try :            
+            self.print_stack_trace(context=1,locals=False)
+            stack_frames = buffer.getvalue()
+            stack_frames = '\n'.join(line for line in stack_frames.splitlines() if line.strip())
+            stack = textwrap.dedent(f"""
+                This is the current stack.  The current frame is indicated by 
+                an arrow '>' at the start of the line.
+                ```""") + f'\n{stack_frames}\n```'
+            return stack
+        finally:
+            self.stdout = stdout
 
     def _get_prompt(self, arg):
         if arg == 'why':

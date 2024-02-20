@@ -25,14 +25,17 @@ class Assistant:
     json.txt.
     """
 
-    def __init__(self, name, instructions, model="gpt-3.5-turbo-1106", debug=True):
+    # TODO: At some point, if we unify the argument parsing, we should just have this take args.
+    def __init__(
+        self, name, instructions, model="gpt-3.5-turbo-1106", timeout=30, debug=True
+    ):
         if debug:
             self.json = open(f"json.txt", "w")
         else:
             self.json = None
 
         try:
-            self.client = OpenAI(timeout=30)
+            self.client = OpenAI(timeout=timeout)
         except OpenAIError:
             print("You need an OpenAI key to use this tool.")
             print("You can get a key here: https://platform.openai.com/api-keys")

@@ -1,3 +1,4 @@
+import argparse
 import os
 import sys
 import textwrap
@@ -525,9 +526,19 @@ Stop reason: {exception}
     """.strip()
 
 
-def _make_assistant(debugger: lldb.SBDebugger):
+def _make_assistant(debugger: lldb.SBDebugger, args: argparse.Namespace):
+    if args.show_prompt:
+        print(_instructions(debugger))
+        sys.exit(0)
+
     global _assistant
-    _assistant = Assistant("ChatDBG", _instructions(debugger), debug=True)
+    _assistant = Assistant(
+        "ChatDBG",
+        _instructions(debugger),
+        model=args.llm,
+        timeout=args.timeout,
+        debug=True,
+    )
 
     def lldb(command):
         """
@@ -562,12 +573,14 @@ def _make_assistant(debugger: lldb.SBDebugger):
 
 @lldb.command("chat")
 def chat(debugger: lldb.SBDebugger, command: str, result: str, internal_dict: dict):
+    args, remaining = chatdbg_utils.parse_known_args(command.split())
+    # TODO: Bug: as of right now, arguments are only respected on the very first chat invocation.
     if _assistant == None:
-        _make_assistant(debugger)
+        _make_assistant(debugger, args)
 
     def client_print(line=""):
-        line = llm_utils.word_wrap_except_code_blocks(line, 115)
-        line = textwrap.indent(line, "   ", lambda _: True)
+        line = llm_utils.word_wrap_except_code_blocks(line, 120)
+        line = textwrap.indent(line, " " * 4)
         print(line, file=sys.stdout, flush=True)
 
-    _assistant.run(command, client_print)
+    _assistant.run(" ".join(remaining), client_print)

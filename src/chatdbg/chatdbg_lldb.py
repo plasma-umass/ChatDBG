@@ -544,7 +544,7 @@ def _make_assistant(debugger: lldb.SBDebugger, args: argparse.Namespace):
         """
         {
             "name": "lldb",
-            "description": "Run a lldb command and get the response.",
+            "description": "Run an LLDB command and get the response.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -553,7 +553,7 @@ def _make_assistant(debugger: lldb.SBDebugger, args: argparse.Namespace):
                         "description": "The lldb command to run."
                     }
                 },
-                "required": [ "command"  ]
+                "required": [ "command" ]
             }
         }
         """

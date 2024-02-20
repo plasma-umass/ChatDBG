@@ -41,7 +41,7 @@ class ChatDBGArgumentFormatter(argparse.HelpFormatter):
         return help
 
 
-def use_argparse(full_command):
+def parse_known_args(full_command):
     description = textwrap.dedent(
         rf"""
             [b]ChatDBG[/b]: A Python debugger that uses AI to tell you `why`.

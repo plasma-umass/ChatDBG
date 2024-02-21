@@ -59,7 +59,6 @@ def parse_known_args(argv: List[str]) -> Tuple[argparse.Namespace, List[str]]:
         help="the language model to use, e.g., 'gpt-3.5-turbo' or 'gpt-4'",
     )
     parser.add_argument(
-        "-p",
         "--show-prompt",
         action="store_true",
         help="when enabled, only print prompt and exit (for debugging purposes)",

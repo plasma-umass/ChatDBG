@@ -9,7 +9,7 @@ authors = [
   { name="Emery Berger", email="emery.berger@gmail.com" },
   { name="Kyla Levin", email="khlevin@umass.edu" },
   { name="Nicolas van Kempen", email="nvankemp@gmail.com" },
-  { name="Stephen Freund", email="stephenfreund@gmail.com" }
+  { name="Stephen Freund", email="stephenfreund@gmail.com" },
 ]
 dependencies = [
   "llm-utils>=0.2.6",
@@ -18,7 +18,8 @@ dependencies = [
   "ansicolors>=1.1.8",
   "traitlets>=5.14.1",
   "ipdb>=0.13.13",
-  "ipython>=8.21.0"
+  "ipython>=8.21.0",
+  "litellm>=1.26.6",
 ]
 description = "AI-assisted debugging. Uses AI to answer 'why'."
 readme = "README.md"

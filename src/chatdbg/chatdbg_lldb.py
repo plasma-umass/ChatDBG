@@ -10,9 +10,8 @@ import json
 import llm_utils
 import openai
 
-from assistant.assistant import Assistant
+from assistant.lite_assistant import LiteAssistant
 import chatdbg_utils
-import conversation
 
 
 # The file produced by the panic handler if the Rust program is using the chatdbg crate.
@@ -362,61 +361,6 @@ def _val_to_json(
     return json
 
 
-@lldb.command("converse")
-def converse(
-    debugger: lldb.SBDebugger,
-    command: str,
-    result: str,
-    internal_dict: dict,
-) -> None:
-    # Perform typical "why" checks
-    # Check if there is debug info.
-    if not is_debug_build(debugger):
-        print(
-            "Your program must be compiled with debug information (`-g`) to use `converse`."
-        )
-        return
-    # Check if program is attached to a debugger.
-    if not get_target():
-        print("Must be attached to a program to ask `converse`.")
-        return
-    # Check if code has been run before executing the `why` command.
-    thread = get_thread()
-    if not thread:
-        print("Must run the code first to ask `converse`.")
-        return
-    # Check why code stopped running.
-    if thread.GetStopReason() == lldb.eStopReasonBreakpoint:
-        # Check if execution stopped at a breakpoint or an error.
-        print("Execution stopped at a breakpoint, not an error.")
-        return
-
-    args, remaining = chatdbg_utils.parse_known_args(command.split())
-
-    try:
-        client = openai.OpenAI(timeout=args.timeout)
-    except openai.OpenAIError:
-        print("You need an OpenAI key to use this tool.")
-        print("You can get a key here: https://platform.openai.com/api-keys")
-        print("Set the environment variable OPENAI_API_KEY to your key value.")
-        sys.exit(1)
-
-    print(conversation.converse(client, args))
-
-
-_assistant = None
-
-
-def _format_history_entry(entry, indent=""):
-    line, output = entry
-    output = llm_utils.word_wrap_except_code_blocks(output, 120)
-    if output:
-        entry = f"(ChatDBG lldb) {line}\n{output}"
-    else:
-        entry = f"(ChatDBG lldb) {line}"
-    return textwrap.indent(entry, indent, lambda _: True)
-
-
 def _capture_onecmd(debugger, cmd):
     # Get the command interpreter from the debugger
     interpreter = debugger.GetCommandInterpreter()
@@ -438,109 +382,28 @@ def _capture_onecmd(debugger, cmd):
         return f"Command Error: {error}"
 
 
-def _stack_prompt(debugger: lldb.SBDebugger):
-    stack_frames = textwrap.indent(_capture_onecmd(debugger, "bt"), "")
-    stack = (
-        textwrap.dedent(
-            f"""
-        This is the current stack.  
-        The current frame is indicated by a the text '  * ' at 
-        the start of the line.
-        ```"""
-        )
-        + f"\n{stack_frames}\n```"
-    )
-    return stack
-
-
-_basic_instructions = f"""\
-You are a debugging assistant.  You will be given a Python stack trace for an
-error and answer questions related to the root cause of the error.
-
-Call the `lldb` function to run lldb debugger commands on the stopped program. The
-lldb debugger keeps track of a current frame. You may call the `lldb` function
-with the following strings:
-
-    bt
-            Print a stack trace, with the most recent frame at the bottom.
-            An arrow indicates the "current frame", which determines the
-            context of most commands. 
-
-    up
-            Move the current frame count one level up in the
-            stack trace (to an older frame).
-    down
-            Move the current frame count one level down in the
-            stack trace (to a newer frame).
-
-    p expression
-            Print the value of the expression.
-
-    f
-            List the source code for the current frame. 
-            The current line in the current frame is indicated by "->".
-
-    info expression
-            Print the documentation and source code for the given expression, 
-            which should be callable.
-            
-Call the `info` function to get the documentation and source code for any
-function that is visible in the current frame.
-
-Call the `lldb` and `info` functions as many times as you would like.
-
-Call `ldb` to print any variable value or expression that you believe may
-contribute to the error.
-
-Unless it is in a common, widely-used library, you MUST call `info` on any
-function that is called in the code, that apppears in the argument list for a
-function call in the code, or that appears on the call stack.  
-
-The root cause of any error is likely due to a problem in the source code within
-the {os.path.dirname(sys.argv[0])} directory.
-
-Keep your answers under about 8-10 sentences.  Conclude each response with
-either a propopsed fix if you have identified the root cause or a bullet list of
-1-3 suggestions for how to continue debugging.
-"""
-
-
-def _instructions(debugger: lldb.SBDebugger):
-    source_code, traceback, exception = buildPrompt(debugger)
-    return f"""
-
-{_basic_instructions}
-    
-In your response, never refer to the frames given below (as in, 'frame 0'). Instead,
-always refer only to specific lines and filenames of source code.
-
-Source code for each stack frame:
-```
-{source_code}
-```
-
-Traceback:
-{traceback}
-
-Stop reason: {exception}
-    """.strip()
+def _instructions():
+    return textwrap.dedent(
+        """
+            You are an assistant debugger.
+            The user is having an issue with their code, and you are trying to help them find the root cause.
+            They will provide a short summary of the issue and a question to be answered.
+            Call the `lldb` function to run lldb debugger commands on the stopped program.
+            Don't hesitate to use as many function calls as needed to give the best possible answer.
+            Once you have identified the root cause of the problem, explain it and provide a way to fix the issue if you can.
+        """
+    ).strip()
 
 
 def _make_assistant(debugger: lldb.SBDebugger, args: argparse.Namespace):
-    if args.show_prompt:
-        print(_instructions(debugger))
-        sys.exit(0)
-
-    global _assistant
-    _assistant = Assistant(
-        "ChatDBG",
-        _instructions(debugger),
+    assistant = LiteAssistant(
+        _instructions(),
         model=args.llm,
         timeout=args.timeout,
-        debug=True,
+        debug=args.show_prompt,
     )
 
-    def lldb(command):
+    def lldb(command: str) -> str:
         """
         {
             "name": "lldb",
@@ -550,37 +413,114 @@ def _make_assistant(debugger: lldb.SBDebugger, args: argparse.Namespace):
                 "properties": {
                     "command": {
                         "type": "string",
-                        "description": "The lldb command to run."
+                        "description": "The LLDB command to run, possibly with arguments."
                     }
                 },
                 "required": [ "command" ]
             }
         }
         """
-        cmd = command  # any special modifications
+        return _capture_onecmd(debugger, command)
 
-        result = _capture_onecmd(debugger, cmd)
+    def get_code_surrounding(filename: str, lineno: int) -> str:
+        """
+        {
+            "name": "get_code_surrounding",
+            "description": "Returns the code in the given file surrounding and including the provided line number.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "filename": {
+                        "type": "string",
+                        "description": "The filename to read from."
+                    },
+                    "lineno": {
+                        "type": "integer",
+                        "description": "The line number to focus on. Some context before and after that line will be provided."
+                    }
+                },
+                "required": [ "filename", "lineno" ]
+            }
+        }
+        """
+        (lines, first) = llm_utils.read_lines(filename, lineno - 7, lineno + 3)
+        return llm_utils.number_group_of_lines(lines, first)
 
-        print(_format_history_entry((command, result), indent="   "))
+    assistant.add_function(lldb)
+    assistant.add_function(get_code_surrounding)
+    return assistant
 
-        # help the LLM know where it is...
-        result += _stack_prompt()
 
-        return result
+def get_frame_summary() -> str:
+    target = lldb.debugger.GetSelectedTarget()
+    if not target:
+        return None
 
-    _assistant.add_function(lldb)
+    for thread in target.process:
+        reason = thread.GetStopReason()
+        if reason not in [lldb.eStopReasonNone, lldb.eStopReasonInvalid]:
+            break
+
+    summaries = []
+    index = 0
+    for frame in thread:
+        name = frame.GetDisplayFunctionName().split("(")[0]
+        arguments = []
+        for j in range(
+            frame.GetFunction().GetType().GetFunctionArgumentTypes().GetSize()
+        ):
+            arg = frame.FindVariable(frame.GetFunction().GetArgumentName(j))
+            if not arg:
+                continue
+            arguments.append(f"{arg.GetName()}={arg.GetValue()}")
+
+        line_entry = frame.GetLineEntry()
+        file_path = line_entry.GetFileSpec().fullpath
+        lineno = line_entry.GetLine()
+
+        # If we are in a subdirectory, use a relative path instead.
+        if file_path.startswith(os.getcwd()):
+            file_path = os.path.relpath(file_path)
+
+        # Skip frames for which we have no source -- likely system frames.
+        if not os.path.exists(file_path):
+            continue
+
+        summaries.append(
+            f"{index}: {name}({', '.join(arguments)}) at {file_path}:{lineno}"
+        )
+        index += 1
+    return "\n".join(summaries)
+
+
+def get_error_message() -> Optional[str]:
+    target = lldb.debugger.GetSelectedTarget()
+    if not target:
+        return None
+
+    for thread in target.process:
+        reason = thread.GetStopReason()
+        if reason not in [lldb.eStopReasonNone, lldb.eStopReasonInvalid]:
+            break
+
+    return thread.GetStopDescription(1024)
 
 
 @lldb.command("chat")
 def chat(debugger: lldb.SBDebugger, command: str, result: str, internal_dict: dict):
     args, remaining = chatdbg_utils.parse_known_args(command.split())
-    # TODO: Bug: as of right now, arguments are only respected on the very first chat invocation.
-    if _assistant == None:
-        _make_assistant(debugger, args)
+    assistant = _make_assistant(debugger, args)
 
-    def client_print(line=""):
-        line = llm_utils.word_wrap_except_code_blocks(line, 120)
-        line = textwrap.indent(line, " " * 4)
-        print(line, file=sys.stdout, flush=True)
+    prompt = f"""Here is the reason the program stopped execution:
+```
+{get_error_message()}
+```
 
-    _assistant.run(" ".join(remaining), client_print)
+Here is a summary of the stack frames:
+```
+{get_frame_summary()}
+```
+
+{" ".join(remaining) if remaining else "What's the problem?"}"""
+
+    assistant.run(prompt)

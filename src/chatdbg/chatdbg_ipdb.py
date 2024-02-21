@@ -1,5 +1,8 @@
 """
-in ipython_config.py:
+$ ipython profile create
+$ echo "c.InteractiveShellApp.extensions = ['chatdbg.chatdbg_ipdb', 'ipyflow']" > ~/.ipython/profile_default/ipython_config.py
+
+To get in ipython_config.py:
 
 c.InteractiveShellApp.extensions = ['chatdbg.chatdbg_ipdb', 'ipyflow']
 """
@@ -16,7 +19,7 @@ import textwrap
 import traceback
 from datetime import datetime
 from io import StringIO
-import numpy as np
+import itertools
 
 import IPython
 import llm_utils
@@ -51,23 +54,20 @@ def make_arrow(pad):
 
 def format_limited(value, limit=10):
 
-    if isinstance(value, list):
-        if len(value) > limit:
-            return str(value[:limit] + ['...'])
-        else:
-            return str(value)
-    elif isinstance(value, np.ndarray):
-        if value.size > limit:
-            return str(np.append(value[:limit], '...'))
-        else:
-            return str(value)
-    elif isinstance(value, dict):
+    if isinstance(value, dict):
         if len(value) > limit:
             limited_dict = dict(list(value.items())[:limit])
             limited_dict['...'] = '...'
             return str(limited_dict)
         else:
             return str(value)
+    elif hasattr(value, '__iter__'):
+        value = list(itertools.islice(value, 0, limit + 1))
+        if len(value) > limit:
+            return str(value + [ '...' ])
+        else:
+            return str(value)
+        
     else:
         return str(value)
 

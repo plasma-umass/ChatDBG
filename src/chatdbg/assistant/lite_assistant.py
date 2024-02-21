@@ -87,7 +87,8 @@ class LiteAssistant:
             _print_to_file(self._log)
 
     def run(self, prompt: str) -> None:
-        start_time = time.perf_counter()
+        start = time.time()
+        cost = 0
 
         try:
             conversation = [
@@ -98,15 +99,16 @@ class LiteAssistant:
             for message in conversation:
                 self._print_message(message)
             while True:
-                tools = [
-                    {"type": "function", "function": f["schema"]}
-                    for f in self._functions.values()
-                ]
                 completion = litellm.completion(
                     model=self._model,
                     messages=conversation,
-                    tools=tools,
+                    tools=[
+                        {"type": "function", "function": f["schema"]}
+                        for f in self._functions.values()
+                    ],
                 )
+
+                cost += litellm.completion_cost(completion)
 
                 choice = completion.choices[0]
                 self._print_message(choice.message)
@@ -126,14 +128,13 @@ class LiteAssistant:
                     conversation.append(choice.message)
                     conversation.extend(responses)
                 elif choice.finish_reason == "stop":
-                    return
+                    break
                 else:
                     print(f"Not found: {choice.finish_reason}.")
                     sys.exit(1)
 
-            end_time = time.perf_counter()
-            elapsed_time = end_time - start_time
-            print(f"Elapsed time: {elapsed_time:.2f} seconds")
-            # TODO: Print tokens / cost.
+            elapsed = time.time() - start
+            print(f"Elapsed time: {elapsed:.2f} seconds")
+            print(f"Total cost: {cost:.2f}$")
         except openai.OpenAIError as e:
             print(f"*** OpenAI Error: {e}")

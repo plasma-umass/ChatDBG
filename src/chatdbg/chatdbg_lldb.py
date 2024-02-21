@@ -462,8 +462,7 @@ def get_frame_summary() -> str:
             break
 
     summaries = []
-    index = 0
-    for frame in thread:
+    for i, frame in enumerate(thread):
         name = frame.GetDisplayFunctionName().split("(")[0]
         arguments = []
         for j in range(
@@ -486,11 +485,8 @@ def get_frame_summary() -> str:
         if not os.path.exists(file_path):
             continue
 
-        summaries.append(
-            f"{index}: {name}({', '.join(arguments)}) at {file_path}:{lineno}"
-        )
-        index += 1
-    return "\n".join(summaries)
+        summaries.append(f"{i}: {name}({', '.join(arguments)}) at {file_path}:{lineno}")
+    return "\n".join(reversed(summaries))
 
 
 def get_error_message() -> Optional[str]:
@@ -516,7 +512,7 @@ def chat(debugger: lldb.SBDebugger, command: str, result: str, internal_dict: di
 {get_error_message()}
 ```
 
-Here is a summary of the stack frames:
+Here is a summary of the stack frames, omitting those not associated with source code:
 ```
 {get_frame_summary()}
 ```

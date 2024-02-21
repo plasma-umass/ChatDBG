@@ -400,7 +400,7 @@ def _make_assistant(debugger: lldb.SBDebugger, args: argparse.Namespace):
         _instructions(),
         model=args.llm,
         timeout=args.timeout,
-        debug=args.show_prompt,
+        debug=args.debug,
     )
 
     def lldb(command: str) -> str:

@@ -37,7 +37,7 @@ class LiteAssistant:
         return function(**args)
 
     def _print_message(self, message, indent=4, wrap=120) -> None:
-        def _print_to_file(file):
+        def _print_to_file(file, indent):
 
             tool_calls = None
             if "tool_calls" in message:
@@ -69,7 +69,7 @@ class LiteAssistant:
                 for tool_call in tool_calls:
                     arguments = json.loads(tool_call.function.arguments)
                     print(
-                        f"{' ' * (subindent + indent)}{tool_call.function.name}({', '.join([f'{k}={v}' for k, v in arguments.items()])})",
+                        f"{' ' * (subindent + 4)}{tool_call.function.name}({', '.join([f'{k}={v}' for k, v in arguments.items()])})",
                         file=file,
                     )
             else:
@@ -82,9 +82,10 @@ class LiteAssistant:
                     print(f"{' ' * subindent}{line}", file=file)
             print("\n\n", file=file)
 
-        _print_to_file(None)  # None is the default file value for print().
+        # None is the default file value for print().
+        _print_to_file(None, indent)
         if self._log:
-            _print_to_file(self._log)
+            _print_to_file(self._log, 0)
 
     def run(self, prompt: str) -> None:
         start = time.time()

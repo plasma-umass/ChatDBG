@@ -38,8 +38,6 @@ class LiteAssistant:
 
     def _print_message(self, message, indent=4, wrap=120) -> None:
         def _print_to_file(file):
-            # The longest role string is 'assistant', 9 characters.
-            role = message["role"].upper()
 
             tool_calls = None
             if "tool_calls" in message:
@@ -55,10 +53,19 @@ class LiteAssistant:
 
             assert bool(tool_calls) != bool(content)
 
-            subindent = indent + len(role) + 3
+            # The longest role string is 'assistant'.
+            max_role_length = 9
+            # We add 3 characters for the brackets and space.
+            subindent = indent + max_role_length + 3
+
+            role = message["role"].upper()
+            role_indent = max_role_length - len(role)
 
             if tool_calls:
-                print(f"{' ' * indent}[{role}] Function calls:", file=file)
+                print(
+                    f"{' ' * indent}[{role}]{' ' * role_indent} Function calls:",
+                    file=file,
+                )
                 for tool_call in tool_calls:
                     arguments = json.loads(tool_call.function.arguments)
                     print(
@@ -70,7 +77,7 @@ class LiteAssistant:
                     content, wrap - len(role) - indent - 3
                 )
                 first, *rest = content.split("\n")
-                print(f"{' ' * indent}[{role}] {first}", file=file)
+                print(f"{' ' * indent}[{role}]{' ' * role_indent} {first}", file=file)
                 for line in rest:
                     print(f"{' ' * subindent}{line}", file=file)
             print("\n\n", file=file)

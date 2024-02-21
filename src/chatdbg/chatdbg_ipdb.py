@@ -1,7 +1,7 @@
 """
 in ipython_config.py:
 
-c.InteractiveShellApp.extensions = ['chatdbg.chatdbg_pdb', 'ipyflow']
+c.InteractiveShellApp.extensions = ['chatdbg.chatdbg_ipdb', 'ipyflow']
 """
 
 import atexit
@@ -83,7 +83,7 @@ class Chat(Configurable):
     context = Int(chat_get_env('context', 5), help='lines of source code to show when displaying stacktrace information').tag(config=True)
     show_locals = Bool(chat_get_env('show_locals', True), help='show local var values in stacktrace').tag(config=True)
     show_libs = Bool(chat_get_env('show_libs', False), help='show library frames in stacktrace').tag(config=True)
-    show_how = Bool(chat_get_env('show_how', True), help='support the `how` command ').tag(config=True)
+    show_slice = Bool(chat_get_env('show_slice', True), help='support the `slice` command ').tag(config=True)
 
 
     
@@ -161,11 +161,11 @@ info can be the name of the function or an expression of the form `obj.method_na
 to see the information for the method_name method of object obj.
 
 Unless it is from a common, widely-used library, you MUST call `info` on any
-function that is called in the code, that apppears in the argument list for a
-function call in the code, or that appears on the call stack.  
+function that is called in the given code, that apppears in the argument 
+list for a function call in the code, or that appears on the call stack.  
 """
 
-_how_function="""\
+_slice_function="""\
 Call the `how` function to get the code used to produce
 the value currently stored a variable.  
 """
@@ -176,7 +176,12 @@ Call the provided functions as many times as you would like.
 The root cause of any error is likely due to a problem in the source code within
 the {os.getcwd()} directory.
 
-Keep your answers under about 8-10 sentences.  Conclude each response with
+Explain why each variable contributing to the error has been set been set
+to the value that it has.
+
+Keep your answers under about 8-10 sentences.  
+
+Conclude each response with
 either a propopsed fix if you have identified the root cause or a bullet list of
 1-3 suggestions for how to continue debugging.
 """
@@ -497,7 +502,7 @@ class ChatDBG(ChatDBGSuper):
             self.do_pydoc(arg)
             self.message(f'You MUST assume that `{arg}` is specified and implemented correctly.')
 
-    def do_how(self, arg):
+    def do_slice(self, arg):
         if not _supports_flow:
             self.message("*** `how` is only supported in Jupyter notebooks")
             return
@@ -533,7 +538,7 @@ class ChatDBG(ChatDBGSuper):
                 result = f"*** No information avaiable for {arg}, only {cell.used_symbols}.  Run the command `p {arg}` to see its value."
         except Exception as e:
             # traceback.print_exc()
-            result = f"*** Bad frame for call to how ({e})"
+            result = f"*** Bad frame for call to slice ({e})"
 
         self.message(result)
 
@@ -548,7 +553,7 @@ class ChatDBG(ChatDBGSuper):
         self.message(self._get_prompt(arg))
 
     def _instructions(self):
-        how_fn = _how_function if _supports_flow else ''
+        slice_fn = _slice_function if _supports_flow else ''
         instructions = f"{_intro}\n{_pbd_function}\n{_info_function}\n{how_fn}\n{_general_instructions}"
 
         stack_dump = f'The program has this stack trace:\n```\n{self.format_stack_trace()}\n```\n'
@@ -763,7 +768,7 @@ class ChatDBG(ChatDBGSuper):
             }
 
             """
-            command = f'how {name}'
+            command = f'slice {name}'
             result = self._capture_onecmd(command)
             self.message(self.format_history_entry((command, result), 
                                                    indent = self.chat_prefix))

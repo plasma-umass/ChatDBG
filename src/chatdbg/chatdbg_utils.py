@@ -59,9 +59,9 @@ def parse_known_args(argv: List[str]) -> Tuple[argparse.Namespace, List[str]]:
         help="the language model to use, e.g., 'gpt-3.5-turbo' or 'gpt-4'",
     )
     parser.add_argument(
-        "--show-prompt",
+        "--debug",
         action="store_true",
-        help="when enabled, only print prompt and exit (for debugging purposes)",
+        help="when enabled, only print prompt and exit with `why`, and output to a log file with `chat`",
     )
     parser.add_argument(
         "--timeout",
@@ -95,7 +95,7 @@ Stop reason: {exception}
 
     input_tokens = llm_utils.count_tokens(args.llm, user_prompt)
 
-    if args.show_prompt:
+    if args.debug:
         print(user_prompt)
         print(f"Total input tokens: {input_tokens}")
         return

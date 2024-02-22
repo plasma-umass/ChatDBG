@@ -1,11 +1,15 @@
 """
-in ipython_config.py:
+$ ipython profile create
+$ echo "c.InteractiveShellApp.extensions = ['chatdbg.chatdbg_ipdb', 'ipyflow']" > ~/.ipython/profile_default/ipython_config.py
+
+To get in ipython_config.py:
 
 c.InteractiveShellApp.extensions = ['chatdbg.chatdbg_ipdb', 'ipyflow']
 """
 
 import atexit
 import inspect
+from pprint import pprint
 import ast
 import os
 import pdb
@@ -16,12 +20,16 @@ import textwrap
 import traceback
 from datetime import datetime
 from io import StringIO
-import numpy as np
+import itertools
+import uuid
 
 import IPython
+from IPython import get_ipython
+from IPython.core.magic import register_line_magic, line_magic
+
 import llm_utils
 import yaml
-from traitlets import Bool, Int, Unicode
+from traitlets import Bool, Int, Unicode, TraitError
 from traitlets.config import Configurable
 
 from .assistant.assistant import Assistant
@@ -51,23 +59,20 @@ def make_arrow(pad):
 
 def format_limited(value, limit=10):
 
-    if isinstance(value, list):
-        if len(value) > limit:
-            return str(value[:limit] + ['...'])
-        else:
-            return str(value)
-    elif isinstance(value, np.ndarray):
-        if value.size > limit:
-            return str(np.append(value[:limit], '...'))
-        else:
-            return str(value)
-    elif isinstance(value, dict):
+    if isinstance(value, dict):
         if len(value) > limit:
             limited_dict = dict(list(value.items())[:limit])
             limited_dict['...'] = '...'
             return str(limited_dict)
         else:
             return str(value)
+    elif hasattr(value, '__iter__'):
+        value = list(itertools.islice(value, 0, limit + 1))
+        if len(value) > limit:
+            return str(value + [ '...' ])
+        else:
+            return str(value)
+        
     else:
         return str(value)
 
@@ -93,10 +98,14 @@ class Chat(Configurable):
             'debug': self.debug,
             'log': self.log,
             'tag': self.tag,
-            'context': self.context
+            'context': self.context,
+            'show_locals' : self.show_locals,
+            'show_libs' : self.show_libs,
+            'show_slices' : self.show_slices
         }
 
 _config = None
+
 
 def load_ipython_extension(ipython):
     # Create an instance of your configuration class with IPython's config
@@ -163,7 +172,7 @@ function that is called in the given code, that apppears in the argument
 list for a function call in the code, or that appears on the call stack.  
 """
 
-_how_function="""\
+_slice_function="""\
 Call the `how` function to get the code used to produce
 the value currently stored a variable.  
 """
@@ -213,7 +222,9 @@ class ChatDBGLog:
         self.meta = {
             'time' : datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             'command_line' : ' '.join(sys.argv),
+            'uid' : str(uuid.uuid4()),
             'config' : _config.to_json(),
+            'mark': '?',
         }
         self._instructions = ''
         self.stdout_wrapper = CopyingTextIOWrapper(sys.stdout)
@@ -221,9 +232,23 @@ class ChatDBGLog:
         sys.stdout = self.stdout_wrapper
         sys.stderr = self.stdout_wrapper
         self.chat_step = None
+        self.mark = '?'
 
+
+    def add_mark(self, value):
+        if value not in [ 'good', 'bad', '?', 'empty' ]:
+            print(f"answer must be in { ['good', 'bad', '?', 'empty'] }")
+        else:
+            self.meta['mark'] = value
+
+    def total(self, key):
+        return sum([ x['stats'][key] for x in self.steps if x['output']['type'] == 'chat'])
 
     def dump(self): 
+        self.meta['total_tokens'] = self.total('tokens')
+        self.meta['total_time'] = self.total('time')
+        self.meta['total_cost'] = self.total('cost')
+
         full_json = [{
             'meta' : self.meta,
             'steps' : self.steps,
@@ -232,6 +257,7 @@ class ChatDBGLog:
             'stderr' : self.stderr_wrapper.getvalue()
         }]
         
+        print(f'*** Write ChatDBG log to {_config.log}')
         with open(_config.log, 'a') as file:
             yaml.dump(full_json, file, default_flow_style=False)
 
@@ -332,7 +358,7 @@ class ChatDBG(ChatDBGSuper):
 
         self.log = ChatDBGLog()
         atexit.register(lambda: self.log.dump())
-        
+
 
     def _is_user_file(self, file_name):
         if file_name.endswith('.pyx'):
@@ -361,7 +387,14 @@ class ChatDBG(ChatDBGSuper):
                 details = "".join(traceback.format_exception_only(sys.exception())).rstrip()
                 self._error_specific_prompt = f"The program encountered the following error:\n```\n{details}\n```\n"
 
-        super().interaction(frame, tb_or_exc)
+        # try:
+            super().interaction(frame, tb_or_exc)
+        # finally:
+        #     # interaction done -- assistant/log will be reset for next one.
+        #     self.log.dump()
+        #     self.log = ChatDBGLog()
+        #     self._assistant = None
+
  
 
     def _hide_lib_frames(self, tb):
@@ -380,12 +413,13 @@ class ChatDBG(ChatDBGSuper):
 
     def setup(self, f, tb):
 
-        super().setup(f, tb)
+        if tb != None:
+            if not _config.show_libs:
+                self._hide_lib_frames(tb)
 
-        if not _config.show_libs:
-            self._hide_lib_frames(tb)
+            self._error_stack_trace = f"The program has the following stack trace:\n```\n{self.format_stack_trace()}\n```\n"
 
-        self._error_stack_trace = f"The program has the following stack trace:\n```\n{self.format_stack_trace()}\n```\n"
+        return super().setup(f, tb)
 
     def onecmd(self, line: str) -> bool:
         """
@@ -401,12 +435,13 @@ class ChatDBG(ChatDBGSuper):
                 self.was_chat = False
                 return super().onecmd(line)
             finally:
-                output = strip_color(hist_file.getvalue())
-                if line not in [ 'quit', 'EOF']:
-                    self.log.user_command(line, output)
-                if line not in [ 'hist', 'test_prompt' ] and not self.was_chat:
-                    self._history += [ (line, output) ]
                 self.stdout = hist_file.getfile()
+                if not line.startswith('config') and not line.startswith('mark'):
+                    output = strip_color(hist_file.getvalue())
+                    if line not in [ 'quit', 'EOF']:
+                        self.log.user_command(line, output)
+                    if line not in [ 'hist', 'test_prompt' ] and not self.was_chat:
+                        self._history += [ (line, output) ]
 
     def message(self, msg) -> None:
         """ 
@@ -536,7 +571,7 @@ class ChatDBG(ChatDBGSuper):
                 result = f"*** No information avaiable for {arg}, only {cell.used_symbols}.  Run the command `p {arg}` to see its value."
         except Exception as e:
             # traceback.print_exc()
-            result = f"*** Bad frame for call to how ({e})"
+            result = f"*** Bad frame for call to slice ({e})"
 
         self.message(result)
 
@@ -551,8 +586,8 @@ class ChatDBG(ChatDBGSuper):
         self.message(self._get_prompt(arg))
 
     def _instructions(self):
-        how_fn = _how_function if _supports_flow else ''
-        instructions = f"{_intro}\n{_pbd_function}\n{_info_function}\n{how_fn}\n{_general_instructions}"
+        slice_fn = _slice_function if _supports_flow else ''
+        instructions = f"{_intro}\n{_pbd_function}\n{_info_function}\n{slice_fn}\n{_general_instructions}"
 
         stack_dump = f'The program has this stack trace:\n```\n{self.format_stack_trace()}\n```\n'
         return instructions + '\n' + stack_dump + self._error_specific_prompt
@@ -691,6 +726,36 @@ class ChatDBG(ChatDBGSuper):
         tokens, cost, time = self._assistant.run(full_prompt, client_print)
         self.log.pop_chat(tokens, cost, time)
 
+    def do_mark(self, arg):
+        marks = [ 'good', 'bad', '?', 'empty' ]
+        if arg == None or arg == '':
+            arg = input(f'mark? (one of {marks}): ')
+            while arg not in marks:
+                arg = input(f'mark? (one of {marks}): ')
+        if arg not in marks:
+            self.error(f"answer must be in { ['good', 'bad', '?', 'empty'] }")
+        else:
+            self.log.add_mark(arg)
+
+    def do_config(self, arg):
+        args = arg.split()
+        if len(args) == 0:
+            pprint(_config.to_json(), sort_dicts=True, stream=self.stdout)
+            return
+            
+        if len(args) != 2:
+            self.error("Usage: config <option> <value>")
+            self.error("   or: config")
+            return
+        
+        option, value = args
+        try:
+            _config.set_trait(option, value)
+            pprint(_config.to_json(), sort_dicts=True, stream=self.stdout)                
+        except TraitError as e:
+            self.error(f'{e}')            
+
+
     def _make_assistant(self):
 
         def info(name):
@@ -748,10 +813,10 @@ class ChatDBG(ChatDBGSuper):
             result += strip_color(self._stack_prompt())
             return result
 
-        def how(name):
+        def slice(name):
             """
             {
-                "name": "how",
+                "name": "slice",
                 "description": "Return the code to compute a global variable used in the current frame",
                 "parameters": {
                     "type": "object",
@@ -792,16 +857,16 @@ class ChatDBG(ChatDBGSuper):
         self._assistant.add_function(info)
 
         if _supports_flow:
-            self._assistant.add_function(how)
+            self._assistant.add_function(slice)
 
 
     
 
 
 def main():
-    import pathlib
-    the_path = pathlib.Path(__file__).parent.resolve()
-    sys.path.insert(0, os.path.abspath(the_path))
+    # import pathlib
+    # the_path = pathlib.Path(__file__).parent.resolve()
+    # sys.path.insert(0, os.path.abspath(the_path))
 
     import ipdb
     ipdb.__main__._get_debugger_cls = lambda : ChatDBG

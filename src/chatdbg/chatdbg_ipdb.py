@@ -47,7 +47,8 @@ _valid_models = [
 def chat_get_env(option_name, default_value):
     env_name = 'CHATDBG_' + option_name.upper()
     t = type(default_value)
-    return t(os.getenv(env_name, default_value))
+    v = t(os.getenv(env_name, default_value))
+    return v
 
 def make_arrow(pad):
     """generate the leading arrow in front of traceback or debugger"""
@@ -83,12 +84,13 @@ class Chat(Configurable):
     debug = Bool(chat_get_env('debug',False), help="Log OpenAI calls").tag(config=True)
     log = Unicode(chat_get_env('log','log.yaml'), help="The log file").tag(config=True)
     tag = Unicode(chat_get_env('tag', ''), help="Any extra info for log file").tag(config=True)
+    rc_lines = Unicode(chat_get_env('rc_lines', '[]'), help="lines to run at startup").tag(config=True)
 
     # config for stack traces
     context = Int(chat_get_env('context', 5), help='lines of source code to show when displaying stacktrace information').tag(config=True)
     show_locals = Bool(chat_get_env('show_locals', True), help='show local var values in stacktrace').tag(config=True)
     show_libs = Bool(chat_get_env('show_libs', False), help='show library frames in stacktrace').tag(config=True)
-    show_how = Bool(chat_get_env('show_how', True), help='support the `how` command ').tag(config=True)
+    show_slices = Bool(chat_get_env('show_slices', True), help='support the `slice` command ').tag(config=True)
 
 
     def to_json(self):
@@ -98,10 +100,11 @@ class Chat(Configurable):
             'debug': self.debug,
             'log': self.log,
             'tag': self.tag,
+            'rc_lines' : self.rc_lines,
             'context': self.context,
             'show_locals' : self.show_locals,
             'show_libs' : self.show_libs,
-            'show_slices' : self.show_slices
+            'show_slices' : self.show_slices,
         }
 
 _config = None
@@ -126,6 +129,8 @@ def literal_presenter(dumper, data):
     return dumper.represent_scalar('tag:yaml.org,2002:str', data)
 
 yaml.add_representer(str, literal_presenter)
+
+
 
 
 _intro=f"""\
@@ -173,7 +178,7 @@ list for a function call in the code, or that appears on the call stack.
 """
 
 _slice_function="""\
-Call the `how` function to get the code used to produce
+Call the `slice` function to get the code used to produce
 the value currently stored a variable.  
 """
 
@@ -323,7 +328,7 @@ try:
             from IPython.terminal.debugger import TerminalPdb
             ChatDBGSuper = TerminalPdb
             _user_file_prefixes = [ os.getcwd(), '<ipython'  ]
-
+            _supports_flow = True
         else:
             # inside jupyter
             from IPython.core.debugger import InterruptiblePdb
@@ -355,10 +360,10 @@ class ChatDBG(ChatDBGSuper):
             _config = Chat()
 
         self.do_context(_config.context)
-
+        self.rcLines += ast.literal_eval(_config.rc_lines)
+        
         self.log = ChatDBGLog()
         atexit.register(lambda: self.log.dump())
-
 
     def _is_user_file(self, file_name):
         if file_name.endswith('.pyx'):
@@ -387,13 +392,7 @@ class ChatDBG(ChatDBGSuper):
                 details = "".join(traceback.format_exception_only(sys.exception())).rstrip()
                 self._error_specific_prompt = f"The program encountered the following error:\n```\n{details}\n```\n"
 
-        # try:
-            super().interaction(frame, tb_or_exc)
-        # finally:
-        #     # interaction done -- assistant/log will be reset for next one.
-        #     self.log.dump()
-        #     self.log = ChatDBGLog()
-        #     self._assistant = None
+        super().interaction(frame, tb_or_exc)
 
  
 
@@ -537,7 +536,7 @@ class ChatDBG(ChatDBGSuper):
 
     def do_slice(self, arg):
         if not _supports_flow:
-            self.message("*** `how` is only supported in Jupyter notebooks")
+            self.message("*** `slice` is only supported in Jupyter notebooks")
             return
         
         try:

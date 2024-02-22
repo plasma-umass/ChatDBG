@@ -13,7 +13,7 @@ def do_message(x, file):
 def do_function(x, file):
     prompt = x['input']
     assert x['output']['type'] == 'text'
-    body = x['output']['output'].strip()
+    body = x['output']['output'].rstrip()
     if len(body) > 0:
         print(f'   (ChatDBG idbp) {prompt}', file=file)
         print(textwrap.indent(body, prefix='   '), file=file)
@@ -34,7 +34,7 @@ def do_step(file, x):
 
     output = x['output']
     if output['type'] == 'text':
-            body = output['output'].strip()
+            body = output['output'].rstrip()
             if len(body) > 0:
                 print(textwrap.indent(body, prefix = '   '), file=file)
     else:

@@ -12,6 +12,7 @@ import openai
 
 from assistant.lite_assistant import LiteAssistant
 import chatdbg_utils
+import clangd_lsp_integration
 
 
 # The file produced by the panic handler if the Rust program is using the chatdbg crate.
@@ -396,13 +397,6 @@ def _instructions():
 
 
 def _make_assistant(debugger: lldb.SBDebugger, args: argparse.Namespace):
-    assistant = LiteAssistant(
-        _instructions(),
-        model=args.llm,
-        timeout=args.timeout,
-        debug=args.debug,
-    )
-
     def lldb(command: str) -> str:
         """
         {
@@ -446,14 +440,68 @@ def _make_assistant(debugger: lldb.SBDebugger, args: argparse.Namespace):
         (lines, first) = llm_utils.read_lines(filename, lineno - 7, lineno + 3)
         return llm_utils.number_group_of_lines(lines, first)
 
+    clangd = clangd_lsp_integration.clangd()
+
+    def find_definition(filename: str, lineno: int, character: int) -> str:
+        """
+        {
+            "name": "find_definition",
+            "description": "Returns the definition for the symbol at the given source location.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "filename": {
+                        "type": "string",
+                        "description": "The filename the code location is from."
+                    },
+                    "lineno": {
+                        "type": "integer",
+                        "description": "The line number where the symbol is present."
+                    },
+                    "character": {
+                        "type": "integer",
+                        "description": "The column number where the symbol is present."
+                    }
+                },
+                "required": [ "filename", "lineno", "character" ]
+            }
+        }
+        """
+        clangd.didOpen(filename, "c" if filename.endswith(".c") else "cpp")
+        definition = clangd.definition(filename, lineno, character)
+        clangd.didClose(filename)
+
+        if "result" not in definition or not definition["result"]:
+            return "No definition found."
+
+        path = clangd_lsp_integration._uri_to_path(definition["result"][0]["uri"])
+        start_lineno = definition["result"][0]["range"]["start"]["line"] + 1
+        end_lineno = definition["result"][0]["range"]["end"]["line"] + 1
+        (lines, first) = llm_utils.read_lines(path, start_lineno - 5, end_lineno + 5)
+        content = llm_utils.number_group_of_lines(lines, first)
+        line_string = (
+            f"line {start_lineno}"
+            if start_lineno == end_lineno
+            else f"lines {start_lineno}-{end_lineno}"
+        )
+        return f"""File '{path}' at {line_string}:\n```\n{content}\n```"""
+
+    assistant = LiteAssistant(
+        _instructions(),
+        model=args.llm,
+        timeout=args.timeout,
+        debug=args.debug,
+    )
+
     assistant.add_function(lldb)
     assistant.add_function(get_code_surrounding)
+    assistant.add_function(find_definition)
     return assistant
 
 
 def get_frame_summary() -> str:
     target = lldb.debugger.GetSelectedTarget()
-    if not target:
+    if not target or not target.process:
         return None
 
     for thread in target.process:
@@ -491,7 +539,7 @@ def get_frame_summary() -> str:
 
 def get_error_message() -> Optional[str]:
     target = lldb.debugger.GetSelectedTarget()
-    if not target:
+    if not target or not target.process:
         return None
 
     for thread in target.process:

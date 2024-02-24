@@ -51,7 +51,7 @@ class LiteAssistant:
             elif hasattr(message, "content"):
                 content = message.content
 
-            assert bool(tool_calls) != bool(content)
+            assert content or tool_calls
 
             # The longest role string is 'assistant'.
             max_role_length = 9
@@ -61,18 +61,7 @@ class LiteAssistant:
             role = message["role"].upper()
             role_indent = max_role_length - len(role)
 
-            if tool_calls:
-                print(
-                    f"{' ' * indent}[{role}]{' ' * role_indent} Function calls:",
-                    file=file,
-                )
-                for tool_call in tool_calls:
-                    arguments = json.loads(tool_call.function.arguments)
-                    print(
-                        f"{' ' * (subindent + 4)}{tool_call.function.name}({', '.join([f'{k}={v}' for k, v in arguments.items()])})",
-                        file=file,
-                    )
-            else:
+            if content:
                 content = llm_utils.word_wrap_except_code_blocks(
                     content, wrap - len(role) - indent - 3
                 )
@@ -80,7 +69,24 @@ class LiteAssistant:
                 print(f"{' ' * indent}[{role}]{' ' * role_indent} {first}", file=file)
                 for line in rest:
                     print(f"{' ' * subindent}{line}", file=file)
-            print("\n\n", file=file)
+                print()
+
+            if tool_calls:
+                if content:
+                    print(f"{' ' * subindent} Function calls:", file=file)
+                else:
+                    print(
+                        f"{' ' * indent}[{role}]{' ' * role_indent} Function calls:",
+                        file=file,
+                    )
+                for tool_call in tool_calls:
+                    arguments = json.loads(tool_call.function.arguments)
+                    print(
+                        f"{' ' * (subindent + 4)}{tool_call.function.name}({', '.join([f'{k}={v}' for k, v in arguments.items()])})",
+                        file=file,
+                    )
+                print()
+            print("\n", file=file)
 
         # None is the default file value for print().
         _print_to_file(None, indent)

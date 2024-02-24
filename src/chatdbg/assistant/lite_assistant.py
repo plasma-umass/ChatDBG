@@ -69,7 +69,7 @@ class LiteAssistant:
                 print(f"{' ' * indent}[{role}]{' ' * role_indent} {first}", file=file)
                 for line in rest:
                     print(f"{' ' * subindent}{line}", file=file)
-                print()
+                print(file=file)
 
             if tool_calls:
                 if content:
@@ -85,7 +85,7 @@ class LiteAssistant:
                         f"{' ' * (subindent + 4)}{tool_call.function.name}({', '.join([f'{k}={v}' for k, v in arguments.items()])})",
                         file=file,
                     )
-                print()
+                print(file=file)
             print("\n", file=file)
 
         # None is the default file value for print().

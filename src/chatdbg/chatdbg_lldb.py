@@ -474,7 +474,7 @@ def _make_assistant(debugger: lldb.SBDebugger, args: argparse.Namespace):
         if "result" not in definition or not definition["result"]:
             return "No definition found."
 
-        path = clangd_lsp_integration._uri_to_path(definition["result"][0]["uri"])
+        path = clangd_lsp_integration.uri_to_path(definition["result"][0]["uri"])
         start_lineno = definition["result"][0]["range"]["start"]["line"] + 1
         end_lineno = definition["result"][0]["range"]["end"]["line"] + 1
         (lines, first) = llm_utils.read_lines(path, start_lineno - 5, end_lineno + 5)
@@ -495,7 +495,13 @@ def _make_assistant(debugger: lldb.SBDebugger, args: argparse.Namespace):
 
     assistant.add_function(lldb)
     assistant.add_function(get_code_surrounding)
-    assistant.add_function(find_definition)
+
+    if not clangd_lsp_integration.is_available():
+        print("[WARNING] clangd is not available.")
+        print("[WARNING] The `find_definition` function will not be made available.")
+    else:
+        assistant.add_function(find_definition)
+
     return assistant
 
 

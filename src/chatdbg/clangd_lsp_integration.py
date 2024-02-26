@@ -46,7 +46,7 @@ def _path_to_uri(path):
     return "file://" + os.path.abspath(path)
 
 
-def _uri_to_path(uri):
+def uri_to_path(uri):
     data = urllib.parse.urlparse(uri)
 
     assert data.scheme == "file"
@@ -59,6 +59,19 @@ def _uri_to_path(uri):
     if path.startswith(os.getcwd()):
         path = os.path.relpath(path, os.getcwd())
     return urllib.parse.unquote(path)  # clangd seems to escape paths.
+
+
+def is_available():
+    try:
+        clangd = subprocess.Popen(
+            ["clangd", "--version"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+        return clangd.returncode == 0
+    except FileNotFoundError:
+        return False
 
 
 class clangd:

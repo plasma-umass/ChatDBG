@@ -24,3 +24,8 @@ jobs:
 
       - name: Check help message
         run: python3 -m chatdbg --help
+
+      - name: Check calling executables directly
+        run: |
+          chatdbg --help
+          ichatdbg --help

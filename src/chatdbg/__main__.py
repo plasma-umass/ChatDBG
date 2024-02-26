@@ -1,13 +1,3 @@
-import os
-import pathlib
-import sys
+from . import chatdbg
 
-the_path = pathlib.Path(__file__).parent.resolve()
-
-sys.path.insert(0, os.path.abspath(the_path))
-
-from .chatdbg import *
-
-# from . import chatdbg
-
-# chatdbg.main()
+chatdbg.main()

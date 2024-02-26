@@ -90,6 +90,9 @@ class ChatDBG(ChatDBGSuper):
 
         self.do_context(_config.context)
         self.rcLines += ast.literal_eval(_config.rc_lines)
+
+        # set this to True ONLY AFTER we have had stack frames
+        self._show_locals = False
         
         self.log = ChatDBGLog(_config)
         atexit.register(lambda: self.log.dump())
@@ -134,7 +137,7 @@ class ChatDBG(ChatDBGSuper):
 
  
 
-    def _hide_lib_frames(self, tb):
+    def _hide_lib_frames(self):
         # hide lib frames
         for s in self.stack:
             s[0].f_locals['__tracebackhide__'] = not self._is_user_frame(s[0])
@@ -149,17 +152,18 @@ class ChatDBG(ChatDBGSuper):
             self.curframe, self.lineno = self.stack[self.curindex][0]
             self.curframe_locals = self.curframe.f_locals
 
-    def setup(self, f, tb):
+    def execRcLines(self):
 
-        result = super().setup(f, tb)
+        # do before running rclines -- our stack should be set up by now.
 
-        # do after super call, since that is where self.stack is set up.
-        if tb != None:
-            if not _config.show_libs:
-                self._hide_lib_frames(tb)
-            self._error_stack_trace = f"The program has the following stack trace:\n```\n{self.format_stack_trace()}\n```\n"
+        if not _config.show_libs:
+            self._hide_lib_frames()
+        self._error_stack_trace = f"The program has the following stack trace:\n```\n{self.format_stack_trace()}\n```\n"
 
-        return result
+        # finally safe to enable this.
+        self._show_locals = _config.show_locals and not _config.show_libs
+        
+        return super().execRcLines()
 
     def onecmd(self, line: str) -> bool:
         """
@@ -339,7 +343,9 @@ class ChatDBG(ChatDBGSuper):
                 raise ValueError("Context must be a positive integer")
         
         if locals is None:
-            locals = _config.show_locals
+            locals = self._show_locals
+        else:
+            locals = locals and self._show_locals
 
         try:
             skipped = 0
@@ -377,8 +383,19 @@ class ChatDBG(ChatDBGSuper):
                         self.defined_symbols.add(target.id)
                 self.generic_visit(node)
 
+            def visit_For(self, node):
+                if isinstance(node.target, ast.Name):
+                    self.defined_symbols.add(node.target.id)
+                self.generic_visit(node)
+
+            def visit_comprehension(self, node):
+                if isinstance(node.target, ast.Name):
+                    self.defined_symbols.add(node.target.id)
+                self.generic_visit(node)
+
+
         try:    
-            source = inspect.getsource(frame)
+            source = textwrap.dedent(inspect.getsource(frame.f_code))
             tree = ast.parse(source)
 
             finder = SymbolFinder()
@@ -389,17 +406,18 @@ class ChatDBG(ChatDBGSuper):
             parameter_symbols.discard(None)
 
             return (finder.defined_symbols | parameter_symbols) & locals.keys()
-        except:
+        except Exception as e:
+            # yipes -silent fail...
             return set()
 
     def _print_locals(self, frame):
         locals = frame.f_locals
         defined_locals = self._get_defined_locals_and_params(frame)
+        if locals is frame.f_globals:
+            print(f'        Global variables:', file=self.stdout)
+        else:
+            print(f'        Variables in this frame:', file=self.stdout)                
         if len(defined_locals) > 0:
-            if locals is frame.f_globals:
-                print(f'        Global variables:', file=self.stdout)
-            else:
-                print(f'        Variables in this frame:', file=self.stdout)                
             for name in sorted(defined_locals):
                 value = locals[name]
                 print(f"          {name}= {format_limited(value, limit=20)}", file=self.stdout)

@@ -3,6 +3,9 @@ import argparse
 import yaml
 import sys
 import json
+import colors
+import shutil
+import os
 from pathlib import Path
 
 class TextPrinter:
@@ -52,20 +55,51 @@ class TextPrinter:
             self._do_step(step)
         self.print()
 
+def prompt_choice(choices, current=None):
+    choices_dict = {choice[0].upper(): choice for choice in choices}
+    prompt_options = "/".join([f"[{choice[0]}]{choice[1:]}" for choice in choices])
+    if current == None: current = choices[0]
+    prompt = colors.color(f"Pick {prompt_options} (Press enter for {current}): ", "red")
+
+    while True:
+        user_input = input(prompt).strip().upper()
+        if user_input == '':
+            return current
+        elif user_input in choices_dict:
+            return choices_dict[user_input]
+        else:
+            print("Invalid choice. Please try again.")
+
+def backup_and_overwrite(file_path, new_content):
+    # Create a backup file path by adding a .bak extension
+    backup_path = file_path + '.bak'
+
+    # Check if the original file exists
+    if os.path.exists(file_path):
+        # Copy the original file to the backup path
+        shutil.copyfile(file_path, backup_path)
+        print(f"Backup created at {backup_path}")
+
+    # Write new content to the original file
+    with open(file_path, 'w') as file:
+        file.write(new_content)
+    print(f"File {file_path} has been overwritten with new content.")
+
+
 class MarkPrinter(TextPrinter):
     def __init__(self, file):
         super().__init__(file)
 
     def do_one(self, x):
+        meta = x['meta']
         for step in x['steps']:
             self.print()
             self._do_step(step)
         self.print()
-        if x['meta']['mark'] == '?':
-            mark = input("Mark not set: ")
-            print(mark)
-
-
+        if meta['mark'] == '?':
+            print(colors.color(f"{meta['uid']}...", "red"))
+            mark = prompt_choice(['Good', 'Bad', 'Useless', '?'], meta['mark'])
+            meta['mark'] = mark
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="log processor")
@@ -81,15 +115,15 @@ if __name__ == "__main__":
 
     if suffix == '.json':
         with open(args.trace, 'r') as log:
-            x = json.load(log)
+            full = json.load(log)
     else:
         with open(args.trace, 'r') as log:
-            x = yaml.safe_load(log)
+            full = yaml.safe_load(log)
 
-    x = eval('x['+args.index+']')
-    x = x if isinstance(x, list) else [x]
+    xs = eval('full['+args.index+']')
+    xs = xs if isinstance(xs, list) else [xs]
 
-    for x in x:
+    for x in xs:
         print()
         print()
         print(x['instructions'], file=sys.stdout)
@@ -102,3 +136,6 @@ if __name__ == "__main__":
             MarkPrinter(sys.stdout).do_one(x)
         print()
         print()
+
+    if args.format == 'mark':
+        backup_and_overwrite(args.trace, yaml.dump(full, indent=2,sort_keys=True))

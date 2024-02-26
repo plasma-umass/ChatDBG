@@ -139,16 +139,15 @@ class ChatDBG(ChatDBGSuper):
         for s in self.stack:
             s[0].f_locals['__tracebackhide__'] = not self._is_user_frame(s[0])
 
-        # hide huge stacks
+        # truncate huge stacks
         for frame in self.stack[0:-30]:
             frame[0].f_locals['__tracebackhide__'] = True
 
         # go up until we are not in a library
         while self.curindex > 0 and self.curframe_locals.get('__tracebackhide__', False):
             self.curindex -= 1
-            self.curframe = self.stack[self.curindex][0]
+            self.curframe, self.lineno = self.stack[self.curindex][0]
             self.curframe_locals = self.curframe.f_locals
-            self.lineno = None
 
     def setup(self, f, tb):
 

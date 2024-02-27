@@ -424,8 +424,6 @@ class ChatDBG(ChatDBGSuper):
             parameter_symbols.discard(None)
 
             return (finder.defined_symbols | parameter_symbols) & locals.keys()
-        except OSError:
-            raise
         except Exception as e:
             # yipes -silent fail...
             return set()

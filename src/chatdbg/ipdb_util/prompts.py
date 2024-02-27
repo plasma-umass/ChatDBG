@@ -84,9 +84,9 @@ to the value that it has.
 
 Keep your answers under 10 paragraphs.
 
-Your answer should end with a section titled "Conclusion" that contains 
-either a propopsed fix if you have identified the root cause or a numbered list of
-1-3 suggestions for how to continue debugging.
+End your answer with a section titled "##### Recommendation" that contains one of:
+* a propopsed fix if you have identified the root cause
+* a numbered list of 1-3 suggestions for how to continue debugging
 """
 
 
@@ -103,7 +103,6 @@ _ttw_noslice = f"""\
 {_intro}
 {_pdb_function}
 {_info_function}
-{_slice_function}
 {_take_the_wheel_instructions}
 {_general_instructions}
 """

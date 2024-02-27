@@ -57,7 +57,7 @@ def format_limited(value, limit=10, depth=3):
                 return format_tuple(value[0:limit-1] + (...,), depth-1)
             else:
                 return format_tuple(value, depth-1)
-        elif value == None or type(value) in [int, float, bool, type] or np.isscalar(value):
+        elif value is None or type(value) in [int, float, bool, type] or np.isscalar(value):
             return value
         elif _is_iterable(value):
             value = list(itertools.islice(value, 0, limit + 1))

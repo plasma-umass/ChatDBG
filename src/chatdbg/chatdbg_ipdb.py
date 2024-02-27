@@ -159,7 +159,7 @@ class ChatDBG(ChatDBGSuper):
             "__tracebackhide__", False
         ):
             self.curindex -= 1
-            self.curframe, self.lineno = self.stack[self.curindex][0]
+            self.curframe, self.lineno = self.stack[self.curindex]
             self.curframe_locals = self.curframe.f_locals
 
     def execRcLines(self):

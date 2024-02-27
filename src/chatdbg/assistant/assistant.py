@@ -67,6 +67,8 @@ class Assistant:
                 response = self.assistants.delete(id)
                 self._log(response)
                 assert response.deleted
+            except OSError:
+                raise
             except Exception as e:
                 print(f"Assistant {id} was not deleted ({e}).")
                 print("You can do so at https://platform.openai.com/assistants.")
@@ -103,6 +105,8 @@ class Assistant:
             args = json.loads(args)
             function = self.functions[name]
             result = function(**args)
+        except OSError:
+            raise
         except Exception as e:
             result = f"Ill-formed function call ({e})\n"
 
@@ -181,6 +185,8 @@ class Assistant:
                         thread_id=self.thread.id, run_id=run.id, tool_outputs=outputs
                     )
                     self._log(run)
+                except OSError:
+                    raise
                 except Exception as e:
                     self._log(run, f"FAILED to submit tool call results: {e}")
 

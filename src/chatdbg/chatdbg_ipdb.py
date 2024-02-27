@@ -287,6 +287,8 @@ class ChatDBG(ChatDBGSuper):
         except NameError:
             # message already printed in _getval
             pass
+        except OSError:
+            raise
         except Exception:
             self.do_pydoc(arg)
             self.message(
@@ -327,6 +329,8 @@ class ChatDBG(ChatDBGSuper):
                                                         format_type=None)).rstrip()
             else:
                 result = f"*** No information avaiable for {arg}, only {cell.used_symbols}.  Run the command `p {arg}` to see its value."
+        except OSError:
+            raise
         except Exception as e:
             # traceback.print_exc()
             result = f"*** Bad frame for call to slice ({type(e).__name__}: {e})"
@@ -420,6 +424,8 @@ class ChatDBG(ChatDBGSuper):
             parameter_symbols.discard(None)
 
             return (finder.defined_symbols | parameter_symbols) & locals.keys()
+        except OSError:
+            raise
         except Exception as e:
             # yipes -silent fail...
             return set()

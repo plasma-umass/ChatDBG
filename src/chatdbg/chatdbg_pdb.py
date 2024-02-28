@@ -1,11 +1,3 @@
-"""
-$ ipython profile create
-$ echo "c.InteractiveShellApp.extensions = ['chatdbg.chatdbg_ipdb', 'ipyflow']" > ~/.ipython/profile_default/ipython_config.py
-
-To get in ipython_config.py:
-
-c.InteractiveShellApp.extensions = ['chatdbg.chatdbg_ipdb', 'ipyflow']
-"""
 
 import ast
 import atexit
@@ -16,9 +8,8 @@ import pydoc
 import sys
 import textwrap
 import traceback
-import json
-from datetime import datetime
 from io import StringIO
+from pathlib import Path
 from pprint import pprint
 
 import IPython
@@ -41,69 +32,77 @@ _valid_models = [
     "gpt-3.5-turbo",  # no parallel calls
 ]
 
-_config : Chat = None
-
+chatdbg_config : Chat = None
 
 def load_ipython_extension(ipython):
     # Create an instance of your configuration class with IPython's config
-    global _config
-    from chatdbg.chatdbg_ipdb import Chat, ChatDBG
+    global chatdbg_config
+    from chatdbg.chatdbg_pdb import Chat, ChatDBG
     ipython.InteractiveTB.debugger_cls = ChatDBG
-    _config = Chat(config=ipython.config)
+    chatdbg_config = Chat(config=ipython.config)
     print("*** Loaded ChatDBG ***")
 
-    
-_supports_flow = not (len(sys.argv) > 0 and (sys.argv[-1].endswith('.py') or sys.argv[-1].endswith('.ipynb')))
+
 try:
     ipython = IPython.get_ipython()
     if ipython != None:
-        if isinstance(
-            ipython, IPython.terminal.interactiveshell.TerminalInteractiveShell
-        ):
+        from IPython.terminal.interactiveshell import TerminalInteractiveShell
+        if isinstance(ipython, TerminalInteractiveShell):
             # ipython --pdb
             from IPython.terminal.debugger import TerminalPdb
-
             ChatDBGSuper = TerminalPdb
             _user_file_prefixes = [ os.getcwd(), '<ipython'  ]
         else:
             # inside jupyter
             from IPython.core.debugger import InterruptiblePdb
-
             ChatDBGSuper = InterruptiblePdb
             _user_file_prefixes = [os.getcwd(), IPython.paths.tempfile.gettempdir()]
     else:
         # ichatpdb on command line
         from IPython.terminal.debugger import TerminalPdb
-
         ChatDBGSuper = TerminalPdb
         _user_file_prefixes = [os.getcwd()]
 except NameError as e:
-    print(f"{e}")
+    print(f"Error {e}:IPython not found. Defaulting to pdb plugin.")
     ChatDBGSuper = pdb.Pdb
 
 class ChatDBG(ChatDBGSuper):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.prompt = "(ChatDBG ipdb) "
-        self.chat_prefix = "   "
-        self.text_width = 80
+        # Only use flow when we are in jupyter or using stdin in ipython.   In both
+        # cases, there will be no python file at the start of argv after the
+        # ipython commands.
+        self._supports_flow = True
+        if ChatDBGSuper is not IPython.core.debugger.InterruptiblePdb:
+            for arg in sys.argv:
+                if arg.endswith('ipython') or arg.endswith('ipython3'):
+                    continue
+                if arg.startswith('-'):
+                    continue
+                if Path(arg).suffix in ['.py', '.ipy' ]:
+                    self._supports_flow = False
+                break
+            
+        self.prompt = "(ChatDBG) "
+        self._chat_prefix = "   "
+        self._text_width = 80
         self._assistant = None
         self._history = []
         self._error_specific_prompt = ''
         
-        global _config
-        if _config == None:
-            _config = Chat()
+        global chatdbg_config
+        if chatdbg_config == None:
+            chatdbg_config = Chat()
 
-        self.do_context(_config.context)
-        self.rcLines += ast.literal_eval(_config.rc_lines)
+        self.do_context(chatdbg_config.context)
+        self.rcLines += ast.literal_eval(chatdbg_config.rc_lines)
 
         # set this to True ONLY AFTER we have had stack frames
         self._show_locals = False
         
-        self.log = ChatDBGLog(_config)
-        atexit.register(lambda: self.log.dump())
+        self._log = ChatDBGLog(chatdbg_config)
+        atexit.register(lambda: self._log.dump())
 
     def _is_user_frame(self, frame):
         if not self._is_user_file(frame.f_code.co_filename):
@@ -166,12 +165,12 @@ class ChatDBG(ChatDBGSuper):
 
         # do before running rclines -- our stack should be set up by now.
 
-        if not _config.show_libs:
+        if not chatdbg_config.show_libs:
             self._hide_lib_frames()
         self._error_stack_trace = f"The program has the following stack trace:\n```\n{self.format_stack_trace()}\n```\n"
 
         # finally safe to enable this.
-        self._show_locals = _config.show_locals and not _config.show_libs
+        self._show_locals = chatdbg_config.show_locals and not chatdbg_config.show_libs
         
         return super().execRcLines()
 
@@ -193,7 +192,7 @@ class ChatDBG(ChatDBGSuper):
                 if not line.startswith('config') and not line.startswith('mark'):
                     output = strip_color(hist_file.getvalue())
                     if line not in [ 'quit', 'EOF']:
-                        self.log.user_command(line, output)
+                        self._log.user_command(line, output)
                     if line not in [ 'hist', 'test_prompt' ] and not self.was_chat:
                         self._history += [ (line, output) ]
 
@@ -296,7 +295,7 @@ class ChatDBG(ChatDBGSuper):
             )
 
     def do_slice(self, arg):
-        if not _supports_flow:
+        if not self._supports_flow:
             self.message("*** `slice` is only supported in Jupyter notebooks")
             return
         
@@ -342,7 +341,7 @@ class ChatDBG(ChatDBGSuper):
         [For debugging] Prints the prompts to be sent to the assistant.
         """
         self.message('Instructions:')
-        self.message(instructions(_supports_flow, _config.take_the_wheel))
+        self.message(instructions(self._supports_flow, chatdbg_config.take_the_wheel))
         self.message('-' * 80)
         self.message('Prompt:')
         self.message(self._build_prompt(arg, False))
@@ -490,17 +489,17 @@ class ChatDBG(ChatDBGSuper):
             self._make_assistant()
 
         def client_print(line=""):
-            line = llm_utils.word_wrap_except_code_blocks(line, self.text_width - 10)
-            self.log.message(line)
-            line = textwrap.indent(line, self.chat_prefix, lambda _: True)
+            line = llm_utils.word_wrap_except_code_blocks(line, self._text_width - 10)
+            self._log.message(line)
+            line = textwrap.indent(line, self._chat_prefix, lambda _: True)
             print(line, file=self.stdout, flush=True)
 
         full_prompt = strip_color(full_prompt)
         full_prompt = truncate_proportionally(full_prompt)
 
-        self.log.push_chat(arg, full_prompt)
+        self._log.push_chat(arg, full_prompt)
         tokens, cost, time = self._assistant.run(full_prompt, client_print)
-        self.log.pop_chat(tokens, cost, time)
+        self._log.pop_chat(tokens, cost, time)
 
     def do_mark(self, arg):
         marks = [ 'Fix', 'Partial', 'None', '?' ]
@@ -511,12 +510,12 @@ class ChatDBG(ChatDBGSuper):
         if arg not in marks:
             self.error(f"answer must be in { ['Fix', 'Partial', '?', 'None'] }")
         else:
-            self.log.add_mark(arg)
+            self._log.add_mark(arg)
 
     def do_config(self, arg):
         args = arg.split()
         if len(args) == 0:
-            pprint(_config.to_json(), sort_dicts=True, stream=self.stdout)
+            pprint(chatdbg_config.to_json(), sort_dicts=True, stream=self.stdout)
             return
             
         if len(args) != 2:
@@ -526,8 +525,8 @@ class ChatDBG(ChatDBGSuper):
         
         option, value = args
         try:
-            _config.set_trait(option, value)
-            pprint(_config.to_json(), sort_dicts=True, stream=self.stdout)                
+            chatdbg_config.set_trait(option, value)
+            pprint(chatdbg_config.to_json(), sort_dicts=True, stream=self.stdout)                
         except TraitError as e:
             self.error(f'{e}')            
 
@@ -553,9 +552,9 @@ class ChatDBG(ChatDBGSuper):
             command = f"info {name}"
             result = self._capture_onecmd(command)
             self.message(self._format_history_entry((command, result), 
-                                                   indent = self.chat_prefix))
+                                                   indent = self._chat_prefix))
             result = strip_color(result)        
-            self.log.function(command, result)
+            self._log.function(command, result)
             return truncate_proportionally(result, top_proportion=1)
 
         def pdb(command):
@@ -579,10 +578,10 @@ class ChatDBG(ChatDBGSuper):
             result = self._capture_onecmd(cmd)
 
             self.message(self._format_history_entry((command, result), 
-                                                   indent = self.chat_prefix))
+                                                   indent = self._chat_prefix))
 
             result = strip_color(result)
-            self.log.function(command, result)
+            self._log.function(command, result)
 
             # help the LLM know where it is...
             result += strip_color(self._stack_prompt())
@@ -609,39 +608,34 @@ class ChatDBG(ChatDBGSuper):
             command = f'slice {name}'
             result = self._capture_onecmd(command)
             self.message(self._format_history_entry((command, result), 
-                                                   indent = self.chat_prefix))
+                                                   indent = self._chat_prefix))
             result = strip_color(result)        
-            self.log.function(command, result)
+            self._log.function(command, result)
             return truncate_proportionally(result, top_proportion=0.5)
 
         self._clear_history()
-        instruction_prompt = instructions(_supports_flow, _config.take_the_wheel)
+        instruction_prompt = instructions(self._supports_flow, chatdbg_config.take_the_wheel)
         
-        self.log.instructions(instruction_prompt)
+        self._log.instructions(instruction_prompt)
 
-        if not _config.model in _valid_models:
+        if not chatdbg_config.model in _valid_models:
             print(
-                f"'{_config.model}' is not a valid OpenAI model.  Choose from: {_valid_models}."
+                f"'{chatdbg_config.model}' is not a valid OpenAI model.  Choose from: {_valid_models}."
             )
             sys.exit(0)
 
         self._assistant = Assistant("ChatDBG", 
                                     instruction_prompt, 
-                                    model=_config.model, 
-                                    debug=_config.debug)
+                                    model=chatdbg_config.model, 
+                                    debug=chatdbg_config.debug)
         
-        if _config.take_the_wheel:
+        if chatdbg_config.take_the_wheel:
             self._assistant.add_function(pdb)
             self._assistant.add_function(info)
 
-            if _supports_flow:
+            if self._supports_flow:
                 self._assistant.add_function(slice)
 
 
     
 
-
-def main():
-    import ipdb
-    ipdb.__main__._get_debugger_cls = lambda : ChatDBG
-    ipdb.__main__.main()

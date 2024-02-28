@@ -9,7 +9,7 @@ authors = [
   { name="Emery Berger", email="emery.berger@gmail.com" },
   { name="Kyla Levin", email="khlevin@umass.edu" },
   { name="Nicolas van Kempen", email="nvankemp@gmail.com" },
-  { name="Stephen Freund", email="stephenfreund@gmail.com" },
+  { name="Stephen Freund", email="sfreund@williams.edu" }
 ]
 dependencies = [
   "llm-utils>=0.2.6",
@@ -19,7 +19,7 @@ dependencies = [
   "traitlets>=5.14.1",
   "ipdb>=0.13.13",
   "ipython>=8.21.0",
-  "litellm>=1.26.6"
+  "litellm>=1.26.6",
   "PyYAML>=6.0.1", 
   "ipyflow>=0.0.130"
 ]
@@ -34,7 +34,6 @@ classifiers = [
 
 [project.scripts]
 chatdbg = "chatdbg.__main__:main"
-ichatdbg = "chatdbg.chatdbg_ipdb:main"
 
 [project.urls]
 "Homepage" = "https://github.com/plasma-umass/ChatDBG"

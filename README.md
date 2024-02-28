@@ -102,13 +102,7 @@ This will install ChatDBG as a GDB extension.
 
 ### Debugging Python
 
-To use ChatDBG to debug Python programs, simply run your Python script with the `-m` flag:
-
-```bash
-python3 -m chatdbg -c continue yourscript.py
-```
-
-or just
+To use ChatDBG to debug Python programs, simply run your Python script as follows:
 
 ```bash
 chatdbg -c continue yourscript.py
@@ -120,6 +114,30 @@ enter post mortem debugging mode.
 
 Unlike other debuggers, you can then use the `why` command to ask
 ChatDBG why your program failed and get a suggested fix.
+
+#### IPython and Jupyter Support
+
+To use ChatDBG as the default debugger for IPython or inside Jupyter Notebooks,
+create a IPython profile and then add the necessary exensions on startup.  (Modify
+these lines as necessary if you already have a customized profile file.)
+
+```bash
+ipython profile create
+echo "c.InteractiveShellApp.extensions = ['chatdbg.chatdbg_pdb', 'ipyflow']" >> ~/.ipython/profile_default/ipython_config.py
+```
+
+On the command line, you can then run:
+
+```bash
+ipython --pdb yourscript.py
+```
+
+Inside Jupyter, run your notebook with the [ipyflow kernel](https://github.com/ipyflow/ipyflow) and include this line magic at the top of the file.
+
+```
+%pdb
+```
+
 
 ### Debugging native code (C, C++, or Rust with <TT>lldb</TT> / <TT>gdb</TT>)
 

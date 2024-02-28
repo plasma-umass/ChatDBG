@@ -5,34 +5,6 @@ You are a debugging assistant.  You will be given a Python stack trace for an
 error and answer questions related to the root cause of the error.
 """
 
-# _pdb_function=f"""\
-# Call the `pdb` function to run Pdb debugger commands on the stopped program. The
-# Pdb debugger keeps track of a current frame. You may call the `pdb` function
-# with the following strings:
-
-#     bt
-#             Print a stack trace, with the most recent frame at the bottom.
-#             An arrow indicates the "current frame", which determines the
-#             context of most commands. 
-
-#     up
-#             Move the current frame count one level up in the
-#             stack trace (to an older frame).
-#     down
-#             Move the current frame count one level down in the
-#             stack trace (to a newer frame).
-
-#     p expression
-#             Print the value of the expression.
-
-#     list
-#             List the source code for the current frame. 
-#             The current line in the current frame is indicated by "->".
-
-# Call `pdb` to print any variable value or expression that you believe may
-# contribute to the error.
-# """
-
 _pdb_function=f"""\
 Call the `pdb` function to run Pdb debugger commands on the stopped program. The
 Pdb debugger keeps track of a current frame. You may call the `pdb` function
@@ -61,20 +33,6 @@ _take_the_wheel_instructions="""\
 Call the provided functions as many times as you would like.
 """
 
-# _general_instructions=f"""\
-# The root cause of any error is likely due to a problem in the source code within
-# the {os.getcwd()} directory.
-
-# Explain why each variable contributing to the error has been set been set
-# to the value that it has.
-
-# Keep your answers under 10 paragraphs.
-
-# Conclude each response with
-# either a propopsed fix if you have identified the root cause or a bullet list of
-# 1-3 suggestions for how to continue debugging.
-# """
-
 _general_instructions=f"""\
 The root cause of any error is likely due to a problem in the source code within
 the {os.getcwd()} directory.
@@ -84,7 +42,7 @@ to the value that it has.
 
 Keep your answers under 10 paragraphs.
 
-End your answer with a section titled "##### Recommendation" that contains one of:
+End your answer with a section titled "##### Recommendation\\n" that contains one of:
 * a propopsed fix if you have identified the root cause
 * a numbered list of 1-3 suggestions for how to continue debugging
 """
@@ -121,7 +79,3 @@ def instructions(supports_flow, take_the_wheel):
             return _ttw_noslice
     else:
         return _no_ttw
-
-    # slice_fn = _slice_function + '\n' if supports_flow else ''
-    # ttw = f'{_pdb_function}\n{_info_function}\n{slice_fn}{_take_the_wheel_instructions}' if take_the_wheel else ''
-    # return f"{_intro}\n{ttw}\n{_general_instructions}"

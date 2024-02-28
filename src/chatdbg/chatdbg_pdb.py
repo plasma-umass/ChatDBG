@@ -346,6 +346,22 @@ class ChatDBG(ChatDBGSuper):
         self.message('Prompt:')
         self.message(self._build_prompt(arg, False))
 
+    # def do_ask(self, arg):
+    #     """ask -- for the LLM to use...
+    #     """
+    #     # Temporarily set stdin and stdout to the original sys.stdin and sys.stdout
+    #     original_stdin = self.stdin
+    #     original_stdout = self.stdout
+    #     self.stdin = self.stdout = open('/dev/tty', 'r+')
+
+    #     try:
+    #         line = input(f'{arg} ')
+    #         return line
+    #     finally:
+    #         # Restore the original stdin and stdout
+    #         self.stdin = original_stdin
+    #         self.stdout = original_stdout
+
     def print_stack_trace(self, context=None, locals=None):
         # override to print the skips into stdout...
         Colors = self.color_scheme_table.active_colors
@@ -412,7 +428,7 @@ class ChatDBG(ChatDBGSuper):
 
 
         try:    
-            source = textwrap.dedent(inspect.getsource(frame.f_code))
+            source = textwrap.dedent(inspect.getsource(frame))
             tree = ast.parse(source)
 
             finder = SymbolFinder()
@@ -423,18 +439,18 @@ class ChatDBG(ChatDBGSuper):
             parameter_symbols.discard(None)
 
             return (finder.defined_symbols | parameter_symbols) & locals.keys()
-        except Exception as e:
-            # yipes -silent fail...
+        except OSError as e:
+            # yipes -silent fail if getsource fails
             return set()
 
     def _print_locals(self, frame):
         locals = frame.f_locals
         defined_locals = self._get_defined_locals_and_params(frame)
-        if locals is frame.f_globals:
-            print(f'        Global variables:', file=self.stdout)
-        else:
-            print(f'        Variables in this frame:', file=self.stdout)                
         if len(defined_locals) > 0:
+            if locals is frame.f_globals:
+                print(f'        Global variables:', file=self.stdout)
+            else:
+                print(f'        Variables in this frame:', file=self.stdout)                
             for name in sorted(defined_locals):
                 value = locals[name]
                 print(f"          {name}= {format_limited(value, limit=20)}", file=self.stdout)
@@ -466,7 +482,7 @@ class ChatDBG(ChatDBGSuper):
         if len(self._history) > 0:
             hist = textwrap.indent(self._capture_onecmd("hist"), "")
             self._clear_history()
-            hist = f"This is the history of some pdb commands I ran and the results.\n```\n{hist}\n```\n"
+            hist = f"\nThis is the history of some pdb commands I ran and the results.\n```\n{hist}\n```\n"
             prompt += hist
 
         if arg == 'why':

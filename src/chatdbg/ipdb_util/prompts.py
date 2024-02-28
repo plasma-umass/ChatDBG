@@ -6,9 +6,9 @@ error and answer questions related to the root cause of the error.
 """
 
 _pdb_function=f"""\
-Call the `pdb` function to run Pdb debugger commands on the stopped program. The
-Pdb debugger keeps track of a current frame. You may call the `pdb` function
-to run the following commands: `bt`, `up`, `down`, `p expression`, `list`.
+Call the `pdb` function to run Pdb debugger commands on the stopped program. You 
+may call the `pdb` function to run the following commands: `bt`, `up`, `down`, 
+`p expression`, `list`.
 
 Call `pdb` to print any variable value or expression that you believe may
 contribute to the error.
@@ -20,7 +20,7 @@ function or method reference visible in the current frame.  The argument to
 info is a function name or a method reference.
 
 Unless it is from a common, widely-used library, you MUST call `info` exactly once on any
-function or method reference that is called in code leading up to the error, that apppears 
+function or method reference that is called in code leading up to the error, that appears 
 in the argument list for a function call in the code, or that appears on the call stack.  
 """
 
@@ -37,14 +37,13 @@ _general_instructions=f"""\
 The root cause of any error is likely due to a problem in the source code within
 the {os.getcwd()} directory.
 
-Explain why each variable contributing to the error has been set been set
-to the value that it has.
+Explain why each variable contributing to the error has been set to the value that it has.
 
 Keep your answers under 10 paragraphs.
 
 End your answer with a section titled "##### Recommendation\\n" that contains one of:
-* a propopsed fix if you have identified the root cause
-* a numbered list of 1-3 suggestions for how to continue debugging
+* a fix if you have identified the root cause
+* a numbered list of 1-3 suggestions for how to continue debugging if you have not
 """
 
 

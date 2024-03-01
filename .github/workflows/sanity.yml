@@ -28,4 +28,3 @@ jobs:
       - name: Check calling executables directly
         run: |
           chatdbg --help
-          ichatdbg --help

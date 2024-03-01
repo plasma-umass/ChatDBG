@@ -69,20 +69,6 @@ except NameError as e:
 class ChatDBG(ChatDBGSuper):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        # Only use flow when we are in jupyter or using stdin in ipython.   In both
-        # cases, there will be no python file at the start of argv after the
-        # ipython commands.
-        self._supports_flow = True
-        if ChatDBGSuper is not IPython.core.debugger.InterruptiblePdb:
-            for arg in sys.argv:
-                if arg.endswith('ipython') or arg.endswith('ipython3'):
-                    continue
-                if arg.startswith('-'):
-                    continue
-                if Path(arg).suffix in ['.py', '.ipy' ]:
-                    self._supports_flow = False
-                break
             
         self.prompt = "(ChatDBG) "
         self._chat_prefix = "   "
@@ -94,6 +80,21 @@ class ChatDBG(ChatDBGSuper):
         global chatdbg_config
         if chatdbg_config == None:
             chatdbg_config = Chat()
+
+        # Only use flow when we are in jupyter or using stdin in ipython.   In both
+        # cases, there will be no python file at the start of argv after the
+        # ipython commands.
+        self._supports_flow = chatdbg_config.show_slices
+        if self._supports_flow:
+            if ChatDBGSuper is not IPython.core.debugger.InterruptiblePdb:
+                for arg in sys.argv:
+                    if arg.endswith('ipython') or arg.endswith('ipython3'):
+                        continue
+                    if arg.startswith('-'):
+                        continue
+                    if Path(arg).suffix in ['.py', '.ipy' ]:
+                        self._supports_flow = False
+                    break
 
         self.do_context(chatdbg_config.context)
         self.rcLines += ast.literal_eval(chatdbg_config.rc_lines)
@@ -346,22 +347,6 @@ class ChatDBG(ChatDBGSuper):
         self.message('Prompt:')
         self.message(self._build_prompt(arg, False))
 
-    # def do_ask(self, arg):
-    #     """ask -- for the LLM to use...
-    #     """
-    #     # Temporarily set stdin and stdout to the original sys.stdin and sys.stdout
-    #     original_stdin = self.stdin
-    #     original_stdout = self.stdout
-    #     self.stdin = self.stdout = open('/dev/tty', 'r+')
-
-    #     try:
-    #         line = input(f'{arg} ')
-    #         return line
-    #     finally:
-    #         # Restore the original stdin and stdout
-    #         self.stdin = original_stdin
-    #         self.stdout = original_stdout
-
     def print_stack_trace(self, context=None, locals=None):
         # override to print the skips into stdout...
         Colors = self.color_scheme_table.active_colors
@@ -518,13 +503,13 @@ class ChatDBG(ChatDBGSuper):
         self._log.pop_chat(tokens, cost, time)
 
     def do_mark(self, arg):
-        marks = [ 'Fix', 'Partial', 'None', '?' ]
+        marks = [ 'Full', 'Partial', 'Wrong', 'None', '?' ]
         if arg == None or arg == '':
             arg = input(f'mark? (one of {marks}): ')
             while arg not in marks:
                 arg = input(f'mark? (one of {marks}): ')
         if arg not in marks:
-            self.error(f"answer must be in { ['Fix', 'Partial', '?', 'None'] }")
+            self.error(f"answer must be in { ['Full', 'Partial', 'Wrong', '?', 'None'] }")
         else:
             self._log.add_mark(arg)
 

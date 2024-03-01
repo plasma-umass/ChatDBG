@@ -19,7 +19,7 @@ from traitlets import TraitError
 from .assistant.assistant import Assistant
 from .ipdb_util.config import Chat
 from .ipdb_util.logging import ChatDBGLog, CopyingTextIOWrapper
-from .ipdb_util.prompts import instructions
+from .ipdb_util.prompts import pdb_instructions
 from .ipdb_util.text import *
 
 _valid_models = [
@@ -342,7 +342,7 @@ class ChatDBG(ChatDBGSuper):
         [For debugging] Prints the prompts to be sent to the assistant.
         """
         self.message('Instructions:')
-        self.message(instructions(self._supports_flow, chatdbg_config.take_the_wheel))
+        self.message(pdb_instructions(self._supports_flow, chatdbg_config.take_the_wheel))
         self.message('-' * 80)
         self.message('Prompt:')
         self.message(self._build_prompt(arg, False))
@@ -615,7 +615,7 @@ class ChatDBG(ChatDBGSuper):
             return truncate_proportionally(result, top_proportion=0.5)
 
         self._clear_history()
-        instruction_prompt = instructions(self._supports_flow, chatdbg_config.take_the_wheel)
+        instruction_prompt = pdb_instructions(self._supports_flow, chatdbg_config.take_the_wheel)
         
         self._log.instructions(instruction_prompt)
 

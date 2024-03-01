@@ -1,7 +1,7 @@
 import os
 
 _intro=f"""\
-You are a debugging assistant.  You will be given a Python stack trace for an
+You are a debugging assistant. You will be given a Python stack trace for an
 error and answer questions related to the root cause of the error.
 """
 
@@ -16,7 +16,7 @@ contribute to the error.
 
 _info_function="""\
 Call the `info` function to get the documentation and source code for any
-function or method reference visible in the current frame.  The argument to
+function or method reference visible in the current frame. The argument to
 info is a function name or a method reference.
 
 Unless it is from a common, widely-used library, you MUST call `info` exactly once on any
@@ -47,7 +47,7 @@ End your answer with a section titled "##### Recommendation\\n" that contains on
 """
 
 
-_ttw_slice = f"""\
+_wheel_and_slice = f"""\
 {_intro}
 {_pdb_function}
 {_info_function}
@@ -56,7 +56,7 @@ _ttw_slice = f"""\
 {_general_instructions}
 """
 
-_ttw_noslice = f"""\
+_wheel_no_slice = f"""\
 {_intro}
 {_pdb_function}
 {_info_function}
@@ -64,17 +64,16 @@ _ttw_noslice = f"""\
 {_general_instructions}
 """
 
-_no_ttw = f"""\
+_no_wheel = f"""\
 {_intro}
 {_general_instructions}
 """
 
-
-def instructions(supports_flow, take_the_wheel):
+def pdb_instructions(supports_flow, take_the_wheel):
     if take_the_wheel:
         if supports_flow:
-            return _ttw_slice
+            return _wheel_and_slice
         else:
-            return _ttw_noslice
+            return _wheel_no_slice
     else:
-        return _no_ttw
+        return _no_wheel

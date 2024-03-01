@@ -37,10 +37,13 @@ class Assistant:
         try:
             self.client = OpenAI(timeout=timeout)
         except OpenAIError:
-            print("You need an OpenAI key to use this tool.")
-            print("You can get a key here: https://platform.openai.com/api-keys")
-            print("Set the environment variable OPENAI_API_KEY to your key value.")
-            sys.exit(1)
+            print(textwrap.dedent("""\
+            You need an OpenAI key to use this tool.
+            You can get a key here: https://platform.openai.com/api-keys
+            Set the environment variable OPENAI_API_KEY to your key value.
+            """))
+            sys.exit(-1)
+    
 
         self.assistants = self.client.beta.assistants
         self.threads = self.client.beta.threads
@@ -64,6 +67,8 @@ class Assistant:
                 response = self.assistants.delete(id)
                 self._log(response)
                 assert response.deleted
+            except OSError:
+                raise
             except Exception as e:
                 print(f"Assistant {id} was not deleted ({e}).")
                 print("You can do so at https://platform.openai.com/assistants.")
@@ -88,6 +93,7 @@ class Assistant:
             self._log(assistant)
         except OpenAIError as e:
             print(f"*** OpenAI Error: {e}")
+            sys.exit(-1)
 
     def _make_call(self, tool_call):
         name = tool_call.function.name
@@ -99,6 +105,8 @@ class Assistant:
             args = json.loads(args)
             function = self.functions[name]
             result = function(**args)
+        except OSError:
+            raise
         except Exception as e:
             result = f"Ill-formed function call ({e})\n"
 
@@ -177,6 +185,8 @@ class Assistant:
                         thread_id=self.thread.id, run_id=run.id, tool_outputs=outputs
                     )
                     self._log(run)
+                except OSError:
+                    raise
                 except Exception as e:
                     self._log(run, f"FAILED to submit tool call results: {e}")
 
@@ -186,7 +196,7 @@ class Assistant:
             if run.status == "failed":
                 message = f"\n**Internal Failure ({run.last_error.code}):** {run.last_error.message}"
                 client_print(message)
-                return 0, 0, 0
+                sys.exit(-1)
 
             messages = self.threads.messages.list(
                 thread_id=self.thread.id, after=last_printed_message_id, order="asc"
@@ -206,7 +216,7 @@ class Assistant:
             return run.usage.total_tokens, cost, elapsed_time
         except OpenAIError as e:
             client_print(f"*** OpenAI Error: {e}")
-            return 0, 0, 0
+            sys.exit(-1)
 
     def _log(self, obj, title=""):
         if self.json != None:

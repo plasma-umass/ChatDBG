@@ -22,6 +22,7 @@ dependencies = [
   "litellm>=1.26.6",
   "PyYAML>=6.0.1", 
   "ipyflow>=0.0.130",
+  "numpy>=1.26.3"
 ]
 description = "AI-assisted debugging. Uses AI to answer 'why'."
 readme = "README.md"

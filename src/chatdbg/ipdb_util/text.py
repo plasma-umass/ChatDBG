@@ -2,6 +2,7 @@ import re
 import itertools
 import inspect
 import numbers
+import numpy as np
 
 def make_arrow(pad):
     """generate the leading arrow in front of traceback or debugger"""
@@ -21,6 +22,14 @@ def _is_iterable(obj):
         return True
     except TypeError:
         return False
+
+
+def _repr_if_defined(obj):
+    if obj.__class__ in [ np.ndarray, dict, list, tuple ]:
+        # handle these at iterables to truncate reasonably
+        return False
+    result = "__repr__" in dir(obj.__class__) and obj.__class__.__repr__ is not object.__repr__
+    return result
 
 def format_limited(value, limit=10, depth=3):
 
@@ -50,7 +59,7 @@ def format_limited(value, limit=10, depth=3):
                 return format_dict(value.items(), depth-1)
         elif isinstance(value, (str,bytes)):
             if len(value) > 254:
-                value = value[0:253] + "..."
+                value = str(value)[0:253] + "..."
             return value
         elif isinstance(value, tuple):
             if len(value) > limit:
@@ -59,6 +68,8 @@ def format_limited(value, limit=10, depth=3):
                 return format_tuple(value, depth-1)
         elif value is None or isinstance(value, (int, float, bool, type, numbers.Number)):
             return value
+        elif inspect.isclass(type(value)) and _repr_if_defined(value):
+            return repr(value)
         elif _is_iterable(value):
             value = list(itertools.islice(value, 0, limit + 1))
             if len(value) > limit:
@@ -71,8 +82,8 @@ def format_limited(value, limit=10, depth=3):
             return value
     
     result = str(helper(value, depth=3)).replace("Ellipsis", "...")
-    if len(result) > 1024:
-        result = result[:1024-3] + '...'
+    if len(result) > 1024 * 2:
+        result = result[:1024 * 2 - 3] + '...'
     if type(value) == str:
         return "'" + result + "'"
     else:

@@ -195,7 +195,7 @@ class ChatDBG(ChatDBGSuper):
                     output = strip_color(hist_file.getvalue())
                     if line not in [ 'quit', 'EOF']:
                         self._log.user_command(line, output)
-                    if line not in [ 'hist', 'test_prompt' ] and not self.was_chat:
+                    if line not in [ 'hist', 'test_prompt', 'c', 'continue' ] and not self.was_chat:
                         self._history += [ (line, output) ]
 
     def message(self, msg) -> None:

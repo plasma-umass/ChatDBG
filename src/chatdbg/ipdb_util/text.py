@@ -68,6 +68,9 @@ def format_limited(value, limit=10, depth=3):
                 return format_tuple(value, depth-1)
         elif value is None or isinstance(value, (int, float, bool, type, numbers.Number)):
             return value
+        elif isinstance(value, np.ndarray):
+            with np.printoptions(threshold=limit):
+                return np.array_repr(value)
         elif inspect.isclass(type(value)) and _repr_if_defined(value):
             return repr(value)
         elif _is_iterable(value):

@@ -63,7 +63,7 @@ def uri_to_path(uri):
 
 def is_available(executable="clangd"):
     try:
-        clangd = subprocess.Popen(
+        clangd = subprocess.run(
             [executable, "--version"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,

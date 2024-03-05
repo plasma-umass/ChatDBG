@@ -485,7 +485,6 @@ def _make_assistant(debugger: lldb.SBDebugger, args: argparse.Namespace):
                 }
             }
             """
-            clangd.didOpen(filename, "c" if filename.endswith(".c") else "cpp")
             # We just return the first match here. Maybe we should find all definitions.
             with open(filename, "r") as file:
                 lines = file.readlines()
@@ -494,7 +493,8 @@ def _make_assistant(debugger: lldb.SBDebugger, args: argparse.Namespace):
                 character = lines[lineno - 1].find(symbol)
                 if character == -1:
                     return "Symbol not found at that location!"
-            definition = clangd.definition(filename, lineno - 1, character)
+            clangd.didOpen(filename, "c" if filename.endswith(".c") else "cpp")
+            definition = clangd.definition(filename, lineno, character + 1)
             clangd.didClose(filename)
 
             if "result" not in definition or not definition["result"]:

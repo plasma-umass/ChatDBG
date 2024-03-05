@@ -34,12 +34,11 @@ Call the provided functions as many times as you would like.
 """
 
 _general_instructions=f"""\
-The root cause of any error is likely due to a problem in the source code within
-the {os.getcwd()} directory.
+The root cause of any error is likely due to a problem in the source code from the user.
 
 Explain why each variable contributing to the error has been set to the value that it has.
 
-Keep your answers under 10 paragraphs.
+Continue with your explanations until you reach the root cause of the error. Your answer may be as long as necessary.
 
 End your answer with a section titled "##### Recommendation\\n" that contains one of:
 * a fix if you have identified the root cause

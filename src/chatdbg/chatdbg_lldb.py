@@ -524,6 +524,8 @@ def get_frame_summary() -> str:
 
     summaries = []
     for i, frame in enumerate(thread):
+        if not frame.GetDisplayFunctionName():
+            continue
         name = frame.GetDisplayFunctionName().split("(")[0]
         arguments = []
         for j in range(

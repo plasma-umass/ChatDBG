@@ -234,7 +234,7 @@ def why(
         sys.exit(1)
 
     the_prompt = buildPrompt(debugger)
-    args, _ = chatdbg_utils.parse_known_args(command)
+    args, _ = chatdbg_utils.parse_known_args(command.split())
     chatdbg_utils.explain(the_prompt[0], the_prompt[1], the_prompt[2], args)
 
 

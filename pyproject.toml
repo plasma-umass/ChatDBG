@@ -12,7 +12,7 @@ authors = [
   { name="Stephen Freund", email="sfreund@williams.edu" },
 ]
 dependencies = [
-  "llm-utils>=0.2.6",
+  "llm-utils>=0.2.8",
   "openai>=1.6.1",
   "rich>=13.7.0",
   "ansicolors>=1.1.8",

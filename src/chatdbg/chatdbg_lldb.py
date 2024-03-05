@@ -8,7 +8,6 @@ import lldb
 import json
 
 import llm_utils
-import openai
 
 from assistant.lite_assistant import LiteAssistant
 import chatdbg_utils

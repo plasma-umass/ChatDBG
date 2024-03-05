@@ -461,32 +461,40 @@ def _make_assistant(debugger: lldb.SBDebugger, args: argparse.Namespace):
     else:
         clangd = clangd_lsp_integration.clangd()
 
-        def find_definition(filename: str, lineno: int, character: int) -> str:
+        def find_definition(filename: str, lineno: int, symbol: str) -> str:
             """
             {
                 "name": "find_definition",
-                "description": "Returns the definition for the symbol at the given source location.",
+                "description": "Returns the definition for the given symbol at the given source line number.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "filename": {
                             "type": "string",
-                            "description": "The filename the code location is from."
+                            "description": "The filename the symbol is from."
                         },
                         "lineno": {
                             "type": "integer",
                             "description": "The line number where the symbol is present."
                         },
-                        "character": {
-                            "type": "integer",
-                            "description": "The column number where the symbol is present."
+                        "symbol": {
+                            "type": "string",
+                            "description": "The symbol to lookup."
                         }
                     },
-                    "required": [ "filename", "lineno", "character" ]
+                    "required": [ "filename", "lineno", "symbol" ]
                 }
             }
             """
             clangd.didOpen(filename, "c" if filename.endswith(".c") else "cpp")
+            # We just return the first match here. Maybe we should find all definitions.
+            with open(filename, "r") as file:
+                lines = file.readlines()
+                if lineno - 1 >= len(lines):
+                    return "Symbol not found at that location!"
+                character = lines[lineno - 1].find(symbol)
+                if character == -1:
+                    return "Symbol not found at that location!"
             definition = clangd.definition(filename, lineno, character)
             clangd.didClose(filename)
 

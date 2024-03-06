@@ -208,6 +208,7 @@ class ChatDBG(ChatDBGSuper):
         Override to remove tabs for messages so we can indent them.
         """
         return super().error(str(msg).expandtabs())
+        # return super().error('If the name is undefined, be sure you are in the right frame.  Use up and down to do that, and then print the variable again'.expandtabs())
 
     def _capture_onecmd(self, line):
         """
@@ -227,9 +228,9 @@ class ChatDBG(ChatDBGSuper):
     def _format_history_entry(self, entry, indent = ''):
         line, output = entry
         if output:
-            entry = f"{self.prompt} {line}\n{output}"
+            entry = f"{self.prompt}{line}\n{output}"
         else:
-            entry = f"{self.prompt} {line}"
+            entry = f"{self.prompt}{line}"
         return textwrap.indent(entry, indent, lambda _ : True) 
 
     def _clear_history(self):

@@ -61,13 +61,12 @@ def uri_to_path(uri):
     return urllib.parse.unquote(path)  # clangd seems to escape paths.
 
 
-def is_available():
+def is_available(executable="clangd"):
     try:
-        clangd = subprocess.Popen(
-            ["clangd", "--version"],
+        clangd = subprocess.run(
+            [executable, "--version"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            text=True,
         )
         return clangd.returncode == 0
     except FileNotFoundError:

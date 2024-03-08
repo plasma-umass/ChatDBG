@@ -46,6 +46,13 @@ python3 -m pip install ChatDBG
 python3 -c 'import chatdbg; print(f"command script import {chatdbg.__path__[0]}/chatdbg_lldb.py")' >> ~/.lldbinit
 ```
 
+If you encounter an error, you may be using an older version of LLVM. Update to the latest version as follows:
+
+```
+sudo apt install -y lsb-release wget software-properties-common gnupg
+curl -sSf https://apt.llvm.org/llvm.sh | sudo bash -s -- 17 all
+```
+
 #### Mac
 
 ```bash

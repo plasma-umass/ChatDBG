@@ -21,6 +21,7 @@ from .ipdb_util.config import Chat
 from .ipdb_util.logging import ChatDBGLog, CopyingTextIOWrapper
 from .ipdb_util.prompts import pdb_instructions
 from .ipdb_util.text import *
+from .ipdb_util.locals import *
 
 _valid_models = [
     "gpt-4-turbo-preview",
@@ -194,7 +195,7 @@ class ChatDBG(ChatDBGSuper):
                     output = strip_color(hist_file.getvalue())
                     if line not in [ 'quit', 'EOF']:
                         self._log.user_command(line, output)
-                    if line not in [ 'hist', 'test_prompt' ] and not self.was_chat:
+                    if line not in [ 'hist', 'test_prompt', 'c', 'continue' ] and not self.was_chat:
                         self._history += [ (line, output) ]
 
     def message(self, msg) -> None:
@@ -389,56 +390,27 @@ class ChatDBG(ChatDBGSuper):
             pass
 
 
-    def _get_defined_locals_and_params(self, frame):
-
-        class SymbolFinder(ast.NodeVisitor):
-            def __init__(self):
-                self.defined_symbols = set()
-
-            def visit_Assign(self, node):
-                for target in node.targets:
-                    if isinstance(target, ast.Name):
-                        self.defined_symbols.add(target.id)
-                self.generic_visit(node)
-
-            def visit_For(self, node):
-                if isinstance(node.target, ast.Name):
-                    self.defined_symbols.add(node.target.id)
-                self.generic_visit(node)
-
-            def visit_comprehension(self, node):
-                if isinstance(node.target, ast.Name):
-                    self.defined_symbols.add(node.target.id)
-                self.generic_visit(node)
-
-
-        try:    
-            source = textwrap.dedent(inspect.getsource(frame))
-            tree = ast.parse(source)
-
-            finder = SymbolFinder()
-            finder.visit(tree)
-
-            args, varargs, keywords, locals = inspect.getargvalues(frame)
-            parameter_symbols = set(args + [ varargs, keywords ])
-            parameter_symbols.discard(None)
-
-            return (finder.defined_symbols | parameter_symbols) & locals.keys()
-        except OSError as e:
-            # yipes -silent fail if getsource fails
-            return set()
-
     def _print_locals(self, frame):
         locals = frame.f_locals
-        defined_locals = self._get_defined_locals_and_params(frame)
+        in_global_scope = locals is frame.f_globals
+        defined_locals = extract_locals(frame)
+        # if in_global_scope and "In" in locals:  # in notebook
+        #     defined_locals = defined_locals | extract_nb_globals(locals)
         if len(defined_locals) > 0:
-            if locals is frame.f_globals:
+            if in_global_scope:
                 print(f'        Global variables:', file=self.stdout)
             else:
                 print(f'        Variables in this frame:', file=self.stdout)                
             for name in sorted(defined_locals):
                 value = locals[name]
-                print(f"          {name}= {format_limited(value, limit=20)}", file=self.stdout)
+                prefix = f'          {name}= '
+                rep = format_limited(value, limit=20).split('\n')
+                if len(rep) > 1:
+                    rep = prefix + rep[0] + '\n' + textwrap.indent('\n'.join(rep[1:]), 
+                                                                   prefix = ' ' * len(prefix))
+                else:
+                    rep = prefix + rep[0]
+                print(rep, file=self.stdout)
             print(file=self.stdout)
 
     def _stack_prompt(self):
@@ -499,8 +471,8 @@ class ChatDBG(ChatDBGSuper):
         full_prompt = truncate_proportionally(full_prompt)
 
         self._log.push_chat(arg, full_prompt)
-        tokens, cost, time = self._assistant.run(full_prompt, client_print)
-        self._log.pop_chat(tokens, cost, time)
+        total_tokens, prompt_tokens, completion_tokens, cost, time = self._assistant.run(full_prompt, client_print)
+        self._log.pop_chat(total_tokens, prompt_tokens, completion_tokens, cost, time)
 
     def do_mark(self, arg):
         marks = [ 'Full', 'Partial', 'Wrong', 'None', '?' ]

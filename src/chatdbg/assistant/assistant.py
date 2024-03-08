@@ -213,7 +213,7 @@ class Assistant:
             )
             client_print()
             client_print(f"[Cost: ~${cost:.2f} USD]")
-            return run.usage.total_tokens, cost, elapsed_time
+            return run.usage.total_tokens,run.usage.prompt_tokens, run.usage.completion_tokens, cost, elapsed_time
         except OpenAIError as e:
             client_print(f"*** OpenAI Error: {e}")
             sys.exit(-1)

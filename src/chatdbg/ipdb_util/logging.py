@@ -106,9 +106,11 @@ class ChatDBGLog:
             }
         }
 
-    def pop_chat(self, tokens, cost, time):
+    def pop_chat(self, total_tokens, prompt_tokens, completion_tokens, cost, time):
         self.chat_step['stats'] = {
-            'tokens' : tokens,
+            'tokens' : total_tokens,
+            'prompt' : prompt_tokens,
+            'completion' : completion_tokens,
             'cost' : cost, 
             'time' : time
         }

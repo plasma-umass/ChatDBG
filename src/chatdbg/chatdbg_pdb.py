@@ -115,6 +115,8 @@ class ChatDBG(ChatDBGSuper):
     def _is_user_file(self, file_name):
         if file_name.endswith(".pyx"):
             return False
+        if file_name == '<string>':
+            return False
         for prefix in _user_file_prefixes:
             if file_name.startswith(prefix):
                 return True
@@ -349,6 +351,36 @@ class ChatDBG(ChatDBGSuper):
         self.message('Prompt:')
         self.message(self._build_prompt(arg, False))
 
+    def _hidden_predicate(self, frame):
+        """
+        Given a frame return whether it it should be hidden or not by IPython.
+        """
+
+        if self._predicates["readonly"]:
+            fname = frame.f_code.co_filename
+            # we need to check for file existence and interactively define
+            # function would otherwise appear as RO.
+            if os.path.isfile(fname) and not os.access(fname, os.W_OK):
+                return True
+
+        if self._predicates["tbhide"]:
+            if frame in (self.curframe, getattr(self, "initial_frame", None)):
+                return False
+            fname = frame.f_code.co_filename
+
+            # Hack because the locals for this frame are shared with
+            # the first user frame, so we can't rely on the flag
+            # in frame_locals to be set properly.
+            if fname == '<string>':   
+                return True
+            
+            frame_locals = self._get_frame_locals(frame)
+            if "__tracebackhide__" not in frame_locals:
+                return False
+            return frame_locals["__tracebackhide__"]
+        return False
+
+
     def print_stack_trace(self, context=None, locals=None):
         # override to print the skips into stdout...
         Colors = self.color_scheme_table.active_colors
@@ -434,7 +466,7 @@ class ChatDBG(ChatDBGSuper):
         prompt = ''
 
         if not conversing:
-            stack_dump = f'The program has this stack trace:\n```\n{self.format_stack_trace()}\n```\n'
+            stack_dump = f'The program has this stack trace:\n```\n{self.format_stack_trace()}\n```\n\n'
             prompt = '\n' + stack_dump + self._error_specific_prompt
         
         if len(self._history) > 0:

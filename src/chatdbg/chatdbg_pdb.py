@@ -504,8 +504,8 @@ class ChatDBG(ChatDBGSuper):
         full_prompt = truncate_proportionally(full_prompt)
 
         self._log.push_chat(arg, full_prompt)
-        total_tokens, prompt_tokens, completion_tokens, cost, time = self._assistant.run(full_prompt, client_print)
-        self._log.pop_chat(total_tokens, prompt_tokens, completion_tokens, cost, time)
+        stats = self._assistant.run(full_prompt, client_print)
+        self._log.pop_chat(stats)
 
     def do_mark(self, arg):
         marks = [ 'Full', 'Partial', 'Wrong', 'None', '?' ]

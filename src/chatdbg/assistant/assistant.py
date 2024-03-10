@@ -30,7 +30,7 @@ class Assistant:
         self, name, instructions, model="gpt-3.5-turbo-1106", timeout=30, debug=True
     ):
         if debug:
-            self.json = open(f"json.txt", "w")
+            self.json = open(f"json.txt", "a")
         else:
             self.json = None
 
@@ -105,8 +105,9 @@ class Assistant:
             args = json.loads(args)
             function = self.functions[name]
             result = function(**args)
-        except OSError:
-            raise
+        except OSError as e:
+            result = f"Error: {e}"
+            # raise
         except Exception as e:
             result = f"Ill-formed function call ({e})\n"
 
@@ -144,7 +145,13 @@ class Assistant:
 
         try:
             if self.assistant == None:
-                return 0, 0, 0
+                return {
+                    'tokens' : run.usage.total_tokens,
+                    'prompt_tokens' : run.usage.prompt_tokens,
+                    'completion_tokens' : run.usage.completion_tokens,
+                    'model' : self.assistant.model,
+                    'cost' : cost, 
+                }
 
             assert len(prompt) <= 32768
 
@@ -185,7 +192,8 @@ class Assistant:
                         thread_id=self.thread.id, run_id=run.id, tool_outputs=outputs
                     )
                     self._log(run)
-                except OSError:
+                except OSError as e:
+                    self._log(run, f"FAILED to submit tool call results: {e}")
                     raise
                 except Exception as e:
                     self._log(run, f"FAILED to submit tool call results: {e}")
@@ -196,6 +204,7 @@ class Assistant:
             if run.status == "failed":
                 message = f"\n**Internal Failure ({run.last_error.code}):** {run.last_error.message}"
                 client_print(message)
+                client_print(f"\n{json.dumps(run, indent=2)}\n")
                 sys.exit(-1)
 
             messages = self.threads.messages.list(
@@ -213,7 +222,18 @@ class Assistant:
             )
             client_print()
             client_print(f"[Cost: ~${cost:.2f} USD]")
-            return run.usage.total_tokens,run.usage.prompt_tokens, run.usage.completion_tokens, cost, elapsed_time
+
+            return {
+                'tokens' : run.usage.total_tokens,
+                'prompt_tokens' : run.usage.prompt_tokens,
+                'completion_tokens' : run.usage.completion_tokens,
+                'model' : self.assistant.model,
+                'cost' : cost, 
+                'time' : elapsed_time,
+                'thread.id' : self.thread.id,
+                'run.id': run.id,
+                'assistant.id' : self.assistant.id
+            }
         except OpenAIError as e:
             client_print(f"*** OpenAI Error: {e}")
             sys.exit(-1)

@@ -14,19 +14,31 @@ Call `pdb` to print any variable value or expression that you believe may
 contribute to the error.
 """
 
+# _info_function="""\
+# Call the `info` function to get the documentation and source code for any
+# function or method reference visible in the current frame. The argument to
+# info is a function name or a method reference.
+
+# Unless it is from a common, widely-used library, you MUST call `info` exactly once on any
+# function or method reference that is called in code leading up to the error, that appears 
+# in the argument list for a function call in the code, or that appears on the call stack.  
+# """
+
 _info_function="""\
 Call the `info` function to get the documentation and source code for any
-function or method reference visible in the current frame. The argument to
-info is a function name or a method reference.
+variable, function, package, class, method reference, field reference, or 
+dotted reference visible in the current frame.  Examples include: n, e.n  
+where e is an expression, and t.n where t is a type.
 
 Unless it is from a common, widely-used library, you MUST call `info` exactly once on any
-function or method reference that is called in code leading up to the error, that appears 
-in the argument list for a function call in the code, or that appears on the call stack.  
+symbol that is referenced in code leading up to the error.  
 """
+
 
 _slice_function="""\
 Call the `slice` function to get the code used to produce
-the value currently stored a variable.  
+the value currently stored a variable.  You MUST call `slice` exactly once on any
+variable used but not defined in the current frame's code.
 """
 
 _take_the_wheel_instructions="""\
@@ -34,9 +46,10 @@ Call the provided functions as many times as you would like.
 """
 
 _general_instructions=f"""\
-The root cause of any error is likely due to a problem in the source code from the user.
+The root cause of any error is likely due to a problem in the source code from the user.  
 
-Explain why each variable contributing to the error has been set to the value that it has.
+Explain why each variable contributing to the error has been set 
+to the value that it has.
 
 Continue with your explanations until you reach the root cause of the error. Your answer may be as long as necessary.
 

@@ -1,4 +1,5 @@
 
+import linecache
 import ast
 import atexit
 import inspect
@@ -164,6 +165,11 @@ class ChatDBG(ChatDBGSuper):
             self.curindex -= 1
             self.curframe, self.lineno = self.stack[self.curindex]
             self.curframe_locals = self.curframe.f_locals
+
+        # Assume assertions are correct and the code leading to them is not!
+        current_line = linecache.getline(self.curframe.f_code.co_filename, self.lineno)
+        if current_line.strip().startswith('assert'):
+            self._error_specific_prompt += f"The code `{current_line.strip()}` is correct and MUST remain unchanged in your fix.\n"
 
     def execRcLines(self):
 
@@ -431,12 +437,13 @@ class ChatDBG(ChatDBGSuper):
         #     defined_locals = defined_locals | extract_nb_globals(locals)
         if len(defined_locals) > 0:
             if in_global_scope:
-                print(f'        Global variables:', file=self.stdout)
+                print(f'    Global variables:', file=self.stdout)
             else:
-                print(f'        Variables in this frame:', file=self.stdout)                
+                print(f'    Variables in this frame:', file=self.stdout)                
             for name in sorted(defined_locals):
                 value = locals[name]
-                prefix = f'          {name}= '
+                t = type(value).__name__
+                prefix = f'      {name}: {t} = '
                 rep = format_limited(value, limit=20).split('\n')
                 if len(rep) > 1:
                     rep = prefix + rep[0] + '\n' + textwrap.indent('\n'.join(rep[1:]), 
@@ -537,25 +544,29 @@ class ChatDBG(ChatDBGSuper):
             self.error(f'{e}')            
 
 
+                
+                
+                # Get the documentation and source code (if available) for any function or method visible in the current frame.  The argument to info can be the name of the function or an expression of the form `obj.method_name`  to see the information for the method_name method of object obj.",
+            
     def _make_assistant(self):
-        def info(name):
+        def info(value):
             """
             {
                 "name": "info",
-                "description": "Get the documentation and source code (if available) for any function or method visible in the current frame.  The argument to info can be the name of the function or an expression of the form `obj.method_name`  to see the information for the method_name method of object obj.",
+                "description": "Get the documentation and source code for a reference, which may be a variable, function, method reference, field reference, or dotted reference visible in the current frame.  Examples include n, e.n where e is an expression, and t.n where t is a type.",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "name": {
+                        "value": {
                             "type": "string",
-                            "description": "The name of the function to get the information for"
+                            "description": "The reference to get the information for."
                         }
                     },
-                    "required": [ "name"  ]
+                    "required": [ "value"  ]
                 }
             }
             """
-            command = f"info {name}"
+            command = f"info {value}"
             result = self._capture_onecmd(command)
             self.message(self._format_history_entry((command, result), 
                                                    indent = self._chat_prefix))
@@ -591,7 +602,7 @@ class ChatDBG(ChatDBGSuper):
 
             # help the LLM know where it is...
             result += strip_color(self._stack_prompt())
-            return truncate_proportionally(result, top_proportion=0.9)
+            return truncate_proportionally(result, maxlen=8000, top_proportion=0.9)
 
         def slice(name):
             """

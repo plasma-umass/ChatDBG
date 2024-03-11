@@ -400,6 +400,90 @@ def _instructions():
     ).strip()
 
 
+@lldb.command("lldb")
+def _function_lldb(
+    debugger: lldb.SBDebugger,
+    command: str,
+    result: lldb.SBCommandReturnObject,
+    internal_dict: dict,
+) -> None:
+    result.AppendMessage(_capture_onecmd(debugger, command))
+
+
+@lldb.command("get_code_surrounding")
+def _function_get_code_surrounding(
+    debugger: lldb.SBDebugger,
+    command: str,
+    result: lldb.SBCommandReturnObject,
+    internal_dict: dict,
+) -> None:
+    parts = command.split(":")
+    if len(parts) != 2:
+        result.AppendWarning("Usage: get_code_surrounding <filename>:<lineno>")
+        return
+    filename, lineno = parts[0], int(parts[1])
+    (lines, first) = llm_utils.read_lines(filename, lineno - 7, lineno + 3)
+    formatted = llm_utils.number_group_of_lines(lines, first)
+    result.AppendMessage(formatted)
+
+
+if clangd_lsp_integration.is_available():
+    _clangd = clangd_lsp_integration.clangd()
+
+
+@lldb.command("find_definition")
+def _function_find_definition(
+    debugger: lldb.SBDebugger,
+    command: str,
+    result: lldb.SBCommandReturnObject,
+    internal_dict: dict,
+) -> None:
+    if not clangd_lsp_integration.is_available():
+        result.AppendWarning("`clangd` is not available.")
+        result.AppendWarning(
+            "The `find_definition` function will not be made available."
+        )
+        return
+    last_space_index = command.rfind(" ")
+    if last_space_index == -1:
+        result.AppendWarning("Usage: find_definition <filename>:<lineno> <symbol>")
+        return
+    filename_lineno = command[:last_space_index]
+    symbol = command[last_space_index + 1 :]
+    parts = filename_lineno.split(":")
+    if len(parts) != 2:
+        result.AppendWarning("Usage: find_definition <filename>:<lineno> <symbol>")
+        return
+    filename, lineno = parts[0], int(parts[1])
+
+    # We just return the first match here. Maybe we should find all definitions.
+    with open(filename, "r") as file:
+        lines = file.readlines()
+        if lineno - 1 >= len(lines):
+            return "Symbol not found at that location!"
+        character = lines[lineno - 1].find(symbol)
+        if character == -1:
+            return "Symbol not found at that location!"
+    _clangd.didOpen(filename, "c" if filename.endswith(".c") else "cpp")
+    definition = _clangd.definition(filename, lineno, character + 1)
+    _clangd.didClose(filename)
+
+    if "result" not in definition or not definition["result"]:
+        return "No definition found."
+
+    path = clangd_lsp_integration.uri_to_path(definition["result"][0]["uri"])
+    start_lineno = definition["result"][0]["range"]["start"]["line"] + 1
+    end_lineno = definition["result"][0]["range"]["end"]["line"] + 1
+    (lines, first) = llm_utils.read_lines(path, start_lineno - 5, end_lineno + 5)
+    content = llm_utils.number_group_of_lines(lines, first)
+    line_string = (
+        f"line {start_lineno}"
+        if start_lineno == end_lineno
+        else f"lines {start_lineno}-{end_lineno}"
+    )
+    result.AppendMessage(f"""File '{path}' at {line_string}:\n```\n{content}\n```""")
+
+
 def _make_assistant(debugger: lldb.SBDebugger, args: argparse.Namespace):
     def lldb(command: str) -> str:
         """
@@ -418,7 +502,9 @@ def _make_assistant(debugger: lldb.SBDebugger, args: argparse.Namespace):
             }
         }
         """
-        return _capture_onecmd(debugger, command)
+        result = lldb.SBCommandReturnObject()
+        _function_lldb(debugger, command, result, {})
+        return result.GetOutput()
 
     def get_code_surrounding(filename: str, lineno: int) -> str:
         """
@@ -441,8 +527,9 @@ def _make_assistant(debugger: lldb.SBDebugger, args: argparse.Namespace):
             }
         }
         """
-        (lines, first) = llm_utils.read_lines(filename, lineno - 7, lineno + 3)
-        return llm_utils.number_group_of_lines(lines, first)
+        result = lldb.SBCommandReturnObject()
+        _function_get_code_surrounding(debugger, f"{filename}:{lineno}", result, {})
+        return result.GetOutput()
 
     assistant = LiteAssistant(
         _instructions(),
@@ -455,7 +542,7 @@ def _make_assistant(debugger: lldb.SBDebugger, args: argparse.Namespace):
     assistant.add_function(get_code_surrounding)
 
     if not clangd_lsp_integration.is_available():
-        print("[WARNING] clangd is not available.")
+        print("[WARNING] `clangd` is not available.")
         print("[WARNING] The `find_definition` function will not be made available.")
     else:
         clangd = clangd_lsp_integration.clangd()
@@ -485,34 +572,11 @@ def _make_assistant(debugger: lldb.SBDebugger, args: argparse.Namespace):
                 }
             }
             """
-            # We just return the first match here. Maybe we should find all definitions.
-            with open(filename, "r") as file:
-                lines = file.readlines()
-                if lineno - 1 >= len(lines):
-                    return "Symbol not found at that location!"
-                character = lines[lineno - 1].find(symbol)
-                if character == -1:
-                    return "Symbol not found at that location!"
-            clangd.didOpen(filename, "c" if filename.endswith(".c") else "cpp")
-            definition = clangd.definition(filename, lineno, character + 1)
-            clangd.didClose(filename)
-
-            if "result" not in definition or not definition["result"]:
-                return "No definition found."
-
-            path = clangd_lsp_integration.uri_to_path(definition["result"][0]["uri"])
-            start_lineno = definition["result"][0]["range"]["start"]["line"] + 1
-            end_lineno = definition["result"][0]["range"]["end"]["line"] + 1
-            (lines, first) = llm_utils.read_lines(
-                path, start_lineno - 5, end_lineno + 5
+            result = lldb.SBCommandReturnObject()
+            _function_get_code_surrounding(
+                debugger, f"{filename}:{lineno} {symbol}", result, {}
             )
-            content = llm_utils.number_group_of_lines(lines, first)
-            line_string = (
-                f"line {start_lineno}"
-                if start_lineno == end_lineno
-                else f"lines {start_lineno}-{end_lineno}"
-            )
-            return f"""File '{path}' at {line_string}:\n```\n{content}\n```"""
+            return result.GetOutput()
 
         assistant.add_function(find_definition)
 

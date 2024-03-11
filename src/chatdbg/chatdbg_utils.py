@@ -125,12 +125,12 @@ Stop reason: {exception}
         return
 
     text = completion.choices[0].message.content
-    print(llm_utils.word_wrap_except_code_blocks(text))
-
     elapsed = time.time() - start
-
     input_tokens = completion.usage.prompt_tokens
     output_tokens = completion.usage.completion_tokens
     cost = llm_utils.calculate_cost(input_tokens, output_tokens, args.llm)
+
+    print(llm_utils.word_wrap_except_code_blocks(text))
+    print()
     print(f"Elapsed time: {elapsed:.2f} seconds")
     print(f"Total cost: {cost:.2f}$")

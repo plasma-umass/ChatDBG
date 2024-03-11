@@ -481,7 +481,7 @@ def _make_assistant(
     args: argparse.Namespace,
     result: lldb.SBCommandReturnObject,
 ) -> LiteAssistant:
-    def lldb(command: str) -> str:
+    def llm_lldb(command: str) -> str:
         """
         {
             "name": "lldb",
@@ -502,7 +502,7 @@ def _make_assistant(
         _function_lldb(debugger, command, output, {})
         return output.GetOutput()
 
-    def get_code_surrounding(filename: str, lineno: int) -> str:
+    def llm_get_code_surrounding(filename: str, lineno: int) -> str:
         """
         {
             "name": "get_code_surrounding",
@@ -534,8 +534,8 @@ def _make_assistant(
         debug=args.debug,
     )
 
-    assistant.add_function(lldb)
-    assistant.add_function(get_code_surrounding)
+    assistant.add_function(llm_lldb)
+    assistant.add_function(llm_get_code_surrounding)
 
     if not clangd_lsp_integration.is_available():
         result.AppendWarning(
@@ -543,7 +543,7 @@ def _make_assistant(
         )
     else:
 
-        def find_definition(filename: str, lineno: int, symbol: str) -> str:
+        def llm_find_definition(filename: str, lineno: int, symbol: str) -> str:
             """
             {
                 "name": "find_definition",
@@ -572,7 +572,7 @@ def _make_assistant(
             _function_definition(debugger, f"{filename}:{lineno} {symbol}", output, {})
             return output.GetOutput()
 
-        assistant.add_function(find_definition)
+        assistant.add_function(llm_find_definition)
 
     return assistant
 
@@ -638,7 +638,7 @@ def chat(
     internal_dict: dict,
 ):
     args, remaining = chatdbg_utils.parse_known_args(command.split())
-    assistant = _make_assistant(debugger, args)
+    assistant = _make_assistant(debugger, args, result)
 
     prompt = f"""Here is the reason the program stopped execution:
 ```

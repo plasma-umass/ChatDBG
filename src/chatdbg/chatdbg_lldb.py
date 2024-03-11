@@ -235,7 +235,15 @@ def why(
 
     the_prompt = buildPrompt(debugger)
     args, _ = chatdbg_utils.parse_known_args(command.split())
-    chatdbg_utils.explain(the_prompt[0], the_prompt[1], the_prompt[2], args)
+    chatdbg_utils.explain(
+        the_prompt[0],
+        the_prompt[1],
+        the_prompt[2],
+        args,
+        result.AppendMessage,
+        result.AppendWarning,
+        result.SetError,
+    )
 
 
 @lldb.command("print-test")
@@ -675,5 +683,5 @@ def repl(
             break
         result = _capture_onecmd(debugger, command)
         print("-----------------------------------")
-        print(result)
+        print(result, end="")
         print("-----------------------------------")

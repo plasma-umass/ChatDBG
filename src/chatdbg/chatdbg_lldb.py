@@ -410,8 +410,8 @@ def _function_lldb(
     result.AppendMessage(_capture_onecmd(debugger, command))
 
 
-@lldb.command("get_code_surrounding")
-def _function_get_code_surrounding(
+@lldb.command("code")
+def _function_code(
     debugger: lldb.SBDebugger,
     command: str,
     result: lldb.SBCommandReturnObject,
@@ -419,7 +419,7 @@ def _function_get_code_surrounding(
 ) -> None:
     parts = command.split(":")
     if len(parts) != 2:
-        result.AppendWarning("Usage: get_code_surrounding <filename>:<lineno>")
+        result.AppendWarning("Usage: code <filename>:<lineno>")
         return
     filename, lineno = parts[0], int(parts[1])
     (lines, first) = llm_utils.read_lines(filename, lineno - 7, lineno + 3)
@@ -431,8 +431,8 @@ if clangd_lsp_integration.is_available():
     _clangd = clangd_lsp_integration.clangd()
 
 
-@lldb.command("find_definition")
-def _function_find_definition(
+@lldb.command("definition")
+def _function_definition(
     debugger: lldb.SBDebugger,
     command: str,
     result: lldb.SBCommandReturnObject,
@@ -440,19 +440,17 @@ def _function_find_definition(
 ) -> None:
     if not clangd_lsp_integration.is_available():
         result.AppendWarning("`clangd` is not available.")
-        result.AppendWarning(
-            "The `find_definition` function will not be made available."
-        )
+        result.AppendWarning("The `definition` function will not be made available.")
         return
     last_space_index = command.rfind(" ")
     if last_space_index == -1:
-        result.AppendWarning("Usage: find_definition <filename>:<lineno> <symbol>")
+        result.AppendWarning("Usage: definition <filename>:<lineno> <symbol>")
         return
     filename_lineno = command[:last_space_index]
     symbol = command[last_space_index + 1 :]
     parts = filename_lineno.split(":")
     if len(parts) != 2:
-        result.AppendWarning("Usage: find_definition <filename>:<lineno> <symbol>")
+        result.AppendWarning("Usage: definition <filename>:<lineno> <symbol>")
         return
     filename, lineno = parts[0], int(parts[1])
 
@@ -528,7 +526,7 @@ def _make_assistant(debugger: lldb.SBDebugger, args: argparse.Namespace):
         }
         """
         result = lldb.SBCommandReturnObject()
-        _function_get_code_surrounding(debugger, f"{filename}:{lineno}", result, {})
+        _function_code(debugger, f"{filename}:{lineno}", result, {})
         return result.GetOutput()
 
     assistant = LiteAssistant(
@@ -572,9 +570,7 @@ def _make_assistant(debugger: lldb.SBDebugger, args: argparse.Namespace):
             }
             """
             result = lldb.SBCommandReturnObject()
-            _function_get_code_surrounding(
-                debugger, f"{filename}:{lineno} {symbol}", result, {}
-            )
+            _function_definition(debugger, f"{filename}:{lineno} {symbol}", result, {})
             return result.GetOutput()
 
         assistant.add_function(find_definition)

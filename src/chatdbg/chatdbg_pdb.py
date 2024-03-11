@@ -354,8 +354,10 @@ class ChatDBG(ChatDBGSuper):
                                                         blacken=True,
                                                         format_type=None)).rstrip()
             else:
-                used_symbols = set() if cell == None else cell.used_symbols
-                result = f"*** No information avaiable for {arg}, only {used_symbols}.  Run the command `p {arg}` to see its value."
+                used_symbols = set() if cell == None else set([str(x) for x in cell.used_symbols])
+                defined = f", only for these symbols: {', '.join(used_symbols)}" if len(used_symbols) > 0 else ''
+
+                result = f"*** No information avaiable for {arg}{defined}.  Run the command `p {arg}` to see its value."
         except OSError:
             raise
         except Exception as e:

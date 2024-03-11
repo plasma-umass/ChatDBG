@@ -167,9 +167,11 @@ class ChatDBG(ChatDBGSuper):
             self.curframe_locals = self.curframe.f_locals
 
         # Assume assertions are correct and the code leading to them is not!
-        current_line = linecache.getline(self.curframe.f_code.co_filename, self.lineno)
-        if current_line.strip().startswith('assert'):
-            self._error_specific_prompt += f"The code `{current_line.strip()}` is correct and MUST remain unchanged in your fix.\n"
+        if self.curframe.f_lineno != None:
+            current_line = linecache.getline(self.curframe.f_code.co_filename,
+                                             self.curframe.f_lineno)
+            if current_line.strip().startswith('assert'):
+                self._error_specific_prompt += f"The code `{current_line.strip()}` is correct and MUST remain unchanged in your fix.\n"
 
     def execRcLines(self):
 
@@ -286,23 +288,36 @@ class ChatDBG(ChatDBGSuper):
         Print the pydoc string (and source code, if available) for a name.
         """
         try:
-            obj = self._getval(arg)
+            # try both given and unqualified form incase LLM biffs
+            args_to_try = [ arg, arg.split('.')[-1] ]
+            obj = None
+            for x in args_to_try:
+                try:
+                    obj = eval(x, self.curframe.f_globals, self.curframe_locals)
+                    break  # found something so we're good
+                except:
+                    # fail silently, try the next name
+                    pass
+
+            # didn't find anything
+            if obj == None:
+                self.message(f"No name `{arg}` is visible in the current frame.")
+                return
+
             if self._is_user_file(inspect.getfile(obj)):
-                self.do_source(arg)
+                self.do_source(x)
             else:
-                self.do_pydoc(arg)
-                self.message(
-                    f"You MUST assume that `{arg}` is specified and implemented correctly."
-                )
-        except NameError:
-            # message already printed in _getval
-            pass
+                self.do_pydoc(x)
+                self.message(f"You MUST assume that `{x}` is specified and implemented correctly.")
         except OSError:
             raise
+        except NameError:
+            # alread handled
+            pass
         except Exception:
-            self.do_pydoc(arg)
+            self.do_pydoc(x)
             self.message(
-                f"You MUST assume that `{arg}` is specified and implemented correctly."
+                f"You MUST assume that `{x}` is specified and implemented correctly."
             )
 
     def do_slice(self, arg):
@@ -316,6 +331,7 @@ class ChatDBG(ChatDBGSuper):
 
             index = self.curindex
             _x = None
+            cell = None
             while index > 0:
                 # print(index)
                 pos, _ = singletons.flow().get_position(self.stack[index][0])
@@ -338,7 +354,8 @@ class ChatDBG(ChatDBGSuper):
                                                         blacken=True,
                                                         format_type=None)).rstrip()
             else:
-                result = f"*** No information avaiable for {arg}, only {cell.used_symbols}.  Run the command `p {arg}` to see its value."
+                used_symbols = set() if cell == None else cell.used_symbols
+                result = f"*** No information avaiable for {arg}, only {used_symbols}.  Run the command `p {arg}` to see its value."
         except OSError:
             raise
         except Exception as e:

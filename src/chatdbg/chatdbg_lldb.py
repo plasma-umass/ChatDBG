@@ -545,7 +545,6 @@ def _make_assistant(debugger: lldb.SBDebugger, args: argparse.Namespace):
         print("[WARNING] `clangd` is not available.")
         print("[WARNING] The `find_definition` function will not be made available.")
     else:
-        clangd = clangd_lsp_integration.clangd()
 
         def find_definition(filename: str, lineno: int, symbol: str) -> str:
             """

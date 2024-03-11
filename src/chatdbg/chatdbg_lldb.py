@@ -15,11 +15,12 @@ import clangd_lsp_integration
 
 
 # The file produced by the panic handler if the Rust program is using the chatdbg crate.
-rust_panic_log_filename = "panic_log.txt"
+RUST_PANIC_LOG_FILENAME = "panic_log.txt"
+PROMPT = "(ChatDBG lldb)"
 
 
 def __lldb_init_module(debugger: lldb.SBDebugger, internal_dict: dict) -> None:
-    debugger.HandleCommand("settings set prompt '(ChatDBG lldb) '")
+    debugger.HandleCommand(f"settings set prompt '{PROMPT} '")
 
 
 def is_debug_build(debugger: lldb.SBDebugger) -> bool:
@@ -193,7 +194,7 @@ def buildPrompt(debugger: Any) -> Tuple[str, str, str]:
     error_reason = thread.GetStopDescription(255)
     # If the Rust panic log exists, append it to the error reason.
     try:
-        with open(rust_panic_log_filename, "r") as log:
+        with open(RUST_PANIC_LOG_FILENAME, "r") as log:
             panic_log = log.read()
         error_reason = panic_log + "\n" + error_reason
     except:
@@ -215,22 +216,22 @@ def why(
     Notably, we send a summary of all stack frames, including locals.
     """
     if not is_debug_build(debugger):
-        print(
-            "Your program must be compiled with debug information (`-g`) to use `why`."
+        result.SetError(
+            "your program must be compiled with debug information (`-g`) to use `why`."
         )
-        sys.exit(1)
+        return
     # Check if debugger is attached to a program.
     if not get_target():
-        print("Must be attached to a program to ask `why`.")
-        sys.exit(1)
+        result.SetError("must be attached to a program to ask `why`.")
+        return
     # Check if the program has been run prior to executing the `why` command.
     thread = get_thread()
     if not thread:
-        print("Must run the code first to ask `why`.")
-        sys.exit(1)
+        result.SetError("must run the code first to ask `why`.")
+        return
     if thread.GetStopReason() == lldb.eStopReasonBreakpoint:
-        print("Execution stopped at a breakpoint, not an error.")
-        sys.exit(1)
+        result.SetError("execution stopped at a breakpoint, not an error.")
+        return
 
     the_prompt = buildPrompt(debugger)
     args, _ = chatdbg_utils.parse_known_args(command.split())
@@ -362,24 +363,14 @@ def _val_to_json(
 
 
 def _capture_onecmd(debugger, cmd):
-    # Get the command interpreter from the debugger
     interpreter = debugger.GetCommandInterpreter()
-
-    # Create an object to hold the result of the command execution
     result = lldb.SBCommandReturnObject()
-
-    # Execute a command (e.g., "version" to get the LLDB version)
     interpreter.HandleCommand(cmd, result)
 
-    # Check if the command was executed successfully
     if result.Succeeded():
-        # Get the output of the command
-        output = result.GetOutput()
-        return output
+        return result.GetOutput()
     else:
-        # Get the error message if the command failed
-        error = result.GetError()
-        return f"Command Error: {error}"
+        return result.GetError()
 
 
 def _instructions():
@@ -419,7 +410,7 @@ def _function_code(
 ) -> None:
     parts = command.split(":")
     if len(parts) != 2:
-        result.AppendWarning("Usage: code <filename>:<lineno>")
+        result.SetError("usage: code <filename>:<lineno>")
         return
     filename, lineno = parts[0], int(parts[1])
     (lines, first) = llm_utils.read_lines(filename, lineno - 7, lineno + 3)
@@ -439,18 +430,21 @@ def _function_definition(
     internal_dict: dict,
 ) -> None:
     if not clangd_lsp_integration.is_available():
-        result.AppendWarning("`clangd` is not available.")
-        result.AppendWarning("The `definition` function will not be made available.")
+        result.SetError(
+            "`clangd` was not found. The `definition` function will not be made available."
+        )
         return
     last_space_index = command.rfind(" ")
     if last_space_index == -1:
-        result.AppendWarning("Usage: definition <filename>:<lineno> <symbol>")
+        result.SetError(
+            "`clangd` was not found. The `definition` function will not be made available."
+        )
         return
     filename_lineno = command[:last_space_index]
     symbol = command[last_space_index + 1 :]
     parts = filename_lineno.split(":")
     if len(parts) != 2:
-        result.AppendWarning("Usage: definition <filename>:<lineno> <symbol>")
+        result.SetError("usage: definition <filename>:<lineno> <symbol>")
         return
     filename, lineno = parts[0], int(parts[1])
 
@@ -482,7 +476,11 @@ def _function_definition(
     result.AppendMessage(f"""File '{path}' at {line_string}:\n```\n{content}\n```""")
 
 
-def _make_assistant(debugger: lldb.SBDebugger, args: argparse.Namespace):
+def _make_assistant(
+    debugger: lldb.SBDebugger,
+    args: argparse.Namespace,
+    result: lldb.SBCommandReturnObject,
+) -> LiteAssistant:
     def lldb(command: str) -> str:
         """
         {
@@ -500,9 +498,9 @@ def _make_assistant(debugger: lldb.SBDebugger, args: argparse.Namespace):
             }
         }
         """
-        result = lldb.SBCommandReturnObject()
-        _function_lldb(debugger, command, result, {})
-        return result.GetOutput()
+        output = lldb.SBCommandReturnObject()
+        _function_lldb(debugger, command, output, {})
+        return output.GetOutput()
 
     def get_code_surrounding(filename: str, lineno: int) -> str:
         """
@@ -525,9 +523,9 @@ def _make_assistant(debugger: lldb.SBDebugger, args: argparse.Namespace):
             }
         }
         """
-        result = lldb.SBCommandReturnObject()
-        _function_code(debugger, f"{filename}:{lineno}", result, {})
-        return result.GetOutput()
+        output = lldb.SBCommandReturnObject()
+        _function_code(debugger, f"{filename}:{lineno}", output, {})
+        return output.GetOutput()
 
     assistant = LiteAssistant(
         _instructions(),
@@ -540,8 +538,9 @@ def _make_assistant(debugger: lldb.SBDebugger, args: argparse.Namespace):
     assistant.add_function(get_code_surrounding)
 
     if not clangd_lsp_integration.is_available():
-        print("[WARNING] `clangd` is not available.")
-        print("[WARNING] The `find_definition` function will not be made available.")
+        result.AppendWarning(
+            "`clangd` was not found. The `find_definition` function will not be made available."
+        )
     else:
 
         def find_definition(filename: str, lineno: int, symbol: str) -> str:
@@ -569,9 +568,9 @@ def _make_assistant(debugger: lldb.SBDebugger, args: argparse.Namespace):
                 }
             }
             """
-            result = lldb.SBCommandReturnObject()
-            _function_definition(debugger, f"{filename}:{lineno} {symbol}", result, {})
-            return result.GetOutput()
+            output = lldb.SBCommandReturnObject()
+            _function_definition(debugger, f"{filename}:{lineno} {symbol}", output, {})
+            return output.GetOutput()
 
         assistant.add_function(find_definition)
 
@@ -654,3 +653,27 @@ Here is a summary of the stack frames, omitting those not associated with source
 {" ".join(remaining) if remaining else "What's the problem?"}"""
 
     assistant.run(prompt)
+
+
+@lldb.command("repl")
+def repl(
+    debugger: lldb.SBDebugger,
+    command: str,
+    result: lldb.SBCommandReturnObject,
+    internal_dict: dict,
+):
+    if command.strip():
+        result.AppendWarning("`repl` does not take any arguments (arguments ignored).")
+
+    while True:
+        try:
+            command = input(f"{PROMPT} ").strip()
+        except EOFError:
+            break
+
+        if command == "exit":
+            break
+        result = _capture_onecmd(debugger, command)
+        print("-----------------------------------")
+        print(result)
+        print("-----------------------------------")

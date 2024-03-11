@@ -205,7 +205,7 @@ def buildPrompt(debugger: Any) -> Tuple[str, str, str]:
 def why(
     debugger: lldb.SBDebugger,
     command: str,
-    result: str,
+    result: lldb.SBCommandReturnObject,
     internal_dict: dict,
 ) -> None:
     """
@@ -241,7 +241,7 @@ def why(
 def print_test(
     debugger: lldb.SBDebugger,
     command: str,
-    result: str,
+    result: lldb.SBCommandReturnObject,
     internal_dict: dict,
 ) -> None:
     """print all variables in a run while recursing through pointers, keeping track of seen addresses"""
@@ -288,7 +288,7 @@ def print_test(
 def _val_to_json(
     debugger: lldb.SBDebugger,
     command: str,
-    result: str,
+    result: lldb.SBCommandReturnObject,
     internal_dict: dict,
     var: lldb.SBValue,
     recurse_max: int,
@@ -636,7 +636,12 @@ def get_error_message() -> Optional[str]:
 
 
 @lldb.command("chat")
-def chat(debugger: lldb.SBDebugger, command: str, result: str, internal_dict: dict):
+def chat(
+    debugger: lldb.SBDebugger,
+    command: str,
+    result: lldb.SBCommandReturnObject,
+    internal_dict: dict,
+):
     args, remaining = chatdbg_utils.parse_known_args(command.split())
     assistant = _make_assistant(debugger, args)
 

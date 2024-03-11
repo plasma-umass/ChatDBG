@@ -1,5 +1,6 @@
 import argparse
 import textwrap
+import time
 from typing import Any, List, Optional, Tuple
 
 import llm_utils
@@ -99,6 +100,8 @@ Stop reason: {exception}
         print(f"Total input tokens: {input_tokens}")
         return
 
+    start = time.time()
+
     try:
         client = openai.OpenAI(timeout=args.timeout)
     except openai.OpenAIError:
@@ -122,9 +125,12 @@ Stop reason: {exception}
         return
 
     text = completion.choices[0].message.content
-    print(llm_utils.word_wrap_except_code_blocks(text))
-
+    elapsed = time.time() - start
     input_tokens = completion.usage.prompt_tokens
     output_tokens = completion.usage.completion_tokens
     cost = llm_utils.calculate_cost(input_tokens, output_tokens, args.llm)
-    print(f"\n(Total cost: approximately ${cost:.2f} USD.)")
+
+    print(llm_utils.word_wrap_except_code_blocks(text))
+    print()
+    print(f"Elapsed time: {elapsed:.2f} seconds")
+    print(f"Total cost: {cost:.2f}$")

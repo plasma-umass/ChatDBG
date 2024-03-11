@@ -460,16 +460,19 @@ def _function_definition(
     with open(filename, "r") as file:
         lines = file.readlines()
         if lineno - 1 >= len(lines):
-            return "Symbol not found at that location!"
+            result.SetError("symbol not found at that location.")
+            return
         character = lines[lineno - 1].find(symbol)
         if character == -1:
-            return "Symbol not found at that location!"
+            result.SetError("symbol not found at that location.")
+            return
     _clangd.didOpen(filename, "c" if filename.endswith(".c") else "cpp")
     definition = _clangd.definition(filename, lineno, character + 1)
     _clangd.didClose(filename)
 
     if "result" not in definition or not definition["result"]:
-        return "No definition found."
+        result.SetError("No definition found.")
+        return
 
     path = clangd_lsp_integration.uri_to_path(definition["result"][0]["uri"])
     start_lineno = definition["result"][0]["range"]["start"]["line"] + 1
@@ -506,9 +509,7 @@ def _make_assistant(
             }
         }
         """
-        output = lldb.SBCommandReturnObject()
-        _function_lldb(debugger, command, output, {})
-        return output.GetOutput()
+        return _capture_onecmd(debugger, f"lldb {command}")
 
     def llm_get_code_surrounding(filename: str, lineno: int) -> str:
         """
@@ -531,9 +532,7 @@ def _make_assistant(
             }
         }
         """
-        output = lldb.SBCommandReturnObject()
-        _function_code(debugger, f"{filename}:{lineno}", output, {})
-        return output.GetOutput()
+        return _capture_onecmd(debugger, f"code {filename}:{lineno}")
 
     assistant = LiteAssistant(
         _instructions(),
@@ -576,9 +575,8 @@ def _make_assistant(
                 }
             }
             """
-            output = lldb.SBCommandReturnObject()
-            _function_definition(debugger, f"{filename}:{lineno} {symbol}", output, {})
-            return output.GetOutput()
+            print(f"definition {filename}:{lineno} {symbol}")
+            return _capture_onecmd(debugger, f"definition {filename}:{lineno} {symbol}")
 
         assistant.add_function(llm_find_definition)
 
@@ -660,7 +658,12 @@ Here is a summary of the stack frames, omitting those not associated with source
 
 {" ".join(remaining) if remaining else "What's the problem?"}"""
 
-    assistant.run(prompt)
+    assistant.run(
+        prompt,
+        result.AppendMessage,
+        result.AppendWarning,
+        result.SetError,
+    )
 
 
 @lldb.command("repl")

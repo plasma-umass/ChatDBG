@@ -1,6 +1,7 @@
 import json
 import sys
 import time
+from typing import Callable
 
 import litellm
 import llm_utils
@@ -37,9 +38,10 @@ class LiteAssistant:
         function = self._functions[name]["function"]
         return function(**args)
 
-    def _print_message(self, message, indent=4, wrap=120) -> None:
-        def _print_to_file(file, indent):
-
+    def _print_message(
+        self, message, indent, append_message: Callable[[str], None], wrap=120
+    ) -> None:
+        def _format_message(indent) -> str:
             tool_calls = None
             if "tool_calls" in message:
                 tool_calls = message["tool_calls"]
@@ -62,39 +64,40 @@ class LiteAssistant:
             role = message["role"].upper()
             role_indent = max_role_length - len(role)
 
-            if content:
+            output = ""
+
+            if content != None:
                 content = llm_utils.word_wrap_except_code_blocks(
                     content, wrap - len(role) - indent - 3
                 )
                 first, *rest = content.split("\n")
-                print(f"{' ' * indent}[{role}]{' ' * role_indent} {first}", file=file)
+                output += f"{' ' * indent}[{role}]{' ' * role_indent} {first}\n"
                 for line in rest:
-                    print(f"{' ' * subindent}{line}", file=file)
-                print(file=file)
+                    output += f"{' ' * subindent}{line}\n"
 
-            if tool_calls:
-                if content:
-                    print(f"{' ' * subindent} Function calls:", file=file)
+            if tool_calls != None:
+                if content != None:
+                    output += f"{' ' * subindent} Function calls:\n"
                 else:
-                    print(
-                        f"{' ' * indent}[{role}]{' ' * role_indent} Function calls:",
-                        file=file,
+                    output += (
+                        f"{' ' * indent}[{role}]{' ' * role_indent} Function calls:\n"
                     )
                 for tool_call in tool_calls:
                     arguments = json.loads(tool_call.function.arguments)
-                    print(
-                        f"{' ' * (subindent + 4)}{tool_call.function.name}({', '.join([f'{k}={v}' for k, v in arguments.items()])})",
-                        file=file,
-                    )
-                print(file=file)
-            print("\n", file=file)
+                    output += f"{' ' * (subindent + 4)}{tool_call.function.name}({', '.join([f'{k}={v}' for k, v in arguments.items()])})\n"
+            return output
 
-        # None is the default file value for print().
-        _print_to_file(None, indent)
+        append_message(_format_message(indent))
         if self._log:
-            _print_to_file(self._log, 0)
+            print(_format_message(0), file=self._log)
 
-    def run(self, prompt: str) -> None:
+    def run(
+        self,
+        prompt: str,
+        append_message: Callable[[str], None] = print,
+        append_warning: Callable[[str], None] = print,
+        set_error: Callable[[str], None] = print,
+    ) -> None:
         start = time.time()
         cost = 0
 
@@ -105,7 +108,7 @@ class LiteAssistant:
             ]
 
             for message in conversation:
-                self._print_message(message)
+                self._print_message(message, 4, append_message)
             while True:
                 completion = litellm.completion(
                     model=self._model,
@@ -120,7 +123,7 @@ class LiteAssistant:
                 cost += litellm.completion_cost(completion)
 
                 choice = completion.choices[0]
-                self._print_message(choice.message)
+                self._print_message(choice.message, 4, append_message)
 
                 if choice.finish_reason == "tool_calls":
                     responses = []
@@ -133,17 +136,18 @@ class LiteAssistant:
                             "content": function_response,
                         }
                         responses.append(response)
-                        self._print_message(response)
+                        self._print_message(response, 4, append_message)
                     conversation.append(choice.message)
                     conversation.extend(responses)
                 elif choice.finish_reason == "stop":
                     break
                 else:
-                    print(f"Not found: {choice.finish_reason}.")
-                    sys.exit(1)
+                    set_error(f"not found: {choice.finish_reason}.")
+                    return
 
             elapsed = time.time() - start
-            print(f"Elapsed time: {elapsed:.2f} seconds")
-            print(f"Total cost: {cost:.2f}$")
+            append_message(
+                f"Elapsed time: {elapsed:.2f} seconds\nTotal cost: {cost:.2f}$"
+            )
         except openai.OpenAIError as e:
-            print(f"*** OpenAI Error: {e}")
+            set_error(e)

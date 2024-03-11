@@ -17,6 +17,7 @@ class LiteAssistant:
         self._functions = {}
         self._instructions = instructions
         self._model = model
+        self._timeout = timeout
 
     def add_function(self, function):
         """
@@ -113,6 +114,7 @@ class LiteAssistant:
                         {"type": "function", "function": f["schema"]}
                         for f in self._functions.values()
                     ],
+                    timeout=self._timeout,
                 )
 
                 cost += litellm.completion_cost(completion)

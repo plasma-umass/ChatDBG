@@ -51,7 +51,7 @@ class LiteAssistant:
             elif hasattr(message, "content"):
                 content = message.content
 
-            assert content or tool_calls
+            assert content != None or tool_calls != None
 
             # The longest role string is 'assistant'.
             max_role_length = 9

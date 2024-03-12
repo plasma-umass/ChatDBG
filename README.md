@@ -51,6 +51,7 @@ If you encounter an error, you may be using an older version of LLVM. Update to 
 ```
 sudo apt install -y lsb-release wget software-properties-common gnupg
 curl -sSf https://apt.llvm.org/llvm.sh | sudo bash -s -- 17 all
+# LLDB now available as `lldb-17`.
 ```
 
 #### Mac

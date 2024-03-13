@@ -425,6 +425,7 @@ def _function_code(
     result.AppendMessage(formatted)
 
 
+_clangd = None
 if clangd_lsp_integration.is_available():
     _clangd = clangd_lsp_integration.clangd()
 
@@ -465,6 +466,7 @@ def _function_definition(
         if character == -1:
             result.SetError("symbol not found at that location.")
             return
+    global _clangd
     _clangd.didOpen(filename, "c" if filename.endswith(".c") else "cpp")
     definition = _clangd.definition(filename, lineno, character + 1)
     _clangd.didClose(filename)

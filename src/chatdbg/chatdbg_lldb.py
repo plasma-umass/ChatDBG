@@ -1,6 +1,5 @@
 import argparse
 import os
-import sys
 import textwrap
 from typing import Any, Optional, Tuple
 
@@ -575,7 +574,6 @@ def _make_assistant(
                 }
             }
             """
-            print(f"definition {filename}:{lineno} {symbol}")
             return _capture_onecmd(debugger, f"definition {filename}:{lineno} {symbol}")
 
         assistant.add_function(llm_find_definition)
@@ -583,7 +581,7 @@ def _make_assistant(
     return assistant
 
 
-def get_frame_summary() -> str:
+def get_frame_summary() -> Optional[str]:
     target = lldb.debugger.GetSelectedTarget()
     if not target or not target.process:
         return None
@@ -650,13 +648,20 @@ def chat(
 ```
 {get_error_message()}
 ```
+"""
 
+    frame_summary = get_frame_summary()
+    if not frame_summary:
+        result.AppendWarning("could not generate a frame summary.")
+    else:
+        prompt += f"""
 Here is a summary of the stack frames, omitting those not associated with source code:
 ```
-{get_frame_summary()}
+{frame_summary}
 ```
+"""
 
-{" ".join(remaining) if remaining else "What's the problem?"}"""
+    prompt += "\n" + (" ".join(remaining) if remaining else "What's the problem?")
 
     assistant.run(
         prompt,

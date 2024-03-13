@@ -64,6 +64,12 @@ def parse_known_args(argv: List[str]) -> Tuple[argparse.Namespace, List[str]]:
         help="when enabled, only print prompt and exit with `why`, and output to a log file with `chat`",
     )
     parser.add_argument(
+        "--fresh",
+        action="store_true",
+        default=False,
+        help="in `chat` mode, reset the chat history to start a new conversation",
+    )
+    parser.add_argument(
         "--timeout",
         type=int,
         default=60,

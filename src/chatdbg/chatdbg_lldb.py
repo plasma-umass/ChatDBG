@@ -634,6 +634,9 @@ def get_error_message() -> Optional[str]:
     return thread.GetStopDescription(1024)
 
 
+_assistant = None
+
+
 @lldb.command("chat")
 def chat(
     debugger: lldb.SBDebugger,
@@ -642,38 +645,39 @@ def chat(
     internal_dict: dict,
 ):
     args, remaining = chatdbg_utils.parse_known_args(command.split())
-    assistant = _make_assistant(debugger, args, result)
+
+    global _assistant
+    if not _assistant or args.fresh:
+        _assistant = _make_assistant(debugger, args, result)
 
     parts = []
 
-    error_message = get_error_message()
-    if not error_message:
-        result.AppendWarning("could not generate an error message.")
-    else:
-        parts.append(
-            f"""Here is the reason the program stopped execution:
-    ```
-    {get_error_message()}
-    ```"""
-        )
+    if _assistant.conversation_size() == 1:
+        error_message = get_error_message()
+        if not error_message:
+            result.AppendWarning("could not generate an error message.")
+        else:
+            parts.append(
+                "Here is the reason the program stopped execution:\n```\n"
+                + get_error_message()
+                + "\n```"
+            )
 
-    frame_summary = get_frame_summary()
-    if not frame_summary:
-        result.AppendWarning("could not generate a frame summary.")
-    else:
-        parts.append(
-            f"""
-Here is a summary of the stack frames, omitting those not associated with source code:
-```
-{frame_summary}
-```"""
-        )
+        frame_summary = get_frame_summary()
+        if not frame_summary:
+            result.AppendWarning("could not generate a frame summary.")
+        else:
+            parts.append(
+                "Here is a summary of the stack frames, omitting those not associated with user source code:\n```\n"
+                + frame_summary
+                + "\n```"
+            )
 
     parts.append(" ".join(remaining) if remaining else "What's the problem?")
 
     prompt = "\n\n".join(parts)
 
-    assistant.run(
+    _assistant.run(
         prompt,
         result.AppendMessage,
         result.AppendWarning,

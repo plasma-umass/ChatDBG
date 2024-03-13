@@ -644,24 +644,34 @@ def chat(
     args, remaining = chatdbg_utils.parse_known_args(command.split())
     assistant = _make_assistant(debugger, args, result)
 
-    prompt = f"""Here is the reason the program stopped execution:
-```
-{get_error_message()}
-```
-"""
+    parts = []
+
+    error_message = get_error_message()
+    if not error_message:
+        result.AppendWarning("could not generate an error message.")
+    else:
+        parts.append(
+            f"""Here is the reason the program stopped execution:
+    ```
+    {get_error_message()}
+    ```"""
+        )
 
     frame_summary = get_frame_summary()
     if not frame_summary:
         result.AppendWarning("could not generate a frame summary.")
     else:
-        prompt += f"""
+        parts.append(
+            f"""
 Here is a summary of the stack frames, omitting those not associated with source code:
 ```
 {frame_summary}
-```
-"""
+```"""
+        )
 
-    prompt += "\n" + (" ".join(remaining) if remaining else "What's the problem?")
+    parts.append(" ".join(remaining) if remaining else "What's the problem?")
+
+    prompt = "\n\n".join(parts)
 
     assistant.run(
         prompt,

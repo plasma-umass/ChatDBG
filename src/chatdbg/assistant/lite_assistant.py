@@ -1,5 +1,4 @@
 import json
-import sys
 import time
 from typing import Callable
 
@@ -16,9 +15,10 @@ class LiteAssistant:
             self._log = None
 
         self._functions = {}
-        self._instructions = instructions
         self._model = model
         self._timeout = timeout
+
+        self._conversation = [{"role": "system", "content": instructions}]
 
     def add_function(self, function):
         """
@@ -37,6 +37,9 @@ class LiteAssistant:
         args = json.loads(tool_call.function.arguments)
         function = self._functions[name]["function"]
         return function(**args)
+
+    def conversation_size(self):
+        return len(self._conversation)
 
     def _print_message(
         self, message, indent, append_message: Callable[[str], None], wrap=120
@@ -102,17 +105,14 @@ class LiteAssistant:
         cost = 0
 
         try:
-            conversation = [
-                {"role": "system", "content": self._instructions},
-                {"role": "user", "content": prompt},
-            ]
+            self._conversation.append({"role": "user", "content": prompt})
 
-            for message in conversation:
+            for message in self._conversation:
                 self._print_message(message, 4, append_message)
             while True:
                 completion = litellm.completion(
                     model=self._model,
-                    messages=conversation,
+                    messages=self._conversation,
                     tools=[
                         {"type": "function", "function": f["schema"]}
                         for f in self._functions.values()
@@ -137,8 +137,8 @@ class LiteAssistant:
                         }
                         responses.append(response)
                         self._print_message(response, 4, append_message)
-                    conversation.append(choice.message)
-                    conversation.extend(responses)
+                    self._conversation.append(choice.message)
+                    self._conversation.extend(responses)
                 elif choice.finish_reason == "stop":
                     break
                 else:

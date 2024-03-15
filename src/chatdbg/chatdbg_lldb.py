@@ -1,6 +1,5 @@
 import argparse
 import os
-import sys
 import textwrap
 from typing import Any, Optional, Tuple
 
@@ -426,6 +425,7 @@ def _function_code(
     result.AppendMessage(formatted)
 
 
+_clangd = None
 if clangd_lsp_integration.is_available():
     _clangd = clangd_lsp_integration.clangd()
 
@@ -466,6 +466,7 @@ def _function_definition(
         if character == -1:
             result.SetError("symbol not found at that location.")
             return
+    global _clangd
     _clangd.didOpen(filename, "c" if filename.endswith(".c") else "cpp")
     definition = _clangd.definition(filename, lineno, character + 1)
     _clangd.didClose(filename)
@@ -575,7 +576,6 @@ def _make_assistant(
                 }
             }
             """
-            print(f"definition {filename}:{lineno} {symbol}")
             return _capture_onecmd(debugger, f"definition {filename}:{lineno} {symbol}")
 
         assistant.add_function(llm_find_definition)
@@ -583,7 +583,7 @@ def _make_assistant(
     return assistant
 
 
-def get_frame_summary() -> str:
+def get_frame_summary() -> Optional[str]:
     target = lldb.debugger.GetSelectedTarget()
     if not target or not target.process:
         return None
@@ -636,6 +636,9 @@ def get_error_message() -> Optional[str]:
     return thread.GetStopDescription(1024)
 
 
+_assistant = None
+
+
 @lldb.command("chat")
 def chat(
     debugger: lldb.SBDebugger,
@@ -644,21 +647,39 @@ def chat(
     internal_dict: dict,
 ):
     args, remaining = chatdbg_utils.parse_known_args(command.split())
-    assistant = _make_assistant(debugger, args, result)
 
-    prompt = f"""Here is the reason the program stopped execution:
-```
-{get_error_message()}
-```
+    global _assistant
+    if not _assistant or args.fresh:
+        _assistant = _make_assistant(debugger, args, result)
 
-Here is a summary of the stack frames, omitting those not associated with source code:
-```
-{get_frame_summary()}
-```
+    parts = []
 
-{" ".join(remaining) if remaining else "What's the problem?"}"""
+    if _assistant.conversation_size() == 1:
+        error_message = get_error_message()
+        if not error_message:
+            result.AppendWarning("could not generate an error message.")
+        else:
+            parts.append(
+                "Here is the reason the program stopped execution:\n```\n"
+                + get_error_message()
+                + "\n```"
+            )
 
-    assistant.run(
+        frame_summary = get_frame_summary()
+        if not frame_summary:
+            result.AppendWarning("could not generate a frame summary.")
+        else:
+            parts.append(
+                "Here is a summary of the stack frames, omitting those not associated with user source code:\n```\n"
+                + frame_summary
+                + "\n```"
+            )
+
+    parts.append(" ".join(remaining) if remaining else "What's the problem?")
+
+    prompt = "\n\n".join(parts)
+
+    _assistant.run(
         prompt,
         result.AppendMessage,
         result.AppendWarning,

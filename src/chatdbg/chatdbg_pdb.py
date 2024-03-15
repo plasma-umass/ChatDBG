@@ -593,10 +593,10 @@ class ChatDBG(ChatDBGSuper):
             self._log.function(command, result)
             return truncate_proportionally(result, top_proportion=1)
 
-        def pdb(command):
+        def debug(command):
             """
             {
-                "name": "pdb",
+                "name": "debug",
                 "description": "Run a pdb command and get the response.",
                 "parameters": {
                     "type": "object",
@@ -666,7 +666,7 @@ class ChatDBG(ChatDBGSuper):
                                     debug=chatdbg_config.debug)
         
         if chatdbg_config.take_the_wheel:
-            self._assistant.add_function(pdb)
+            self._assistant.add_function(debug)
             self._assistant.add_function(info)
 
             if self._supports_flow:

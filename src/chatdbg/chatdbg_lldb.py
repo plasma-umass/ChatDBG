@@ -387,7 +387,7 @@ def _instructions():
             The user is having an issue with their code, and you are trying to help them find the root cause.
             They will provide a short summary of the issue and a question to be answered.
 
-            Call the `lldb` function to run lldb debugger commands on the stopped program.
+            Call the `debug` function to run lldb debugger commands on the stopped program.
             Call the `get_code_surrounding` function to retrieve user code and give more context back to the user on their problem.
             Call the `find_definition` function to retrieve the definition of a particular symbol.
             You should call `find_definition` on every symbol that could be linked to the issue.
@@ -398,7 +398,7 @@ def _instructions():
     ).strip()
 
 
-@lldb.command("lldb")
+@lldb.command("debug")
 def _function_lldb(
     debugger: lldb.SBDebugger,
     command: str,
@@ -493,10 +493,10 @@ def _make_assistant(
     args: argparse.Namespace,
     result: lldb.SBCommandReturnObject,
 ) -> LiteAssistant:
-    def llm_lldb(command: str) -> str:
+    def llm_debug(command: str) -> str:
         """
         {
-            "name": "lldb",
+            "name": "debug",
             "description": "Run an LLDB command and get the response.",
             "parameters": {
                 "type": "object",
@@ -510,7 +510,7 @@ def _make_assistant(
             }
         }
         """
-        return _capture_onecmd(debugger, f"lldb {command}")
+        return _capture_onecmd(debugger, f"debug {command}")
 
     def llm_get_code_surrounding(filename: str, lineno: int) -> str:
         """
@@ -542,7 +542,7 @@ def _make_assistant(
         debug=args.debug,
     )
 
-    assistant.add_function(llm_lldb)
+    assistant.add_function(llm_debug)
     assistant.add_function(llm_get_code_surrounding)
 
     if not clangd_lsp_integration.is_available():

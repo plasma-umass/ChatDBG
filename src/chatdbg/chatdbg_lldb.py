@@ -648,16 +648,8 @@ def get_frame_summary(
 
 
 def get_error_message(debugger: lldb.SBDebugger) -> Optional[str]:
-    target = debugger.GetSelectedTarget()
-    if not target or not target.process:
-        return None
-
-    for thread in target.process:
-        reason = thread.GetStopReason()
-        if reason not in [lldb.eStopReasonNone, lldb.eStopReasonInvalid]:
-            break
-
-    return thread.GetStopDescription(1024)
+    thread = get_thread(debugger)
+    return thread.GetStopDescription(1024) if thread else None
 
 
 _assistant = None

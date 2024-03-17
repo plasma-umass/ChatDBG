@@ -35,65 +35,28 @@ def is_debug_build(debugger: lldb.SBDebugger) -> bool:
     return False
 
 
-def get_process() -> Optional[lldb.SBProcess]:
+def get_process(debugger) -> Optional[lldb.SBProcess]:
     """
     Get the process that the current target owns.
     :return: An lldb object representing the process (lldb.SBProcess) that this target owns.
     """
-    return get_target().process
+    target = debugger.GetSelectedTarget()
+    return target.process if target else None
 
 
-def get_frame() -> lldb.SBFrame:
+def get_thread(debugger: lldb.SBDebugger) -> Optional[lldb.SBThread]:
     """
-    Get the current frame of the running process.
-
-    :return: The current frame of the running process as an SBFrame object.
+    Returns a currently stopped thread in the debugged process.
+    :return: A currently stopped thread or None if no thread is stopped.
     """
-    # Initialize frame variable to None
-    frame = None
-    for thread in get_process():
-        # Loop through the threads in the process
-        if (
-            thread.GetStopReason() != lldb.eStopReasonNone
-            and thread.GetStopReason() != lldb.eStopReasonInvalid
-        ):
-            # If the stop reason is not "none" or "invalid", get the frame at index 0 and break the loop.
-            frame = thread.GetFrameAtIndex(0)
-            break
-    if not frame:
-        # If frame is None, print a warning message
-        # print("[-] warning: get_frame() failed. Is the target binary started?")
-        # The warning message has been commented out, so just pass.
-        pass
-    # Return the current frame.
-    return frame
-
-
-def get_thread() -> lldb.SBThread:
-    """
-    Returns the currently stopped thread in the debugged process.
-    :return: The currently stopped thread or None if no thread is stopped.
-    """
-    thread = None
-    # Iterate over threads in the process
-    for _thread in get_process():
-        # Check if thread is stopped for a valid reason
-        if (
-            _thread.GetStopReason() != lldb.eStopReasonNone
-            and _thread.GetStopReason() != lldb.eStopReasonInvalid
-        ):
-            thread = _thread
-    if not thread:
-        # No stopped thread was found
-        pass
-    return thread
-
-
-def get_target() -> lldb.SBTarget:
-    target = lldb.debugger.GetSelectedTarget()
-    if not target:
+    process = get_process(debugger)
+    if not process:
         return None
-    return target
+    for thread in process:
+        reason = thread.GetStopReason()
+        if reason not in [lldb.eStopReasonNone, lldb.eStopReasonInvalid]:
+            return thread
+    return thread
 
 
 def truncate_string(string, n):
@@ -104,7 +67,7 @@ def truncate_string(string, n):
 
 
 def buildPrompt(debugger: Any) -> Tuple[str, str, str]:
-    target = get_target()
+    target = debugger.GetSelectedTarget()
     if not target:
         return ("", "", "")
     thread = get_thread()
@@ -220,7 +183,7 @@ def why(
         )
         return
     # Check if debugger is attached to a program.
-    if not get_target():
+    if not debugger.GetSelectedTarget():
         result.SetError("must be attached to a program to ask `why`.")
         return
     # Check if the program has been run prior to executing the `why` command.
@@ -581,15 +544,12 @@ def _make_assistant(
     return assistant
 
 
-def get_frame_summary(max_entries: int = 20) -> Optional[str]:
-    target = lldb.debugger.GetSelectedTarget()
-    if not target or not target.process:
+def get_frame_summary(
+    debugger: lldb.SBDebugger, max_entries: int = 20
+) -> Optional[str]:
+    thread = get_thread(debugger)
+    if not thread:
         return None
-
-    for thread in target.process:
-        reason = thread.GetStopReason()
-        if reason not in [lldb.eStopReasonNone, lldb.eStopReasonInvalid]:
-            break
 
     class FrameSummaryEntry:
         def __init__(self, text: str):
@@ -687,8 +647,8 @@ def get_frame_summary(max_entries: int = 20) -> Optional[str]:
     return "\n".join([str(s) for s in summaries])
 
 
-def get_error_message() -> Optional[str]:
-    target = lldb.debugger.GetSelectedTarget()
+def get_error_message(debugger: lldb.SBDebugger) -> Optional[str]:
+    target = debugger.GetSelectedTarget()
     if not target or not target.process:
         return None
 
@@ -732,17 +692,17 @@ def chat(
     parts = []
 
     if _assistant.conversation_size() == 1:
-        error_message = get_error_message()
+        error_message = get_error_message(debugger)
         if not error_message:
             result.AppendWarning("could not generate an error message.")
         else:
             parts.append(
                 "Here is the reason the program stopped execution:\n```\n"
-                + get_error_message()
+                + error_message
                 + "\n```"
             )
 
-        frame_summary = get_frame_summary()
+        frame_summary = get_frame_summary(debugger)
         if not frame_summary:
             result.AppendWarning("could not generate a frame summary.")
         else:

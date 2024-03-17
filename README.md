@@ -30,7 +30,7 @@ python3 -m pip install chatdbg
 
 If you are using ChatDBG to debug Python programs, you are done. If you want to use ChatDBG to debug native code with `gdb` or `lldb`, follow the installation instructions below.
 
-### Installing as an <TT>lldb</TT> extension
+### Installing as an `lldb` extension
 
 <details>
 <summary>
@@ -64,7 +64,7 @@ xcrun python3 -c 'import chatdbg; print(f"command script import {chatdbg.__path_
 This will install ChatDBG as an LLVM extension.
 </details>
 
-### Installing as a <TT>gdb</TT> extension
+### Installing as a `gdb` extension
 
 <details>
 <summary>

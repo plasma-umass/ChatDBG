@@ -591,7 +591,7 @@ class _SkippedFramesEntry:
         return f"_SkippedFramesEntry({self._count})"
 
 
-def get_frame_summary(
+def get_frame_summaries(
     debugger: lldb.SBDebugger, max_entries: int = 20
 ) -> Optional[str]:
     thread = get_thread(debugger)
@@ -669,7 +669,7 @@ def get_frame_summary(
         == total_frames
     )
 
-    return "\n".join([str(s) for s in summaries])
+    return summaries
 
 
 def get_error_message(debugger: lldb.SBDebugger) -> Optional[str]:
@@ -719,7 +719,7 @@ def chat(
                 + "\n```"
             )
 
-        frame_summary = get_frame_summary(debugger)
+        frame_summary = "\n".join([str(s) for s in get_frame_summaries(debugger)])
         if not frame_summary:
             result.AppendWarning("could not generate a frame summary.")
         else:

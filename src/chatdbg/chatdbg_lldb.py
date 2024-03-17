@@ -228,9 +228,6 @@ def why(
     if not thread:
         result.SetError("must run the code first to ask `why`.")
         return
-    if thread.GetStopReason() == lldb.eStopReasonBreakpoint:
-        result.SetError("execution stopped at a breakpoint, not an error.")
-        return
 
     the_prompt = buildPrompt(debugger)
     args, _ = chatdbg_utils.parse_known_args(command.split())
@@ -713,6 +710,19 @@ def chat(
     result: lldb.SBCommandReturnObject,
     internal_dict: dict,
 ):
+    if not is_debug_build(debugger):
+        result.SetError(
+            "your program must be compiled with debug information (`-g`) to use `chat`."
+        )
+        return
+    if not debugger.GetSelectedTarget():
+        result.SetError("must be attached to a program to use `chat`.")
+        return
+    thread = get_thread()
+    if not thread:
+        result.SetError("must run the code first to use `chat`.")
+        return
+
     args, remaining = chatdbg_utils.parse_known_args(command.split())
 
     global _assistant

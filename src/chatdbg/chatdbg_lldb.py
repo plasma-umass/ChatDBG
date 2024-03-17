@@ -542,6 +542,31 @@ def _make_assistant(
     return assistant
 
 
+class _FrameSummaryEntry:
+    def __init__(self, text: str):
+        self._text = text
+
+    def __str__(self):
+        return self._text
+
+    def __repr__(self):
+        return f"_FrameSummaryEntry({repr(self._text)})"
+
+
+class _SkippedFramesEntry:
+    def __init__(self, count: int):
+        self._count = count
+
+    def count(self):
+        return self._count
+
+    def __str__(self):
+        return f"[{self._count} skipped frames...]"
+
+    def __repr__(self):
+        return f"_SkippedFramesEntry({self._count})"
+
+
 def get_frame_summary(
     debugger: lldb.SBDebugger, max_entries: int = 20
 ) -> Optional[str]:
@@ -549,32 +574,9 @@ def get_frame_summary(
     if not thread:
         return None
 
-    class FrameSummaryEntry:
-        def __init__(self, text: str):
-            self._text = text
-
-        def __str__(self):
-            return self._text
-
-        def __repr__(self):
-            return f"FrameSummaryEntry({repr(self._text)})"
-
-    class SkippedFramesEntry:
-        def __init__(self, count: int):
-            self._count = count
-
-        def count(self):
-            return self._count
-
-        def __str__(self):
-            return f"[{self._count} skipped frames...]"
-
-        def __repr__(self):
-            return f"SkippedFramesEntry({self._count})"
-
     total_frames = len(thread)  # This can be a long operation e.g. stack overflow.
     skipped = 0
-    summaries: List[Union[FrameSummaryEntry, SkippedFramesEntry]] = []
+    summaries: List[Union[_FrameSummaryEntry, _SkippedFramesEntry]] = []
 
     index = -1
     for frame in thread:
@@ -607,11 +609,11 @@ def get_frame_summary(
             continue
 
         if skipped > 0:
-            summaries.append(SkippedFramesEntry(skipped))
+            summaries.append(_SkippedFramesEntry(skipped))
             skipped = 0
 
         summaries.append(
-            FrameSummaryEntry(
+            _FrameSummaryEntry(
                 f"{index}: {name}({', '.join(arguments)}) at {file_path}:{lineno}"
             )
         )
@@ -619,26 +621,28 @@ def get_frame_summary(
             break
 
     if skipped > 0:
-        summaries.append(SkippedFramesEntry(skipped))
+        summaries.append(_SkippedFramesEntry(skipped))
         if len(summaries) > max_entries:
             summaries.pop(-2)
 
     total_summary_count = sum(
-        [1 if isinstance(s, FrameSummaryEntry) else s.count() for s in summaries]
+        [1 if isinstance(s, _FrameSummaryEntry) else s.count() for s in summaries]
     )
 
     if total_summary_count < total_frames:
-        if isinstance(summaries[-1], SkippedFramesEntry):
-            summaries[-1] = SkippedFramesEntry(
+        if isinstance(summaries[-1], _SkippedFramesEntry):
+            summaries[-1] = _SkippedFramesEntry(
                 total_frames - total_summary_count + summaries[-1].count()
             )
         else:
-            summaries.append(SkippedFramesEntry(total_frames - total_summary_count + 1))
+            summaries.append(
+                _SkippedFramesEntry(total_frames - total_summary_count + 1)
+            )
             if len(summaries) > max_entries:
                 summaries.pop(-2)
 
     assert (
-        sum([1 if isinstance(s, FrameSummaryEntry) else s.count() for s in summaries])
+        sum([1 if isinstance(s, _FrameSummaryEntry) else s.count() for s in summaries])
         == total_frames
     )
 

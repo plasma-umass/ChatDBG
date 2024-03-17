@@ -601,6 +601,9 @@ def get_frame_summary(max_entries: int = 20) -> Optional[str]:
         def __str__(self):
             return self._text
 
+        def __repr__(self):
+            return f"FrameSummaryEntry({repr(self._text)})"
+
     class SkippedFramesEntry:
         def __init__(self, count: int):
             self._count = count
@@ -610,6 +613,9 @@ def get_frame_summary(max_entries: int = 20) -> Optional[str]:
 
         def __str__(self):
             return f"[{self._count} skipped frames...]"
+
+        def __repr__(self):
+            return f"SkippedFramesEntry({self._count})"
 
     total_frames = len(thread)  # This can be a long operation e.g. stack overflow.
     skipped = 0
@@ -658,9 +664,9 @@ def get_frame_summary(max_entries: int = 20) -> Optional[str]:
             break
 
     if skipped > 0:
-        summaries.insert(0, SkippedFramesEntry(skipped))
-        # Pop first frame summary message (-1 or -2).
-        summaries.pop(-1 if isinstance(summaries[-1], FrameSummaryEntry) else -2)
+        summaries.append(SkippedFramesEntry(skipped))
+        if len(summaries) > max_entries:
+            summaries.pop(-2)
 
     total_summary_count = sum(
         [1 if isinstance(s, FrameSummaryEntry) else s.count() for s in summaries]
@@ -673,8 +679,8 @@ def get_frame_summary(max_entries: int = 20) -> Optional[str]:
             )
         else:
             summaries.append(SkippedFramesEntry(total_frames - total_summary_count + 1))
-            # Pop first frame summary message (-1 or -2).
-            summaries.pop(-1 if isinstance(summaries[-1], FrameSummaryEntry) else -2)
+            if len(summaries) > max_entries:
+                summaries.pop(-2)
 
     assert (
         sum([1 if isinstance(s, FrameSummaryEntry) else s.count() for s in summaries])

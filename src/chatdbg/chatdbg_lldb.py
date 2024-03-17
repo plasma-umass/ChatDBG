@@ -70,7 +70,7 @@ def buildPrompt(debugger: Any) -> Tuple[str, str, str]:
     target = debugger.GetSelectedTarget()
     if not target:
         return ("", "", "")
-    thread = get_thread()
+    thread = get_thread(debugger)
     if not thread:
         return ("", "", "")
     if thread.GetStopReason() == lldb.eStopReasonBreakpoint:
@@ -177,17 +177,15 @@ def why(
     There is a bit of work to determine what context we end up sending to GPT.
     Notably, we send a summary of all stack frames, including locals.
     """
+    if not debugger.GetSelectedTarget():
+        result.SetError("must be attached to a program to ask `why`.")
+        return
     if not is_debug_build(debugger):
         result.SetError(
             "your program must be compiled with debug information (`-g`) to use `why`."
         )
         return
-    # Check if debugger is attached to a program.
-    if not debugger.GetSelectedTarget():
-        result.SetError("must be attached to a program to ask `why`.")
-        return
-    # Check if the program has been run prior to executing the `why` command.
-    thread = get_thread()
+    thread = get_thread(debugger)
     if not thread:
         result.SetError("must run the code first to ask `why`.")
         return
@@ -662,15 +660,15 @@ def chat(
     result: lldb.SBCommandReturnObject,
     internal_dict: dict,
 ):
+    if not debugger.GetSelectedTarget():
+        result.SetError("must be attached to a program to use `chat`.")
+        return
     if not is_debug_build(debugger):
         result.SetError(
             "your program must be compiled with debug information (`-g`) to use `chat`."
         )
         return
-    if not debugger.GetSelectedTarget():
-        result.SetError("must be attached to a program to use `chat`.")
-        return
-    thread = get_thread()
+    thread = get_thread(debugger)
     if not thread:
         result.SetError("must run the code first to use `chat`.")
         return

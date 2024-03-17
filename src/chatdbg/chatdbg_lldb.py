@@ -2,11 +2,10 @@ import argparse
 import os
 import json
 import textwrap
-from typing import Any, Optional, Tuple
+from typing import Any, List, Optional, Tuple, Union
 
 import lldb
 
-import litellm
 import llm_utils
 
 from assistant.lite_assistant import LiteAssistant
@@ -585,7 +584,7 @@ def _make_assistant(
     return assistant
 
 
-def get_frame_summary(max_frames: int = 20) -> Optional[str]:
+def get_frame_summary(max_entries: int = 20) -> Optional[str]:
     target = lldb.debugger.GetSelectedTarget()
     if not target or not target.process:
         return None
@@ -595,9 +594,32 @@ def get_frame_summary(max_frames: int = 20) -> Optional[str]:
         if reason not in [lldb.eStopReasonNone, lldb.eStopReasonInvalid]:
             break
 
-    summaries = []
-    for i, frame in enumerate(thread):
+    class FrameSummaryEntry:
+        def __init__(self, text: str):
+            self._text = text
+
+        def __str__(self):
+            return self._text
+
+    class SkippedFramesEntry:
+        def __init__(self, count: int):
+            self._count = count
+
+        def count(self):
+            return self._count
+
+        def __str__(self):
+            return f"[{self._count} skipped frames...]"
+
+    total_frames = len(thread)  # This can be a long operation e.g. stack overflow.
+    skipped = 0
+    summaries: List[Union[FrameSummaryEntry, SkippedFramesEntry]] = []
+
+    index = -1
+    for frame in thread:
+        index += 1
         if not frame.GetDisplayFunctionName():
+            skipped += 1
             continue
         name = frame.GetDisplayFunctionName().split("(")[0]
         arguments = []
@@ -606,6 +628,7 @@ def get_frame_summary(max_frames: int = 20) -> Optional[str]:
         ):
             arg = frame.FindVariable(frame.GetFunction().GetArgumentName(j))
             if not arg:
+                skipped += 1
                 continue
             arguments.append(f"{arg.GetName()}={arg.GetValue()}")
 
@@ -619,12 +642,46 @@ def get_frame_summary(max_frames: int = 20) -> Optional[str]:
 
         # Skip frames for which we have no source -- likely system frames.
         if not os.path.exists(file_path):
+            skipped += 1
             continue
 
-        summaries.append(f"{i}: {name}({', '.join(arguments)}) at {file_path}:{lineno}")
-        if len(summaries) >= max_frames:
+        if skipped > 0:
+            summaries.append(SkippedFramesEntry(skipped))
+            skipped = 0
+
+        summaries.append(
+            FrameSummaryEntry(
+                f"{index}: {name}({', '.join(arguments)}) at {file_path}:{lineno}"
+            )
+        )
+        if len(summaries) >= max_entries:
             break
-    return "\n".join(reversed(summaries))
+
+    if skipped > 0:
+        summaries.insert(0, SkippedFramesEntry(skipped))
+        # Pop first frame summary message (-1 or -2).
+        summaries.pop(-1 if isinstance(summaries[-1], FrameSummaryEntry) else -2)
+
+    total_summary_count = sum(
+        [1 if isinstance(s, FrameSummaryEntry) else s.count() for s in summaries]
+    )
+
+    if total_summary_count < total_frames:
+        if isinstance(summaries[-1], SkippedFramesEntry):
+            summaries[-1] = SkippedFramesEntry(
+                total_frames - total_summary_count + summaries[-1].count()
+            )
+        else:
+            summaries.append(SkippedFramesEntry(total_frames - total_summary_count + 1))
+            # Pop first frame summary message (-1 or -2).
+            summaries.pop(-1 if isinstance(summaries[-1], FrameSummaryEntry) else -2)
+
+    assert (
+        sum([1 if isinstance(s, FrameSummaryEntry) else s.count() for s in summaries])
+        == total_frames
+    )
+
+    return "\n".join([str(s) for s in summaries])
 
 
 def get_error_message() -> Optional[str]:

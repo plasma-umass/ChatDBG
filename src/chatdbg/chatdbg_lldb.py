@@ -585,7 +585,7 @@ def _make_assistant(
     return assistant
 
 
-def get_frame_summary() -> Optional[str]:
+def get_frame_summary(max_frames: int = 20) -> Optional[str]:
     target = lldb.debugger.GetSelectedTarget()
     if not target or not target.process:
         return None
@@ -622,6 +622,8 @@ def get_frame_summary() -> Optional[str]:
             continue
 
         summaries.append(f"{i}: {name}({', '.join(arguments)}) at {file_path}:{lineno}")
+        if len(summaries) >= max_frames:
+            break
     return "\n".join(reversed(summaries))
 
 

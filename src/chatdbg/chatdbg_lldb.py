@@ -134,7 +134,7 @@ def buildPrompt(debugger: Any) -> Tuple[str, str, str]:
         max_line_length = 100
 
         try:
-            (lines, first) = llm_utils.read_lines(file_path, lineno - 10, lineno)
+            lines, first = llm_utils.read_lines(file_path, lineno - 10, lineno)
             block = llm_utils.number_group_of_lines(lines, first)
 
             stack_trace += (
@@ -378,7 +378,7 @@ def _function_code(
         result.SetError("usage: code <filename>:<lineno>")
         return
     filename, lineno = parts[0], int(parts[1])
-    (lines, first) = llm_utils.read_lines(filename, lineno - 7, lineno + 3)
+    lines, first = llm_utils.read_lines(filename, lineno - 7, lineno + 3)
     formatted = llm_utils.number_group_of_lines(lines, first)
     result.AppendMessage(formatted)
 
@@ -436,7 +436,7 @@ def _function_definition(
     path = clangd_lsp_integration.uri_to_path(definition["result"][0]["uri"])
     start_lineno = definition["result"][0]["range"]["start"]["line"] + 1
     end_lineno = definition["result"][0]["range"]["end"]["line"] + 1
-    (lines, first) = llm_utils.read_lines(path, start_lineno - 5, end_lineno + 5)
+    lines, first = llm_utils.read_lines(path, start_lineno - 5, end_lineno + 5)
     content = llm_utils.number_group_of_lines(lines, first)
     line_string = (
         f"line {start_lineno}"
@@ -549,7 +549,7 @@ class _ArgumentEntry:
         self._value = value
 
     def __str__(self):
-        return f"({self._type}) {self._name} = {self._value | '[unknown]'}"
+        return f"({self._type}) {self._name} = {self._value if self._value else '[unknown]'}"
 
     def __repr__(self):
         return f"_ArgumentEntry({repr(self.type)}, {repr(self._name)}, {repr(self._value)})"
@@ -569,6 +569,15 @@ class _FrameSummaryEntry:
         self._arguments = arguments
         self._file_path = file_path
         self._lineno = lineno
+
+    def index(self):
+        return self._index
+
+    def file_path(self):
+        return self._file_path
+
+    def lineno(self):
+        return self._lineno
 
     def __str__(self):
         return f"{self._index}: {self._name}({', '.join([str(a) for a in self._arguments])}) at {self._file_path}:{self._lineno}"
@@ -593,7 +602,7 @@ class _SkippedFramesEntry:
 
 def get_frame_summaries(
     debugger: lldb.SBDebugger, max_entries: int = 20
-) -> Optional[str]:
+) -> Optional[List[Union[_FrameSummaryEntry, _SkippedFramesEntry]]]:
     thread = get_thread(debugger)
     if not thread:
         return None
@@ -719,15 +728,35 @@ def chat(
                 + "\n```"
             )
 
-        frame_summary = "\n".join([str(s) for s in get_frame_summaries(debugger)])
-        if not frame_summary:
+        summaries = get_frame_summaries(debugger)
+        if not summaries:
             result.AppendWarning("could not generate a frame summary.")
         else:
+            frame_summary = "\n".join([str(s) for s in summaries])
             parts.append(
                 "Here is a summary of the stack frames, omitting those not associated with user source code:\n```\n"
                 + frame_summary
                 + "\n```"
             )
+
+        max_initial_locations_to_send = 3
+        source_code_entries = []
+        for summary in summaries:
+            if isinstance(summary, _FrameSummaryEntry):
+                file_path, lineno = summary.file_path(), summary.lineno()
+                lines, first = llm_utils.read_lines(file_path, lineno - 10, lineno + 9)
+                block = llm_utils.number_group_of_lines(lines, first)
+                source_code_entries.append(
+                    f"Frame #{summary.index()} at {file_path}:{lineno}:\n```\n{block}\n```"
+                )
+
+                if len(source_code_entries) == max_initial_locations_to_send:
+                    break
+
+        parts.append(
+            f"Here is the source code for the first {len(source_code_entries)} frames:\n\n"
+            + "\n\n".join(source_code_entries)
+        )
 
     parts.append(" ".join(remaining) if remaining else "What's the problem?")
 

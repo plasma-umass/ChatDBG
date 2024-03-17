@@ -624,7 +624,7 @@ def get_frame_summaries(
         ):
             arg = frame.FindVariable(frame.GetFunction().GetArgumentName(j))
             if not arg:
-                skipped += 1
+                arguments.append(_ArgumentEntry("[unknown]", "[unknown]", "[unknown]"))
                 continue
             # TODO: Check if we should simplify / truncate types, e.g. std::unordered_map.
             arguments.append(

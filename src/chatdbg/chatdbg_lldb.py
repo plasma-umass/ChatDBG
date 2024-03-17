@@ -542,15 +542,39 @@ def _make_assistant(
     return assistant
 
 
-class _FrameSummaryEntry:
-    def __init__(self, text: str):
-        self._text = text
+class _ArgumentEntry:
+    def __init__(self, type: str, name: str, value: str):
+        self._type = type
+        self._name = name
+        self._value = value
 
     def __str__(self):
-        return self._text
+        return f"({self._type}) {self._name} = {self._value | '[unknown]'}"
 
     def __repr__(self):
-        return f"_FrameSummaryEntry({repr(self._text)})"
+        return f"_ArgumentEntry({repr(self.type)}, {repr(self._name)}, {repr(self._value)})"
+
+
+class _FrameSummaryEntry:
+    def __init__(
+        self,
+        index: int,
+        name: str,
+        arguments: List[_ArgumentEntry],
+        file_path: str,
+        lineno: int,
+    ):
+        self._index = index
+        self._name = name
+        self._arguments = arguments
+        self._file_path = file_path
+        self._lineno = lineno
+
+    def __str__(self):
+        return f"{self._index}: {self._name}({', '.join([str(a) for a in self._arguments])}) at {self._file_path}:{self._lineno}"
+
+    def __repr__(self):
+        return f"_FrameSummaryEntry({self._index}, {repr(self._name)}, {repr(self._arguments)}, {repr(self._file_path)}, {self._lineno})"
 
 
 class _SkippedFramesEntry:
@@ -585,7 +609,7 @@ def get_frame_summary(
             skipped += 1
             continue
         name = frame.GetDisplayFunctionName().split("(")[0]
-        arguments = []
+        arguments: List[_ArgumentEntry] = []
         for j in range(
             frame.GetFunction().GetType().GetFunctionArgumentTypes().GetSize()
         ):
@@ -593,7 +617,10 @@ def get_frame_summary(
             if not arg:
                 skipped += 1
                 continue
-            arguments.append(f"{arg.GetName()}={arg.GetValue()}")
+            # TODO: Check if we should simplify / truncate types, e.g. std::unordered_map.
+            arguments.append(
+                _ArgumentEntry(arg.GetTypeName(), arg.GetName(), arg.GetValue())
+            )
 
         line_entry = frame.GetLineEntry()
         file_path = line_entry.GetFileSpec().fullpath
@@ -612,11 +639,7 @@ def get_frame_summary(
             summaries.append(_SkippedFramesEntry(skipped))
             skipped = 0
 
-        summaries.append(
-            _FrameSummaryEntry(
-                f"{index}: {name}({', '.join(arguments)}) at {file_path}:{lineno}"
-            )
-        )
+        summaries.append(_FrameSummaryEntry(index, name, arguments, file_path, lineno))
         if len(summaries) >= max_entries:
             break
 

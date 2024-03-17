@@ -1,11 +1,12 @@
 import argparse
 import os
+import json
 import textwrap
 from typing import Any, Optional, Tuple
 
 import lldb
-import json
 
+import litellm
 import llm_utils
 
 from assistant.lite_assistant import LiteAssistant
@@ -539,6 +540,7 @@ def _make_assistant(
         _instructions(),
         model=args.llm,
         timeout=args.timeout,
+        max_result_tokens=args.tool_call_max_result_tokens,
         debug=args.debug,
     )
 

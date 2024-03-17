@@ -8,7 +8,14 @@ import openai
 
 
 class LiteAssistant:
-    def __init__(self, instructions, model="gpt-4", timeout=30, debug=False):
+    def __init__(
+        self,
+        instructions,
+        model="gpt-4",
+        timeout=30,
+        max_result_tokens=512,
+        debug=False,
+    ):
         if debug:
             self._log = open(f"chatdbg.log", "w")
         else:
@@ -17,6 +24,7 @@ class LiteAssistant:
         self._functions = {}
         self._model = model
         self._timeout = timeout
+        self._max_result_tokens = max_result_tokens
 
         self._conversation = [{"role": "system", "content": instructions}]
 
@@ -32,11 +40,35 @@ class LiteAssistant:
             "schema": schema,
         }
 
+    def _sandwhich_tokens(self, text: str) -> str:
+        if len(litellm.encode(self._model, text)) <= self._max_result_tokens:
+            return text
+
+        # Implementation: Add characters one by one, alternating front and back, and compute total tokens.
+        # Implementation: This is obviously not very efficient, but since max_tokens will be small, it should be fine.
+        front = []
+        back = []
+
+        def _build_return(front, back):
+            return "".join(front) + "\n\n[...]\n\n" + "".join(back)
+
+        i = 0
+        while True:
+            array = front if i >= 0 else back
+            array.append(text[i])
+            if (
+                len(litellm.encode(self._model, _build_return(front, back)))
+                > self._max_result_tokens
+            ):
+                array.pop()
+                return _build_return(front, back)
+            i = -i - 1 if i >= 0 else -i  # 0, -1, 1, -2, 2, ...
+
     def _make_call(self, tool_call) -> str:
         name = tool_call.function.name
         args = json.loads(tool_call.function.arguments)
         function = self._functions[name]["function"]
-        return function(**args)
+        return self._sandwhich_tokens(function(**args))
 
     def conversation_size(self):
         return len(self._conversation)

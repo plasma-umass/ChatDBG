@@ -594,7 +594,7 @@ class _SkippedFramesEntry:
         return self._count
 
     def __str__(self):
-        return f"[{self._count} skipped frames...]"
+        return f"[{self._count} skipped frame{'s' if self._count > 1 else ''}...]"
 
     def __repr__(self):
         return f"_SkippedFramesEntry({self._count})"

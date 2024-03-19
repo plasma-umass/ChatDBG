@@ -690,6 +690,27 @@ def get_error_message(debugger: lldb.SBDebugger) -> Optional[str]:
     return thread.GetStopDescription(1024) if thread else None
 
 
+def get_command_line_invocation(debugger: lldb.SBDebugger) -> Optional[str]:
+    executable = debugger.GetSelectedTarget().GetExecutable()
+    executable_path = os.path.join(executable.GetDirectory(), executable.GetFilename())
+    if executable_path.startswith(os.getcwd()):
+        executable_path = os.path.join(".", os.path.relpath(executable_path))
+
+    command_line_arguments = [
+        debugger.GetSelectedTarget().GetLaunchInfo().GetArgumentAtIndex(i)
+        for i in range(debugger.GetSelectedTarget().GetLaunchInfo().GetNumArguments())
+    ]
+
+    return " ".join([executable_path, *command_line_arguments])
+
+
+def get_input_path(debugger: lldb.SBDebugger) -> Optional[str]:
+    stream = lldb.SBStream()
+    debugger.GetSetting("target.input-path").GetAsJSON(stream)
+    entry = json.loads(stream.GetData())
+    return entry if entry else None
+
+
 _assistant = None
 
 

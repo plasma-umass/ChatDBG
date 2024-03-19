@@ -204,7 +204,7 @@ class Assistant:
             if run.status == "failed":
                 message = f"\n**Internal Failure ({run.last_error.code}):** {run.last_error.message}"
                 client_print(message)
-                client_print(f"\n{json.dumps(run, indent=2)}\n")
+                self._log(run)
                 sys.exit(-1)
 
             messages = self.threads.messages.list(

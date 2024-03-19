@@ -1,3 +1,2 @@
 # packages necessary for the test files
-cs104 @ git+https://github.com/cs104williams/cs104-toolbox@standalone
-datascience @ git+https://github.com/cs104williams/cs104-datascience
+datascience

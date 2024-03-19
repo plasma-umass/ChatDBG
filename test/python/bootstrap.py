@@ -1,19 +1,21 @@
 from datascience import *
-from cs104 import *
+from ds101 import *
 
-def make_marble_bag():
+def make_marble_sample():
     table = Table().read_table('marble-sample.csv')
     return table.column('color')
 
-def percent_blue(sample):
-    return sample 
+def proportion_blue(sample):
+    return sample
 
-def main(observed_marbles):
-    num_trials = 5 
+def resampled_stats(observed_marbles, num_trials):
     stats = bootstrap_statistic(observed_marbles,
-                                percent_blue,
+                                proportion_blue,
                                 num_trials)
-    assert len(stats) == 5
+    assert len(stats) == num_trials
+    return stats
 
-observed_marbles = make_marble_bag()
-main(observed_marbles)
+observed_marbles = make_marble_sample()
+stats = resampled_stats(observed_marbles, 5)
+
+assert np.isclose(np.mean(stats), 0.7)

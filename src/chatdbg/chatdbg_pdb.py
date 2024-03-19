@@ -472,6 +472,7 @@ class ChatDBG(ChatDBGSuper):
         locals = frame.f_locals
         in_global_scope = locals is frame.f_globals
         defined_locals = extract_locals(frame)
+        # Unclear benefit: possibly some benefit w/ stack only runs, but large context...
         # if in_global_scope and "In" in locals:  # in notebook
         #     defined_locals = defined_locals | extract_nb_globals(locals)
         if len(defined_locals) > 0:
@@ -637,7 +638,7 @@ class ChatDBG(ChatDBGSuper):
                             "description": "The pdb command to run."
                         }
                     },
-                    "required": [ "command"  ]
+                    "required": [ "command" ]
                 }
             }
             """

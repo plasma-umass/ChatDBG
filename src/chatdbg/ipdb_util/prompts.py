@@ -1,11 +1,11 @@
 import os
 
-_intro=f"""\
+_intro = f"""\
 You are a debugging assistant. You will be given a Python stack trace for an
 error and answer questions related to the root cause of the error.
 """
 
-_pdb_function=f"""\
+_pdb_function = f"""\
 Call the `pdb` function to run Pdb debugger commands on the stopped program. You 
 may call the `pdb` function to run the following commands: `bt`, `up`, `down`, 
 `p expression`, `list`.
@@ -20,11 +20,11 @@ contribute to the error.
 # info is a function name or a method reference.
 
 # Unless it is from a common, widely-used library, you MUST call `info` exactly once on any
-# function or method reference that is called in code leading up to the error, that appears 
-# in the argument list for a function call in the code, or that appears on the call stack.  
+# function or method reference that is called in code leading up to the error, that appears
+# in the argument list for a function call in the code, or that appears on the call stack.
 # """
 
-_info_function="""\
+_info_function = """\
 Call the `info` function to get the documentation and source code for any
 variable, function, package, class, method reference, field reference, or 
 dotted reference visible in the current frame.  Examples include: n, e.n  
@@ -35,17 +35,17 @@ symbol that is referenced in code leading up to the error.
 """
 
 
-_slice_function="""\
+_slice_function = """\
 Call the `slice` function to get the code used to produce
 the value currently stored a variable.  You MUST call `slice` exactly once on any
 variable used but not defined in the current frame's code.
 """
 
-_take_the_wheel_instructions="""\
+_take_the_wheel_instructions = """\
 Call the provided functions as many times as you would like.
 """
 
-_general_instructions=f"""\
+_general_instructions = f"""\
 The root cause of any error is likely due to a problem in the source code from the user.  
 
 Explain why each variable contributing to the error has been set 
@@ -80,6 +80,7 @@ _no_wheel = f"""\
 {_intro}
 {_general_instructions}
 """
+
 
 def pdb_instructions(supports_flow, take_the_wheel):
     if take_the_wheel:

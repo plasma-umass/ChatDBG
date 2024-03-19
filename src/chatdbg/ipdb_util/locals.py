@@ -2,6 +2,7 @@ import ast
 import inspect
 import textwrap
 
+
 class SymbolFinder(ast.NodeVisitor):
     def __init__(self):
         self.defined_symbols = set()
@@ -22,8 +23,9 @@ class SymbolFinder(ast.NodeVisitor):
             self.defined_symbols.add(node.target.id)
         self.generic_visit(node)
 
+
 def extract_locals(frame):
-    try: 
+    try:
         source = textwrap.dedent(inspect.getsource(frame))
         tree = ast.parse(source)
 
@@ -31,13 +33,14 @@ def extract_locals(frame):
         finder.visit(tree)
 
         args, varargs, keywords, locals = inspect.getargvalues(frame)
-        parameter_symbols = set(args + [ varargs, keywords ])
+        parameter_symbols = set(args + [varargs, keywords])
         parameter_symbols.discard(None)
 
         return (finder.defined_symbols | parameter_symbols) & locals.keys()
     except:
         # ipes
         return set()
+
 
 def extract_nb_globals(globals):
     result = set()

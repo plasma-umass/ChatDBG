@@ -1,7 +1,7 @@
 
 import numpy as np
 from datascience import *
-from cs104 import *
+from ds101 import bootstrap_statistic
 
 def make_marble_bag():
     table = Table().read_table('marble-sample.csv')

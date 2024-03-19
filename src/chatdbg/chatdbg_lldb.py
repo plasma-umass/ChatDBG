@@ -378,7 +378,11 @@ def _function_code(
         result.SetError("usage: code <filename>:<lineno>")
         return
     filename, lineno = parts[0], int(parts[1])
-    lines, first = llm_utils.read_lines(filename, lineno - 7, lineno + 3)
+    try:
+        lines, first = llm_utils.read_lines(filename, lineno - 7, lineno + 3)
+    except FileNotFoundError:
+        result.SetError(f"file '{filename}' not found.")
+        return
     formatted = llm_utils.number_group_of_lines(lines, first)
     result.AppendMessage(formatted)
 

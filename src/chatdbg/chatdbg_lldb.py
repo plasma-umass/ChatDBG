@@ -611,7 +611,6 @@ def get_frame_summaries(
     if not thread:
         return None
 
-    total_frames = len(thread)  # This can be a long operation e.g. stack overflow.
     skipped = 0
     summaries: List[Union[_FrameSummaryEntry, _SkippedFramesEntry]] = []
 
@@ -665,22 +664,19 @@ def get_frame_summaries(
         [1 if isinstance(s, _FrameSummaryEntry) else s.count() for s in summaries]
     )
 
-    if total_summary_count < total_frames:
+    if total_summary_count < len(thread):
         if isinstance(summaries[-1], _SkippedFramesEntry):
             summaries[-1] = _SkippedFramesEntry(
-                total_frames - total_summary_count + summaries[-1].count()
+                len(thread) - total_summary_count + summaries[-1].count()
             )
         else:
-            summaries.append(
-                _SkippedFramesEntry(total_frames - total_summary_count + 1)
-            )
+            summaries.append(_SkippedFramesEntry(len(thread) - total_summary_count + 1))
             if len(summaries) > max_entries:
                 summaries.pop(-2)
 
-    assert (
-        sum([1 if isinstance(s, _FrameSummaryEntry) else s.count() for s in summaries])
-        == total_frames
-    )
+    assert sum(
+        [1 if isinstance(s, _FrameSummaryEntry) else s.count() for s in summaries]
+    ) == len(thread)
 
     return summaries
 

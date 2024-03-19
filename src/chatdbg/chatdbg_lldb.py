@@ -778,10 +778,40 @@ def chat(
                 if len(source_code_entries) == max_initial_locations_to_send:
                     break
 
-        parts.append(
-            f"Here is the source code for the first {len(source_code_entries)} frames:\n\n"
-            + "\n\n".join(source_code_entries)
-        )
+        if source_code_entries:
+            parts.append(
+                f"Here is the source code for the first {len(source_code_entries)} frames:\n\n"
+                + "\n\n".join(source_code_entries)
+            )
+        else:
+            result.AppendWarning("could not retrieve source code for any frames.")
+
+        command_line_invocation = get_command_line_invocation(debugger)
+        if command_line_invocation:
+            parts.append(
+                "Here is the command line invocation that started the program:\n```\n"
+                + command_line_invocation
+                + "\n```"
+            )
+        else:
+            result.AppendWarning("could not retrieve the command line invocation.")
+
+        input_path = get_input_path(debugger)
+        if input_path:
+            try:
+                with open(input_path, "r", errors="ignore") as file:
+                    input_contents = file.read()
+                    if len(input_contents) > 512:
+                        input_contents = input_contents[:512] + "\n\n[...]"
+                    parts.append(
+                        "Here is the input data that was used:\n```\n"
+                        + input_contents
+                        + "\n```"
+                    )
+            except Exception as e:
+                result.AppendWarning(
+                    "could not retrieve the input file contents. " + str(e)
+                )
 
     parts.append(" ".join(remaining) if remaining else "What's the problem?")
 

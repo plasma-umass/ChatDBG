@@ -8,13 +8,15 @@ import pydoc
 import sys
 import textwrap
 import traceback
-from io import StringIO
+from io import StringIO, TextIOWrapper
 from pathlib import Path
 from pprint import pprint
 
 import IPython
 import llm_utils
 from traitlets import TraitError
+
+from chatdbg.ipdb_util.capture import CaptureInput
 
 from .assistant.assistant import Assistant
 from .ipdb_util.config import Chat
@@ -84,10 +86,12 @@ class ChatDBG(ChatDBGSuper):
         self._assistant = None
         self._history = []
         self._error_specific_prompt = ""
-
+    
         global chatdbg_config
         if chatdbg_config == None:
             chatdbg_config = Chat()
+
+        sys.stdin = CaptureInput(sys.stdin)
 
         # Only use flow when we are in jupyter or using stdin in ipython.   In both
         # cases, there will be no python file at the start of argv after the
@@ -526,6 +530,11 @@ class ChatDBG(ChatDBGSuper):
         if not conversing:
             stack_dump = f"The program has this stack trace:\n```\n{self.format_stack_trace()}\n```\n\n"
             prompt = "\n" + stack_dump + self._error_specific_prompt
+            if len(sys.argv) > 1:
+                prompt += f"\nThese were the command line options:\n```\n{' '.join(sys.argv)}\n```\n"
+            input = sys.stdin.get_captured_input()
+            if len(input) > 0:
+                prompt += f"\nThis was the program's input :\n```\n{input}```\n"
 
         if len(self._history) > 0:
             hist = textwrap.indent(self._capture_onecmd("hist"), "")
@@ -577,6 +586,8 @@ class ChatDBG(ChatDBGSuper):
             )
         else:
             self._log.add_mark(arg)
+
+    
 
     def do_config(self, arg):
         args = arg.split()

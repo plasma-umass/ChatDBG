@@ -172,11 +172,11 @@ class LiteAssistant:
                             }
                             responses.append(response)
                             self._print_message(response, 4, append_message)
+                        self._conversation.append(choice.message)
+                        self._conversation.extend(responses)
                     except Exception as e:
                         # Warning: potential infinite loop.
                         append_warning(f"error processing tool calls.")
-                    self._conversation.append(choice.message)
-                    self._conversation.extend(responses)
                 elif choice.finish_reason == "stop":
                     break
                 else:

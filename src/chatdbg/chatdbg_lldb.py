@@ -441,9 +441,9 @@ def _function_definition(
         symbol = symbol.split("::")[-1]
         character = lines[lineno - 1].find(symbol)
 
-    # Check three lines above and below.
+    # Check five lines above and below.
     if character == -1:
-        for i in range(-3, 4, 1):
+        for i in range(-5, 6, 1):
             if lineno - 1 + i < 0 or lineno - 1 + i >= len(lines):
                 continue
             character = lines[lineno - 1 + i].find(symbol)

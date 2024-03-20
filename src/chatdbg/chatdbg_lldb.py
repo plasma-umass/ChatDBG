@@ -421,17 +421,40 @@ def _function_definition(
     try:
         with open(filename, "r") as file:
             lines = file.readlines()
-            if lineno - 1 >= len(lines):
-                result.SetError("symbol not found at that location.")
-                return
-            # We just return the first match here. Maybe we should find all definitions.
-            character = lines[lineno - 1].find(symbol)
-            if character == -1:
-                result.SetError("symbol not found at that location.")
-                return
     except FileNotFoundError:
         result.SetError(f"file '{filename}' not found.")
         return
+
+    if lineno - 1 >= len(lines):
+        result.SetError("symbol not found at that location.")
+        return
+
+    # We just return the first match here. Maybe we should find all definitions.
+    character = lines[lineno - 1].find(symbol)
+
+    # Now, some heuristics to make up for GPT's terrible math skills.
+    if character == -1:
+        symbol = symbol.lstrip("*")
+        character = lines[lineno - 1].find(symbol)
+
+    if character == -1:
+        symbol = symbol.split("::")[-1]
+        character = lines[lineno - 1].find(symbol)
+
+    # Check three lines above and below.
+    if character == -1:
+        for i in range(-3, 4, 1):
+            if lineno - 1 + i < 0 or lineno - 1 + i >= len(lines):
+                continue
+            character = lines[lineno - 1 + i].find(symbol)
+            if character != -1:
+                lineno += i
+                break
+
+    if character == -1:
+        result.SetError("symbol not found at that location.")
+        return
+
     global _clangd
     _clangd.didOpen(filename, "c" if filename.endswith(".c") else "cpp")
     definition = _clangd.definition(filename, lineno, character + 1)

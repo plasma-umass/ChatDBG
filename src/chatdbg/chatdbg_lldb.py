@@ -611,7 +611,6 @@ def get_frame_summaries(
     if not thread:
         return None
 
-    total_frames = len(thread)  # This can be a long operation e.g. stack overflow.
     skipped = 0
     summaries: List[Union[_FrameSummaryEntry, _SkippedFramesEntry]] = []
 
@@ -662,25 +661,22 @@ def get_frame_summaries(
             summaries.pop(-2)
 
     total_summary_count = sum(
-        [1 if isinstance(s, _FrameSummaryEntry) else s.count() for s in summaries]
+        [s.count() if isinstance(s, _SkippedFramesEntry) else 1 for s in summaries]
     )
 
-    if total_summary_count < total_frames:
+    if total_summary_count < len(thread):
         if isinstance(summaries[-1], _SkippedFramesEntry):
             summaries[-1] = _SkippedFramesEntry(
-                total_frames - total_summary_count + summaries[-1].count()
+                len(thread) - total_summary_count + summaries[-1].count()
             )
         else:
-            summaries.append(
-                _SkippedFramesEntry(total_frames - total_summary_count + 1)
-            )
+            summaries.append(_SkippedFramesEntry(len(thread) - total_summary_count + 1))
             if len(summaries) > max_entries:
                 summaries.pop(-2)
 
-    assert (
-        sum([1 if isinstance(s, _FrameSummaryEntry) else s.count() for s in summaries])
-        == total_frames
-    )
+    assert sum(
+        [s.count() if isinstance(s, _SkippedFramesEntry) else 1 for s in summaries]
+    ) == len(thread)
 
     return summaries
 
@@ -755,7 +751,7 @@ def chat(
 
         summaries = get_frame_summaries(debugger)
         if not summaries:
-            result.AppendWarning("could not generate a frame summary.")
+            result.AppendWarning("could not generate any frame summary.")
         else:
             frame_summary = "\n".join([str(s) for s in summaries])
             parts.append(
@@ -763,6 +759,18 @@ def chat(
                 + frame_summary
                 + "\n```"
             )
+
+            total_frames = sum(
+                [
+                    s.count() if isinstance(s, _SkippedFramesEntry) else 1
+                    for s in summaries
+                ]
+            )
+
+            if total_frames > 1000:
+                parts.append(
+                    "Note that there are over 1000 frames in the stack trace, hinting at a possible stack overflow error."
+                )
 
         max_initial_locations_to_send = 3
         source_code_entries = []
@@ -778,12 +786,46 @@ def chat(
                 if len(source_code_entries) == max_initial_locations_to_send:
                     break
 
-        parts.append(
-            f"Here is the source code for the first {len(source_code_entries)} frames:\n\n"
-            + "\n\n".join(source_code_entries)
-        )
+        if source_code_entries:
+            parts.append(
+                f"Here is the source code for the first {len(source_code_entries)} frames:\n\n"
+                + "\n\n".join(source_code_entries)
+            )
+        else:
+            result.AppendWarning("could not retrieve source code for any frames.")
 
-    parts.append(" ".join(remaining) if remaining else "What's the problem?")
+        command_line_invocation = get_command_line_invocation(debugger)
+        if command_line_invocation:
+            parts.append(
+                "Here is the command line invocation that started the program:\n```\n"
+                + command_line_invocation
+                + "\n```"
+            )
+        else:
+            result.AppendWarning("could not retrieve the command line invocation.")
+
+        input_path = get_input_path(debugger)
+        if input_path:
+            try:
+                with open(input_path, "r", errors="ignore") as file:
+                    input_contents = file.read()
+                    if len(input_contents) > 512:
+                        input_contents = input_contents[:512] + "\n\n[...]"
+                    parts.append(
+                        "Here is the input data that was used:\n```\n"
+                        + input_contents
+                        + "\n```"
+                    )
+            except Exception as e:
+                result.AppendWarning(
+                    "could not retrieve the input file contents. " + str(e)
+                )
+
+    parts.append(
+        " ".join(remaining)
+        if remaining
+        else "What's the problem? Provide code to fix the issue."
+    )
 
     prompt = "\n\n".join(parts)
 

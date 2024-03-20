@@ -661,7 +661,7 @@ def get_frame_summaries(
             summaries.pop(-2)
 
     total_summary_count = sum(
-        [1 if isinstance(s, _FrameSummaryEntry) else s.count() for s in summaries]
+        [s.count() if isinstance(s, _SkippedFramesEntry) else 1 for s in summaries]
     )
 
     if total_summary_count < len(thread):
@@ -675,7 +675,7 @@ def get_frame_summaries(
                 summaries.pop(-2)
 
     assert sum(
-        [1 if isinstance(s, _FrameSummaryEntry) else s.count() for s in summaries]
+        [s.count() if isinstance(s, _SkippedFramesEntry) else 1 for s in summaries]
     ) == len(thread)
 
     return summaries
@@ -751,7 +751,7 @@ def chat(
 
         summaries = get_frame_summaries(debugger)
         if not summaries:
-            result.AppendWarning("could not generate a frame summary.")
+            result.AppendWarning("could not generate any frame summary.")
         else:
             frame_summary = "\n".join([str(s) for s in summaries])
             parts.append(
@@ -759,6 +759,18 @@ def chat(
                 + frame_summary
                 + "\n```"
             )
+
+            total_frames = sum(
+                [
+                    s.count() if isinstance(s, _SkippedFramesEntry) else 1
+                    for s in summaries
+                ]
+            )
+
+            if total_frames > 1000:
+                parts.append(
+                    "Note that there are over 1000 frames in the stack trace, hinting at a possible stack overflow error."
+                )
 
         max_initial_locations_to_send = 3
         source_code_entries = []

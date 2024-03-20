@@ -161,19 +161,20 @@ class LiteAssistant:
 
                 if choice.finish_reason == "tool_calls":
                     responses = []
-                    for tool_call in choice.message.tool_calls:
-                        try:
+                    try:
+                        for tool_call in choice.message.tool_calls:
                             function_response = self._make_call(tool_call)
-                        except Exception as e:
-                            function_response = f"Error: {e}"
-                        response = {
-                            "tool_call_id": tool_call.id,
-                            "role": "tool",
-                            "name": tool_call.function.name,
-                            "content": function_response,
-                        }
-                        responses.append(response)
-                        self._print_message(response, 4, append_message)
+                            response = {
+                                "tool_call_id": tool_call.id,
+                                "role": "tool",
+                                "name": tool_call.function.name,
+                                "content": function_response,
+                            }
+                            responses.append(response)
+                            self._print_message(response, 4, append_message)
+                    except Exception as e:
+                        # Warning: potential infinite loop.
+                        append_warning(f"error processing tool calls.")
                     self._conversation.append(choice.message)
                     self._conversation.extend(responses)
                 elif choice.finish_reason == "stop":

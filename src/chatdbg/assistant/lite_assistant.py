@@ -67,6 +67,8 @@ class LiteAssistant:
     def _make_call(self, tool_call) -> str:
         name = tool_call.function.name
         args = json.loads(tool_call.function.arguments)
+        if name not in self._functions:
+            raise ValueError(f"function {name} not found.")
         function = self._functions[name]["function"]
         return self._sandwhich_tokens(function(**args))
 
@@ -160,7 +162,10 @@ class LiteAssistant:
                 if choice.finish_reason == "tool_calls":
                     responses = []
                     for tool_call in choice.message.tool_calls:
-                        function_response = self._make_call(tool_call)
+                        try:
+                            function_response = self._make_call(tool_call)
+                        except Exception as e:
+                            function_response = f"Error: {e}"
                         response = {
                             "tool_call_id": tool_call.id,
                             "role": "tool",

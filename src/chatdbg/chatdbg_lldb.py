@@ -821,7 +821,11 @@ def chat(
                     "could not retrieve the input file contents. " + str(e)
                 )
 
-    parts.append(" ".join(remaining) if remaining else "What's the problem?")
+    parts.append(
+        " ".join(remaining)
+        if remaining
+        else "What's the problem? Provide code to fix the issue."
+    )
 
     prompt = "\n\n".join(parts)
 

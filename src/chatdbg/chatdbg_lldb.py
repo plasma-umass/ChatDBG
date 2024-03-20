@@ -418,16 +418,20 @@ def _function_definition(
         return
     filename, lineno = parts[0], int(parts[1])
 
-    # We just return the first match here. Maybe we should find all definitions.
-    with open(filename, "r") as file:
-        lines = file.readlines()
-        if lineno - 1 >= len(lines):
-            result.SetError("symbol not found at that location.")
-            return
-        character = lines[lineno - 1].find(symbol)
-        if character == -1:
-            result.SetError("symbol not found at that location.")
-            return
+    try:
+        with open(filename, "r") as file:
+            lines = file.readlines()
+            if lineno - 1 >= len(lines):
+                result.SetError("symbol not found at that location.")
+                return
+            # We just return the first match here. Maybe we should find all definitions.
+            character = lines[lineno - 1].find(symbol)
+            if character == -1:
+                result.SetError("symbol not found at that location.")
+                return
+    except FileNotFoundError:
+        result.SetError(f"file '{filename}' not found.")
+        return
     global _clangd
     _clangd.didOpen(filename, "c" if filename.endswith(".c") else "cpp")
     definition = _clangd.definition(filename, lineno, character + 1)
@@ -816,10 +820,8 @@ def chat(
                         + input_contents
                         + "\n```"
                     )
-            except Exception as e:
-                result.AppendWarning(
-                    "could not retrieve the input file contents. " + str(e)
-                )
+            except FileNotFoundError:
+                result.AppendWarning("could not retrieve the input data.")
 
     parts.append(
         " ".join(remaining)

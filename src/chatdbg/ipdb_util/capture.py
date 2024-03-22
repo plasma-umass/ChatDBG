@@ -1,8 +1,9 @@
 from io import StringIO, TextIOWrapper
 
+
 class CaptureInput:
     def __init__(self, input_stream):
-        input_stream = TextIOWrapper(input_stream.buffer, encoding='utf-8', newline='')
+        input_stream = TextIOWrapper(input_stream.buffer, encoding="utf-8", newline="")
 
         self.original_input = input_stream
         self.capture_buffer = StringIO()

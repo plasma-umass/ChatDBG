@@ -37,13 +37,16 @@ class Assistant:
         try:
             self.client = OpenAI(timeout=timeout)
         except OpenAIError:
-            print(textwrap.dedent("""\
+            print(
+                textwrap.dedent(
+                    """\
             You need an OpenAI key to use this tool.
             You can get a key here: https://platform.openai.com/api-keys
             Set the environment variable OPENAI_API_KEY to your key value.
-            """))
+            """
+                )
+            )
             sys.exit(-1)
-    
 
         self.assistants = self.client.beta.assistants
         self.threads = self.client.beta.threads
@@ -146,11 +149,11 @@ class Assistant:
         try:
             if self.assistant == None:
                 return {
-                    'tokens' : run.usage.total_tokens,
-                    'prompt_tokens' : run.usage.prompt_tokens,
-                    'completion_tokens' : run.usage.completion_tokens,
-                    'model' : self.assistant.model,
-                    'cost' : cost, 
+                    "tokens": run.usage.total_tokens,
+                    "prompt_tokens": run.usage.prompt_tokens,
+                    "completion_tokens": run.usage.completion_tokens,
+                    "model": self.assistant.model,
+                    "cost": cost,
                 }
 
             assert len(prompt) <= 32768
@@ -224,15 +227,15 @@ class Assistant:
             client_print(f"[Cost: ~${cost:.2f} USD]")
 
             return {
-                'tokens' : run.usage.total_tokens,
-                'prompt_tokens' : run.usage.prompt_tokens,
-                'completion_tokens' : run.usage.completion_tokens,
-                'model' : self.assistant.model,
-                'cost' : cost, 
-                'time' : elapsed_time,
-                'thread.id' : self.thread.id,
-                'run.id': run.id,
-                'assistant.id' : self.assistant.id
+                "tokens": run.usage.total_tokens,
+                "prompt_tokens": run.usage.prompt_tokens,
+                "completion_tokens": run.usage.completion_tokens,
+                "model": self.assistant.model,
+                "cost": cost,
+                "time": elapsed_time,
+                "thread.id": self.thread.id,
+                "run.id": run.id,
+                "assistant.id": self.assistant.id,
             }
         except OpenAIError as e:
             client_print(f"*** OpenAI Error: {e}")

@@ -86,7 +86,7 @@ class ChatDBG(ChatDBGSuper):
         self._assistant = None
         self._history = []
         self._error_specific_prompt = ""
-    
+
         global chatdbg_config
         if chatdbg_config == None:
             chatdbg_config = Chat()
@@ -152,7 +152,9 @@ class ChatDBG(ChatDBGSuper):
             exception = None
 
         if exception != None:
-            details = "".join(traceback.format_exception_only(type(exception), exception)).rstrip()
+            details = "".join(
+                traceback.format_exception_only(type(exception), exception)
+            ).rstrip()
             self._error_specific_prompt = (
                 f"The program encountered the following error:\n```\n{details}\n```\n"
             )
@@ -586,8 +588,6 @@ class ChatDBG(ChatDBGSuper):
             )
         else:
             self._log.add_mark(arg)
-
-    
 
     def do_config(self, arg):
         args = arg.split()

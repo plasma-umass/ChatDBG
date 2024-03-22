@@ -40,13 +40,14 @@ class ChatDBGLog:
             "config": config.to_json(),
             "mark": "?",
         }
-        self.log = config.log
+        self.log_file = config.log
         self._instructions = ""
         self.stdout_wrapper = CopyingTextIOWrapper(sys.stdout)
         self.stderr_wrapper = CopyingTextIOWrapper(sys.stderr)
         sys.stdout = self.stdout_wrapper
         sys.stderr = self.stdout_wrapper
         self.chat_step = None
+        self.events = [ ]
         self.mark = "?"
 
     def add_mark(self, value):
@@ -72,12 +73,16 @@ class ChatDBGLog:
                 "instructions": self._instructions,
                 "stdout": self.stdout_wrapper.getvalue(),
                 "stderr": self.stderr_wrapper.getvalue(),
+                "events" : self.events
             }
         ]
 
-        print(f"*** Write ChatDBG log to {self.log}")
-        with open(self.log, "a") as file:
+        print(f"*** Write ChatDBG log to {self.log_file}")
+        with open(self.log_file, "a") as file:
             yaml.dump(full_json, file, default_flow_style=False)
+
+    def log(self, event_json):
+        self.events += [ event_json ]
 
     def instructions(self, instructions):
         self._instructions = instructions

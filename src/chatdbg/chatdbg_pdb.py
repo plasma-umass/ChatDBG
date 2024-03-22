@@ -229,13 +229,12 @@ class ChatDBG(ChatDBGSuper):
         Override to remove tabs for messages so we can indent them.
         """
         return super().message(str(msg).expandtabs())
-
+ 
     def error(self, msg) -> None:
         """
         Override to remove tabs for messages so we can indent them.
         """
         return super().error(str(msg).expandtabs())
-        # return super().error('If the name is undefined, be sure you are in the right frame.  Use up and down to do that, and then print the variable again'.expandtabs())
 
     def _capture_onecmd(self, line):
         """
@@ -563,31 +562,15 @@ class ChatDBG(ChatDBGSuper):
         if self._assistant == None:
             self._make_assistant()
 
-        def client_print(line=""):
-            line = llm_utils.word_wrap_except_code_blocks(line, self._text_width - 10)
-            self._log.message(line)
-            line = textwrap.indent(line, self._chat_prefix, lambda _: True)
-            print(line, file=self.stdout, flush=True)
 
         full_prompt = strip_color(full_prompt)
         full_prompt = truncate_proportionally(full_prompt)
 
         self._log.push_chat(arg, full_prompt)
-        stats = self._assistant.run(full_prompt, client_print)
+        stats = self._assistant.run(full_prompt)
         self._log.pop_chat(stats)
 
-    def do_mark(self, arg):
-        marks = ["Full", "Partial", "Wrong", "None", "?"]
-        if arg == None or arg == "":
-            arg = input(f"mark? (one of {marks}): ")
-            while arg not in marks:
-                arg = input(f"mark? (one of {marks}): ")
-        if arg not in marks:
-            self.error(
-                f"answer must be in { ['Full', 'Partial', 'Wrong', '?', 'None'] }"
-            )
-        else:
-            self._log.add_mark(arg)
+        self.message(f"\n[Cost: ~${stats['cost']:.2f} USD]")
 
     def do_config(self, arg):
         args = arg.split()
@@ -711,7 +694,7 @@ class ChatDBG(ChatDBGSuper):
             "ChatDBG",
             instruction_prompt,
             model=chatdbg_config.model,
-            debug=chatdbg_config.debug,
+            printer=self
         )
 
         if chatdbg_config.take_the_wheel:
@@ -720,3 +703,28 @@ class ChatDBG(ChatDBGSuper):
 
             if self._supports_flow:
                 self._assistant.add_function(slice)
+
+
+    ###############################################################
+
+    def text_delta(self, text=''):
+        print(text, file=self.stdout, flush=True, end='')
+
+    def text_message(self, text=''):
+        line = llm_utils.word_wrap_except_code_blocks(text, self._text_width - 10)
+        self._log.message(line)
+        line = textwrap.indent(line, self._chat_prefix, lambda _: True)
+        print(line, file=self.stdout, flush=True)
+
+    def log(self, json_obj):
+        if chatdbg_config.debug:
+            self._log.log(json_obj)
+
+    def fail(self, message='Failed'):
+        self.print(file=self.stdout)
+        self.print(textwrap.wrap(message, width=70, initial_indent='*** '),file=self.stdout)
+        sys.exit(1)
+        
+    def warn(self, message='Warning'):
+        self.print(file=self.stdout)
+        self.print(textwrap.wrap(message, width=70, initial_indent='*** '),file=self.stdout)

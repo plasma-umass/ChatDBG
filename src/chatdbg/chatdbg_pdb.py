@@ -152,7 +152,7 @@ class ChatDBG(ChatDBGSuper):
             exception = None
 
         if exception != None:
-            details = "".join(traceback.format_exception_only(exception)).rstrip()
+            details = "".join(traceback.format_exception_only(type(exception), exception)).rstrip()
             self._error_specific_prompt = (
                 f"The program encountered the following error:\n```\n{details}\n```\n"
             )

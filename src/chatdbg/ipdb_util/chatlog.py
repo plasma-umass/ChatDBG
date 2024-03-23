@@ -1,8 +1,10 @@
-from io import StringIO
-from datetime import datetime
-import uuid
 import sys
+import uuid
+from datetime import datetime
+from io import StringIO
+
 import yaml
+
 from .config import Chat
 
 

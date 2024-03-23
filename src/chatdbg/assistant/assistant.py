@@ -1,9 +1,9 @@
 import atexit
 import inspect
 import json
+import sys
 import textwrap
 import time
-import sys
 
 import llm_utils
 from openai import *

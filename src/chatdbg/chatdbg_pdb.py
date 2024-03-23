@@ -1,14 +1,14 @@
-import linecache
 import ast
 import atexit
 import inspect
+import linecache
 import os
 import pdb
 import pydoc
 import sys
 import textwrap
 import traceback
-from io import StringIO, TextIOWrapper
+from io import StringIO
 from pathlib import Path
 from pprint import pprint
 
@@ -19,11 +19,11 @@ from traitlets import TraitError
 from chatdbg.ipdb_util.capture import CaptureInput
 
 from .assistant.assistant import Assistant
+from .ipdb_util.chatlog import ChatDBGLog, CopyingTextIOWrapper
 from .ipdb_util.config import Chat
-from .ipdb_util.logging import ChatDBGLog, CopyingTextIOWrapper
+from .ipdb_util.locals import *
 from .ipdb_util.prompts import pdb_instructions
 from .ipdb_util.text import *
-from .ipdb_util.locals import *
 
 _valid_models = [
     "gpt-4-turbo-preview",

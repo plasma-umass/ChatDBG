@@ -253,8 +253,12 @@ class ChatDBG(ChatDBGSuper):
             self.stdout = stdout
             self.lastcmd = lastcmd
 
-    def _format_history_entry(self, entry, indent=""):
+    def _format_history_entry(self, entry, indent="", prompt_color=None):
         line, output = entry
+        if prompt_color == None:
+            prompt = self.prompt
+        else:
+            prompt = t
         if output:
             entry = f"{self.prompt}{line}\n{output}"
         else:
@@ -716,7 +720,8 @@ class ChatDBG(ChatDBGSuper):
         print(self.wrapper.add(text), file=self.stdout, flush=True, end='')
 
     def end_stream(self):
-        print(file=self.stdout)
+        result = self.wrapper.flush()
+        print(result, file=self.stdout)
 
     def complete_message(self, text=''):
         print(self.wrapper.add('', flush=True), file=self.stdout, flush=True, end='')

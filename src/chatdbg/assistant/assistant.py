@@ -137,16 +137,15 @@ class Assistant:
                 r = event.data
                 if r.status == "requires_action":
                     outputs = []
+                    self.printer.end_stream()                        
                     for tool_call in r.required_action.submit_tool_outputs.tool_calls:
                         output = self._make_call(tool_call)
                         outputs += [{"tool_call_id": tool_call.id, "output": output}]
-
+                    self.printer.begin_stream()                        
                     try:
                         new_stream = self.threads.runs.submit_tool_outputs(
                             thread_id=self.thread.id, run_id=r.id, tool_outputs=outputs, stream=True
                         )
-                        self.printer.end_stream()                        
-                        # self.printer.begin_stream()                        
                         return self.drain_stream(new_stream)
                     except OSError as e:
                         raise

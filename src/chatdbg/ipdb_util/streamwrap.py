@@ -30,7 +30,13 @@ class StreamTextWrapper:
         return printable_part
 
     def flush(self):
-        return self.add('', flush=True)
+        # if self.pending == '':
+        #     return None
+        # else:
+        result = self.add('', flush=True)
+        self.buffer = ''
+        self.wrapped = '' 
+        return result
 
 
 

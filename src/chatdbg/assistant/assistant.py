@@ -9,10 +9,16 @@ from openai import *
 from pydantic import BaseModel
 
 class AssistantPrinter:
-    def text_delta(self, text=''):
+    def begin_stream(self):
+        print('\n', flush=True)
+
+    def stream(self, text=''):
         print(text, flush=True, end='')
 
-    def text_message(self, text=''):
+    def end_stream(self):
+        print('\n', flush=True)
+
+    def complete_message(self, text=''):
         print(text, flush=True)
 
     def log(self, json_obj):
@@ -94,7 +100,7 @@ class Assistant:
 
             self.assistants.update(self.assistant.id, tools=tools)
         except OpenAIError as e:
-            self.printer.fail(f"*** OpenAI Error: {e}")
+            self.printer.fail(f"OpenAI Error: {e}")
 
     def _make_call(self, tool_call):
         name = tool_call.function.name
@@ -110,19 +116,23 @@ class Assistant:
             result = f"Error: {e}"
         except Exception as e:
             result = f"Ill-formed function call: {e}"
-
         return result
 
     def drain_stream(self, stream):
         run = None
         for event in stream:
+            # print(event)
             self.printer.log(event)
+            if event.event == 'thread.run.created':
+                #self.printer.begin_stream()
+                pass
             if event.event == 'thread.run.completed':
+                self.printer.end_stream()
                 run = event.data
             if event.event == 'thread.message.delta':
-                self.printer.text_delta(event.data.delta.content[0].text.value)
+                self.printer.stream(event.data.delta.content[0].text.value)
             if event.event == 'thread.message.completed':
-                self.printer.text_message(event.data.content[0].text.value)
+                self.printer.complete_message(event.data.content[0].text.value)
             elif event.event == 'thread.run.requires_action':
                 r = event.data
                 if r.status == "requires_action":
@@ -135,6 +145,8 @@ class Assistant:
                         new_stream = self.threads.runs.submit_tool_outputs(
                             thread_id=self.thread.id, run_id=r.id, tool_outputs=outputs, stream=True
                         )
+                        self.printer.end_stream()                        
+                        # self.printer.begin_stream()                        
                         return self.drain_stream(new_stream)
                     except OSError as e:
                         raise
@@ -143,9 +155,9 @@ class Assistant:
                         pass
             elif event.event == 'thread.run.failed':
                 run = event.data
-                self.printer.fail(f"*** Internal Failure ({run.last_error.code}): {run.last_error.message}")
+                self.printer.fail(f"Internal Failure ({run.last_error.code}): {run.last_error.message}")
             elif event.event == 'error':
-                self.printer.fail(f"*** Internal Failure:** {event.data}")
+                self.printer.fail(f"Internal Failure:** {event.data}")
         return run
         
     def run(self, prompt):

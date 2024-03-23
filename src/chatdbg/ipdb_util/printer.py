@@ -10,10 +10,10 @@ class Printer(AssistantPrinter):
         self._error = error
         self._log = log
 
-    def text_delta(self, text):
+    def stream(self, text):
         print(text, flush=True, end=None)
 
-    def text_message(self, text):
+    def message(self, text):
         print(text, flush=True)
 
     def log(self, json_obj):
@@ -34,10 +34,10 @@ class StreamingPrinter(AssistantPrinter):
         self.message = message
         self.error = error
 
-    def text_delta(self, text):
+    def stream(self, text):
         print(text, flush=True, end=None)
 
-    def text_message(self, text):
+    def message(self, text):
         print(text, flush=True)
 
     def log(self, json_obj):

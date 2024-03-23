@@ -20,10 +20,11 @@ from chatdbg.ipdb_util.capture import CaptureInput
 
 from .assistant.assistant import Assistant
 from .ipdb_util.config import Chat
-from .ipdb_util.logging import ChatDBGLog, CopyingTextIOWrapper
+from .ipdb_util.chatlog import ChatDBGLog, CopyingTextIOWrapper
 from .ipdb_util.prompts import pdb_instructions
 from .ipdb_util.text import *
 from .ipdb_util.locals import *
+from .ipdb_util.streamwrap import StreamTextWrapper
 
 _valid_models = [
     "gpt-4-turbo-preview",
@@ -92,6 +93,7 @@ class ChatDBG(ChatDBGSuper):
             chatdbg_config = Chat()
 
         sys.stdin = CaptureInput(sys.stdin)
+        self.wrapper = StreamTextWrapper(indent=self._chat_prefix, width=self._text_width)
 
         # Only use flow when we are in jupyter or using stdin in ipython.   In both
         # cases, there will be no python file at the start of argv after the
@@ -707,24 +709,32 @@ class ChatDBG(ChatDBGSuper):
 
     ###############################################################
 
-    def text_delta(self, text=''):
-        print(text, file=self.stdout, flush=True, end='')
+    def begin_stream(self):
+        print(file=self.stdout)
 
-    def text_message(self, text=''):
+    def stream(self, text=''):
+        print(self.wrapper.add(text), file=self.stdout, flush=True, end='')
+
+    def end_stream(self):
+        print(file=self.stdout)
+
+    def complete_message(self, text=''):
+        print(self.wrapper.add('', flush=True), file=self.stdout, flush=True, end='')
         line = llm_utils.word_wrap_except_code_blocks(text, self._text_width - 10)
         self._log.message(line)
-        line = textwrap.indent(line, self._chat_prefix, lambda _: True)
-        print(line, file=self.stdout, flush=True)
+        # line = textwrap.indent(line, self._chat_prefix, lambda _: True)
+        # print(line, file=self.stdout, flush=True)
 
     def log(self, json_obj):
         if chatdbg_config.debug:
             self._log.log(json_obj)
 
     def fail(self, message='Failed'):
-        self.print(file=self.stdout)
-        self.print(textwrap.wrap(message, width=70, initial_indent='*** '),file=self.stdout)
+        print(file=self.stdout)
+        print(textwrap.wrap(message, width=70, initial_indent='*** '),file=self.stdout)
+        raise Exception()
         sys.exit(1)
         
     def warn(self, message='Warning'):
-        self.print(file=self.stdout)
-        self.print(textwrap.wrap(message, width=70, initial_indent='*** '),file=self.stdout)
+        print(file=self.stdout)
+        print(textwrap.wrap(message, width=70, initial_indent='*** '),file=self.stdout)

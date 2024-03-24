@@ -4,12 +4,12 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ChatDBG"
-version = "0.2.2"
+version = "0.3"
 authors = [
   { name="Emery Berger", email="emery.berger@gmail.com" },
+  { name="Stephen Freund", email="sfreund@williams.edu" },
   { name="Kyla Levin", email="khlevin@umass.edu" },
   { name="Nicolas van Kempen", email="nvankemp@gmail.com" },
-  { name="Stephen Freund", email="sfreund@williams.edu" },
 ]
 dependencies = [
   "llm-utils>=0.2.8",

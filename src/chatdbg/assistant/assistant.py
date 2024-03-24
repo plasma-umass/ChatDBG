@@ -54,13 +54,16 @@ class Assistant:
     def add_function(self, function):
         """
         Add a new function to the list of function tools.
-        The function should have the necessary json spec as its docstring.
+        The function should have the necessary json spec as its docstring, with
+        this format:
+            "schema": function schema,
+            "format": format to print call,
         """
         schema = json.loads(function.__doc__)
         assert "name" in schema, "Bad JSON in docstring for function tool."
         self._functions[schema["name"]] = {
             "function": function,
-            "schema": schema,
+            "schema": schema
         }
 
     def _make_call(self, tool_call) -> str:
@@ -95,7 +98,7 @@ class Assistant:
                     model=self._model,
                     messages=self._conversation,
                     tools=[
-                        {"type": "function", "function": f["schema"]}
+                        {"type": "function", "function": f["schema"]["schema"]}
                         for f in self._functions.values()
                     ],
                     timeout=self._timeout,

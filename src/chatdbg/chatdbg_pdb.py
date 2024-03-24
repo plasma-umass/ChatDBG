@@ -93,7 +93,6 @@ class ChatDBG(ChatDBGSuper):
             chatdbg_config = Chat()
 
         sys.stdin = CaptureInput(sys.stdin)
-        self.wrapper = StreamTextWrapper(indent=self._chat_prefix, width=self._text_width)
 
         # Only use flow when we are in jupyter or using stdin in ipython.   In both
         # cases, there will be no python file at the start of argv after the
@@ -253,12 +252,8 @@ class ChatDBG(ChatDBGSuper):
             self.stdout = stdout
             self.lastcmd = lastcmd
 
-    def _format_history_entry(self, entry, indent="", prompt_color=None):
+    def _format_history_entry(self, entry, indent=""):
         line, output = entry
-        if prompt_color == None:
-            prompt = self.prompt
-        else:
-            prompt = t
         if output:
             entry = f"{self.prompt}{line}\n{output}"
         else:
@@ -700,7 +695,8 @@ class ChatDBG(ChatDBGSuper):
             "ChatDBG",
             instruction_prompt,
             model=chatdbg_config.model,
-            printer=self
+            printer=ChatAssistantOutput(self.stdout, self._log, self._chat_prefix, 
+                                        self._text_width, chatdbg_config.stream_response)
         )
 
         if chatdbg_config.take_the_wheel:
@@ -713,31 +709,46 @@ class ChatDBG(ChatDBGSuper):
 
     ###############################################################
 
+
+class ChatAssistantOutput:
+    def __init__(self, stdout, prefix, width, chat_log, stream_response):
+        self.stdout = stdout
+        self.chat_log = chat_log
+        self.prefix = prefix
+        self.width = width
+        if stream_response and False:
+            self.streamer = StreamTextWrapper(indent=self.prefix, width=self.width)
+        else:
+            self.streamer = None
+            
     def begin_stream(self):
-        print(file=self.stdout)
+        if self.streamer:
+            print(file=self.stdout)
 
     def stream(self, text=''):
-        print(self.wrapper.add(text), file=self.stdout, flush=True, end='')
+        if self.streamer:
+            print(self.streamer.add(text), file=self.stdout, flush=True, end='')
 
     def end_stream(self):
-        result = self.wrapper.flush()
-        print(result, file=self.stdout)
+        if self.streamer:
+            print(self.streamer.flush(), file=self.stdout)
 
     def complete_message(self, text=''):
-        print(self.wrapper.add('', flush=True), file=self.stdout, flush=True, end='')
-        line = llm_utils.word_wrap_except_code_blocks(text, self._text_width - 10)
-        self._log.message(line)
-        # line = textwrap.indent(line, self._chat_prefix, lambda _: True)
-        # print(line, file=self.stdout, flush=True)
+        line = llm_utils.word_wrap_except_code_blocks(text, self.width - 5)
+        self.log.message(line)
+        if self.streamer:
+            print(self.streamer.add('', flush=True), file=self.stdout, flush=True, end='')
+        else:
+            line = textwrap.indent(line, self.prefix, lambda _: True)
+            print(line, file=self.stdout, flush=True)
 
     def log(self, json_obj):
         if chatdbg_config.debug:
-            self._log.log(json_obj)
+            self.chat_log.log(json_obj)
 
     def fail(self, message='Failed'):
         print(file=self.stdout)
         print(textwrap.wrap(message, width=70, initial_indent='*** '),file=self.stdout)
-        raise Exception()
         sys.exit(1)
         
     def warn(self, message='Warning'):

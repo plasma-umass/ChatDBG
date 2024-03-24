@@ -45,6 +45,9 @@ class Chat(Configurable):
     take_the_wheel = Bool(
         chat_get_env("take_the_wheel", True), help="Let LLM take the wheel"
     ).tag(config=True)
+    stream_response = Bool(
+        chat_get_env("stream_response", True), help="Stream the response at it arrives"
+    ).tag(config=True)
 
     def to_json(self):
         """Serialize the object to a JSON string."""
@@ -59,4 +62,5 @@ class Chat(Configurable):
             "show_libs": self.show_libs,
             "show_slices": self.show_slices,
             "take_the_wheel": self.take_the_wheel,
+            "stream_response": self.stream_response,
         }

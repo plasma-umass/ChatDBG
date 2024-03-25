@@ -1,10 +1,57 @@
+import atexit
 from io import StringIO
 from datetime import datetime
 import uuid
 import sys
 import yaml
-from .config import Chat
+from pydantic import BaseModel
+from typing import List, Union, Optional
 
+class Output(BaseModel):
+    type: str
+    output: Optional[str] = None
+
+class FunctionOutput(Output):
+    type: str = "call"
+
+class TextOutput(Output):
+    type: str = "text"
+
+class ChatOutput(BaseModel):
+    type: str = "chat"
+    outputs: List[Output] = []
+
+class Stats(BaseModel):
+    tokens: int = 0
+    cost: float = 0.0
+    time: float = 0.0
+
+    class Config:
+        extra = 'allow'
+
+
+class Step(BaseModel):
+    input: str
+    output: Union[TextOutput, ChatOutput]
+    full_prompt: Optional[str] = None
+    stats: Optional[Stats] = None
+
+class Meta(BaseModel):
+    time: datetime
+    command_line: str
+    uid: str
+    config: str
+    mark: str = "?"
+    total_tokens: int = 0
+    total_time: float = 0.0
+    total_cost: float = 0.0
+
+class Log(BaseModel):
+    meta: Meta
+    steps: List[Step]
+    instructions: str
+    stdout: Optional[str]
+    stderr: Optional[str]
 
 class CopyingTextIOWrapper:
     """
@@ -31,98 +78,72 @@ class CopyingTextIOWrapper:
 
 
 class ChatDBGLog:
-    def __init__(self, config: Chat):
+    def __init__(self, log_filename, config, capture_streams=True):
+        self.meta = Meta(
+            time=datetime.now(),
+            command_line=" ".join(sys.argv),
+            uid=str(uuid.uuid4()),
+            config=config
+        )
         self.steps = []
-        self.meta = {
-            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "command_line": " ".join(sys.argv),
-            "uid": str(uuid.uuid4()),
-            "config": config.to_json(),
-            "mark": "?",
-        }
-        self.log_file = config.log
+        self.log_filename = log_filename
         self._instructions = ""
-        self.stdout_wrapper = CopyingTextIOWrapper(sys.stdout)
-        self.stderr_wrapper = CopyingTextIOWrapper(sys.stderr)
-        sys.stdout = self.stdout_wrapper
-        sys.stderr = self.stdout_wrapper
-        self.chat_step = None
-        self.events = [ ]
-        self.mark = "?"
-
-    def add_mark(self, value):
-        if value not in ["Fix", "Partial", "None", "?"]:
-            print(f"answer must be in { ['Fix', 'Partial', 'None', '?'] }")
+        if capture_streams:
+            self.stdout_wrapper = CopyingTextIOWrapper(sys.stdout)
+            self.stderr_wrapper = CopyingTextIOWrapper(sys.stderr)
+            sys.stdout = self.stdout_wrapper
+            sys.stderr = self.stdout_wrapper
         else:
-            self.meta["mark"] = value
+            self.stderr_wrapper = None
+            self.stderr_wrapper = None
+        self.chat_step = None
+        atexit.register(lambda: self.dump())
 
     def total(self, key):
         return sum(
-            [x["stats"][key] for x in self.steps if x["output"]["type"] == "chat"]
+            getattr(x.stats, key) for x in self.steps if x.output.type == "chat" and x.stats is not None
         )
 
     def dump(self):
-        self.meta["total_tokens"] = self.total("tokens")
-        self.meta["total_time"] = self.total("time")
-        self.meta["total_cost"] = self.total("cost")
+        self.meta.total_tokens = self.total("tokens")
+        self.meta.total_time = self.total("time")
+        self.meta.total_cost = self.total("cost")
 
-        full_json = [
-            {
-                "meta": self.meta,
-                "steps": self.steps,
-                "instructions": self._instructions,
-                "stdout": self.stdout_wrapper.getvalue(),
-                "stderr": self.stderr_wrapper.getvalue(),
-                "events" : self.events
-            }
-        ]
+        full_log = Log(
+            meta=self.meta,
+            steps=self.steps,
+            instructions=self._instructions,
+            stdout=self.stdout_wrapper.getvalue(),
+            stderr=self.stderr_wrapper.getvalue(),
+            events=self.events
+        )
 
-        print(f"*** Write ChatDBG log to {self.log_file}")
-        with open(self.log_file, "a") as file:
-            yaml.dump(full_json, file, default_flow_style=False)
+        print(f"*** Write ChatDBG log to {self.log_filename}")
+        with open(self.log_filename, "a") as file:
+            def literal_presenter(dumper, data):
+                return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
 
-    def log(self, event_json):
-        self.events += [ event_json ]
+            yaml.add_representer(str, literal_presenter)
+            yaml.dump(full_log, file, default_flow_style=False, indent=4)
 
     def instructions(self, instructions):
         self._instructions = instructions
 
     def user_command(self, line, output):
-        if self.chat_step != None:
+        if self.chat_step is not None:
             x = self.chat_step
             self.chat_step = None
         else:
-            x = {"input": line, "output": {"type": "text", "output": output}}
+            x = Step(input=line, output=TextOutput(output=output))
         self.steps.append(x)
 
     def push_chat(self, line, full_prompt):
-        self.chat_step = {
-            "input": line,
-            "full_prompt": full_prompt,
-            "output": {"type": "chat", "outputs": []},
-            "stats": {"tokens": 0, "cost": 0, "time": 0},
-        }
+        self.chat_step = Step(
+            input=line,
+            full_prompt=full_prompt,
+            output=ChatOutput()
+        )
 
     def pop_chat(self, stats):
-        self.chat_step["stats"] = stats
-
-    def message(self, text):
-        self.chat_step["output"]["outputs"].append({"type": "text", "output": text})
-
-    def function(self, line, output):
-        x = {
-            "type": "call",
-            "input": line,
-            "output": {"type": "text", "output": output},
-        }
-        self.chat_step["output"]["outputs"].append(x)
-
-
-# Custom representer for literal scalar representation
-def literal_presenter(dumper, data):
-    if "\n" in data:
-        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
-    return dumper.represent_scalar("tag:yaml.org,2002:str", data)
-
-
-yaml.add_representer(str, literal_presenter)
+        if self.chat_step is not None:
+            self.chat_step.stats = Stats(**stats)

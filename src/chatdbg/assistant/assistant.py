@@ -1,32 +1,86 @@
 import json
 import time
 from typing import Callable
-
+import sys
 import litellm
 import openai
+import textwrap
 
-def sandwhich_tokens(model, text: str, max_tokens: int, top_proportion: float) -> str:
-    if max_tokens == None:
-        return text
-    tokens = litellm.encode(model, text)
-    if len(tokens) <= max_tokens:
-        return text
-    else:
-        total_len = max_tokens - 5   # some slop for the ...
-        top_len = int(top_proportion * total_len)
-        bot_len = int((1-top_proportion) * total_len)
-        return litellm.decode(model, tokens[0:top_len]) + " [...] " + litellm.decode(model, tokens[-bot_len:])
+import abc
+import textwrap
+import sys
+
+class AbstractAssistantClient(abc.ABC):
+
+    @abc.abstractmethod
+    def begin_dialog(self, instructions):
+        pass
+
+    @abc.abstractmethod
+    def end_dialog(self):
+        pass
+
+    @abc.abstractmethod
+    def begin_query(self, user_prompt):
+        pass
+
+    @abc.abstractmethod
+    def end_query(self, stats):
+        pass
+
+    @abc.abstractmethod
+    def warn(self, text):
+        pass
+
+    @abc.abstractmethod
+    def fail(self, text):
+        pass
+
+    @abc.abstractmethod
+    def stream(self, event, text):
+        pass
+
+    @abc.abstractmethod
+    def response(self, text):
+        pass
+
+    @abc.abstractmethod
+    def function_call(self, call, result):
+        pass
 
 
-class AssistantClient:
-    def warn(text):
+class PrintintAssistantClient(AbstractAssistantClient):
+    def __init__(self, out=sys.stdout):
+        self.out = out
+
+    def warn(self, text):
+        print(textwrap.indent(text, '*** '), file=self.out)
+
+    def fail(self, text):
+        print(textwrap.indent(text, '*** '), file=self.out)
+        sys.exit(1)
+
+    def stream(self, event, text):
+        # begin / none, step / delta , complete / full
         pass
-    def fail(text):
+
+    def begin_query(self, user_prompt):
         pass
-    def response(text):
+
+    def end_query(self, stats):
         pass
-    def function_call(name, args, result):
-        pass
+
+    def response(self, text):
+        if text != None:
+            print(text, file=self.out)
+        
+    def function_call(self, call, result):
+        if result and len(result) > 0:
+            entry = f"{call}\n{result}"
+        else:
+            entry = f"{call}"
+        print(entry, file=self.out)
+        
 
 
 
@@ -34,9 +88,11 @@ class Assistant:
     def __init__(
         self,
         instructions,
-        model="gpt-4",
+        model="gpt-3.5-turbo-1106",
         timeout=30,
-        max_call_response_tokens=None,
+        clients = [ PrintintAssistantClient() ],
+        functions=[],
+        max_call_response_tokens=4096,
         debug=False,
     ):
         if debug:
@@ -45,34 +101,86 @@ class Assistant:
         else:
             self._logger = None
 
+        self._clients = clients
+        
         self._functions = {}
+        for f in functions:
+            self._add_function(f)
+
         self._model = model
         self._timeout = timeout
         self._conversation = [{"role": "system", "content": instructions}]
         self._max_call_response_tokens = max_call_response_tokens
 
-    def add_function(self, function):
+        self.check_model()
+
+    def broadcast(self, method_name, *args, **kwargs):
+        for client in self._clients:
+            method = getattr(client, method_name, None)
+            if callable(method):
+                method(*args, **kwargs)
+
+    def check_model(self):
+        result = litellm.validate_environment(self._model)
+        missing_keys = result["missing_keys"]
+        if missing_keys != []:
+            _, provider, _, _ = litellm.get_llm_provider(self._model)
+            if provider == 'openai':
+                self.broadcast('fail', textwrap.dedent(f"""\
+                    You need an OpenAI key to use the {self._model} model.
+                    You can get a key here: https://platform.openai.com/api-keys.
+                    Set the environment variable OPENAI_API_KEY to your key value."""))
+                sys.exit(1)
+            else:
+                self.broadcast('fail', textwrap.dedent(f"""\
+                    You need to set the following environment variables
+                    to use the {self._model} model: {', '.join(missing_keys)}"""))
+                sys.exit(1)
+
+        if not litellm.supports_function_calling(self._model):
+            self.broadcast('fail', textwrap.dedent(f"""\
+                The {self._model} model does not support function calls.
+                You must use a model that does, eg. gpt-4."""))
+            sys.exit(1)
+
+    def sandwhich_tokens(self, text: str, max_tokens: int, top_proportion: float) -> str:
+        model = self._model
+        if max_tokens == None:
+            return text
+        tokens = litellm.encode(model, text)
+        if len(tokens) <= max_tokens:
+            return text
+        else:
+            total_len = max_tokens - 5   # some slop for the ...
+            top_len = int(top_proportion * total_len)
+            bot_len = int((1-top_proportion) * total_len)
+            return litellm.decode(model, tokens[0:top_len]) + " [...] " + litellm.decode(model, tokens[-bot_len:])
+
+
+
+    def _add_function(self, function):
         """
         Add a new function to the list of function tools.
         The function should have the necessary json spec as its docstring, with
         this format:
-            "schema": function schema,
-            "format": format to print call,
+            "schema": function schema
+            "format": format to print call
         """
         schema = json.loads(function.__doc__)
-        assert "name" in schema, "Bad JSON in docstring for function tool."
-        self._functions[schema["name"]] = {
+        assert "name" in schema['schema'], "Bad JSON in docstring for function tool."
+        self._functions[schema['schema']["name"]] = {
             "function": function,
             "schema": schema
         }
 
     def _make_call(self, tool_call) -> str:
         name = tool_call.function.name
-        args = json.loads(tool_call.function.arguments)
         try:
-            args = json.loads(args)
-            function = self.functions[name]
-            result = function(**args)
+            args = json.loads(tool_call.function.arguments)
+            function = self._functions[name]
+            call = function["schema"]["format"].format_map(args)
+            result = function["function"](**args)
+            self.broadcast('function_call', call, result)
         except OSError as e:
             # function produced some error -- move this to client???
             result = f"Error: {e}"
@@ -83,17 +191,16 @@ class Assistant:
 
     def query(
         self,
-        prompt: str,
-        client: XXX
-    ) -> None:
+        prompt: str
+    ):
         start = time.time()
         cost = 0
 
         try:
             self._conversation.append({"role": "user", "content": prompt})
-            
+
             while True:
-                self._conversation = litellm.trim_messages(self._conversation, self._model)
+                self._conversation = litellm.utils.trim_messages(self._conversation, self._model)
                 completion = litellm.completion(
                     model=self._model,
                     messages=self._conversation,
@@ -107,14 +214,18 @@ class Assistant:
 
                 cost += litellm.completion_cost(completion)
 
-                choice = completion.choices[0]
+                response_message = completion.choices[0].message
+                self._conversation.append(response_message)
+                
+                if response_message.content:
+                    self.broadcast('response', '(Message) ' + response_message.content)
 
-                if choice.finish_reason == "tool_calls":
-                    responses = []
+                if completion.choices[0].finish_reason == 'tool_calls':
+                    tool_calls = response_message.tool_calls
                     try:
-                        for tool_call in choice.message.tool_calls:
+                        for tool_call in tool_calls:
                             function_response = self._make_call(tool_call)
-                            function_response = sandwhich_tokens(self._model, 
+                            function_response = self.sandwhich_tokens(
                                                                  function_response, 
                                                                  self._max_call_response_tokens,
                                                                  0.5)
@@ -124,27 +235,63 @@ class Assistant:
                                 "name": tool_call.function.name,
                                 "content": function_response,
                             }
-                            responses.append(response)
-                        self._conversation.append(choice.message)
-                        self._conversation.extend(responses)
+                            self._conversation.append(response)
+                        self.broadcast('response', '')
                     except Exception as e:
                         # Warning: potential infinite loop.
-                        client.warn(f"Error processing tool calls: {e}")
-                elif choice.finish_reason == "stop":
-                    break
+                        self.broadcast('warn', f"Error processing tool calls: {e}")
                 else:
-                    client.fail(f"Completation reason not supported: {choice.finish_reason}")
-                    return
+                    break
 
             elapsed = time.time() - start
             return {
                 "cost": cost,
                 "time": elapsed,
                 "model": self._model,
-                "tokens": litellm.token_counter(self._conversation),
+                "tokens": completion.usage.total_tokens,
+                "prompt_tokens": completion.usage.prompt_tokens,
+                "completion_tokens": completion.usage.completion_tokens,
             }
         except openai.OpenAIError as e:
-            client.fail(f"Internal Error: {e}")
+            self.broadcast('fail', f"Internal Error: {e.__dict__}")
+            sys.exit(1)
+
+if __name__ == '__main__':
+    def weather(location):
+        """
+        {
+            "schema":{
+            "name": "get_weather",
+            "description": "Determine weather in my location",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                "location": {
+                    "type": "string",
+                    "description": "The city and state e.g. San Francisco, CA"
+                },
+                "unit": {
+                    "type": "string",
+                    "enum": [
+                    "c",
+                    "f"
+                    ]
+                }
+                },
+                "required": [
+                "location"
+                ]
+            }
+            },
+            "format": "(ChatDBG) weather in {location}"
+        }
+        """
+        return "Sunny and 72 degrees."
+
+    a = Assistant("You generate text.")
+    a.add_function(weather)
+    x = a.query("What's the weather in Boston?")
+    print(x)
 
 
 # import atexit

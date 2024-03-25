@@ -1,14 +1,13 @@
-import linecache
 import ast
-import atexit
 import inspect
+import linecache
 import os
 import pdb
 import pydoc
 import sys
 import textwrap
 import traceback
-from io import StringIO, TextIOWrapper
+from io import StringIO
 from pathlib import Path
 from pprint import pprint
 
@@ -18,29 +17,18 @@ from traitlets import TraitError
 
 from chatdbg.ipdb_util.capture import CaptureInput
 
-from .assistant.assistant import Assistant
-from .ipdb_util.config import Chat
+from .assistant.assistant import Assistant, AbstractAssistantClient
 from .ipdb_util.chatlog import ChatDBGLog, CopyingTextIOWrapper
-from .ipdb_util.prompts import pdb_instructions
-from .ipdb_util.text import *
+from .ipdb_util.config import Chat
 from .ipdb_util.locals import *
+from .ipdb_util.prompts import pdb_instructions
 from .ipdb_util.streamwrap import StreamTextWrapper
-
-_valid_models = [
-    "gpt-4-turbo-preview",
-    "gpt-4-0125-preview",
-    "gpt-4-1106-preview",
-    "gpt-3.5-turbo-0125",
-    "gpt-3.5-turbo-1106",
-    "gpt-4",  # no parallel calls
-    "gpt-3.5-turbo",  # no parallel calls
-]
+from .ipdb_util.text import *
 
 chatdbg_config: Chat = None
 
 
 def load_ipython_extension(ipython):
-    # Create an instance of your configuration class with IPython's config
     global chatdbg_config
     from chatdbg.chatdbg_pdb import Chat, ChatDBG
 
@@ -112,11 +100,10 @@ class ChatDBG(ChatDBGSuper):
         self.do_context(chatdbg_config.context)
         self.rcLines += ast.literal_eval(chatdbg_config.rc_lines)
 
-        # set this to True ONLY AFTER we have had stack frames
+        # set this to True ONLY AFTER we have had access to stack frames
         self._show_locals = False
 
         self._log = ChatDBGLog(chatdbg_config)
-        atexit.register(lambda: self._log.dump())
 
     def _is_user_frame(self, frame):
         if not self._is_user_file(frame.f_code.co_filename):
@@ -188,9 +175,7 @@ class ChatDBG(ChatDBGSuper):
                 self._error_specific_prompt += f"The code `{current_line.strip()}` is correct and MUST remain unchanged in your fix.\n"
 
     def execRcLines(self):
-
         # do before running rclines -- our stack should be set up by now.
-
         if not chatdbg_config.show_libs:
             self._hide_lib_frames()
         self._error_stack_trace = f"The program has the following stack trace:\n```\n{self.format_stack_trace()}\n```\n"
@@ -215,15 +200,13 @@ class ChatDBG(ChatDBGSuper):
                 return super().onecmd(line)
             finally:
                 self.stdout = hist_file.getfile()
-                if not line.startswith("config") and not line.startswith("mark"):
-                    output = strip_color(hist_file.getvalue())
-                    if line not in ["quit", "EOF"]:
-                        self._log.user_command(line, output)
-                    if (
-                        line not in ["hist", "test_prompt", "c", "continue"]
-                        and not self.was_chat
-                    ):
-                        self._history += [(line, output)]
+                output = strip_color(hist_file.getvalue())
+                self._log.user_command(line, output)
+                if (
+                    line.split(' ')[0] not in ["hist", "test_prompt", "c", "cont", "continue", "config"]
+                    and not self.was_chat
+                ):
+                    self._history += [(line, output)]
 
     def message(self, msg) -> None:
         """
@@ -247,6 +230,7 @@ class ChatDBG(ChatDBGSuper):
             self.stdout = StringIO()
             super().onecmd(line)
             result = self.stdout.getvalue().rstrip()
+            result = strip_color(result)
             return result
         finally:
             self.stdout = stdout
@@ -361,11 +345,6 @@ class ChatDBG(ChatDBGSuper):
                     break
                 index -= 1
             if _x != None:
-                # print('found it')
-                # print(_x)
-                # print(_x.__dict__)
-                # print(_x._get_timestamps_for_version(version=-1))
-                # print(code(_x))
                 time_stamps = _x._get_timestamps_for_version(version=-1)
                 time_stamps = [ts for ts in time_stamps if ts.cell_num > -1]
                 result = str(
@@ -434,7 +413,7 @@ class ChatDBG(ChatDBGSuper):
         return False
 
     def print_stack_trace(self, context=None, locals=None):
-        # override to print the skips into stdout...
+        # override to print the skips into stdout instead of stderr...
         Colors = self.color_scheme_table.active_colors
         ColorsNormal = Colors.Normal
         if context is None:
@@ -515,7 +494,7 @@ class ChatDBG(ChatDBGSuper):
             )
             stack = (
                 textwrap.dedent(
-                    f"""
+                    f"""\
                 This is the current stack.  The current frame is indicated by 
                 an arrow '>' at the start of the line.
                 ```"""
@@ -526,31 +505,48 @@ class ChatDBG(ChatDBGSuper):
         finally:
             self.stdout = stdout
 
-    def _build_prompt(self, arg, conversing):
-        prompt = ""
+    def _ip_instructions(self):
+        return pdb_instructions(
+            self._supports_flow, chatdbg_config.take_the_wheel
+        )
+    def _ip_enchriched_stack_trace(self):
+        return f"The program has this stack trace:\n```\n{self.format_stack_trace()}\n```\n"
+    
+    def _ip_error(self):
+        return self._error_specific_prompt
 
-        if not conversing:
-            stack_dump = f"The program has this stack trace:\n```\n{self.format_stack_trace()}\n```\n\n"
-            prompt = "\n" + stack_dump + self._error_specific_prompt
-            if len(sys.argv) > 1:
-                prompt += f"\nThese were the command line options:\n```\n{' '.join(sys.argv)}\n```\n"
-            input = sys.stdin.get_captured_input()
-            if len(input) > 0:
-                prompt += f"\nThis was the program's input :\n```\n{input}```\n"
+    def _ip_inputs(self):
+        inputs = ''
+        if len(sys.argv) > 1:
+            inputs += f"\nThese were the command line options:\n```\n{' '.join(sys.argv)}\n```\n"
+        input = sys.stdin.get_captured_input()
+        if len(input) > 0:
+            inputs += f"\nThis was the program's input :\n```\n{input}```\n"
+        return inputs
 
+    def _ip_history(self):
         if len(self._history) > 0:
             hist = textwrap.indent(self._capture_onecmd("hist"), "")
-            self._clear_history()
             hist = f"\nThis is the history of some pdb commands I ran and the results.\n```\n{hist}\n```\n"
-            prompt += hist
+            return hist
+        else:
+            return ''
 
-        if arg == "why":
-            arg = "Explain the root cause of the error."
+    def concat_prompt(self, *args):
+        args = [a for a in args if len(a) > 0]
+        return "\n".join(args)
 
-        stack = self._stack_prompt()
-        prompt += stack + "\n" + arg
-
-        return prompt
+    def _build_prompt(self, arg, conversing):
+        if not conversing:
+            return self.concat_prompt(  self._ip_enchriched_stack_trace(),
+                                        self._ip_inputs(),
+                                        self._ip_error(),
+                                        self._ip_history(),
+                                        arg)
+        else:
+            return self.concat_prompt(self._ip_history(),
+                                        self._stack_prompt(),
+                                        arg)
 
     def do_chat(self, arg):
         """chat/:
@@ -559,16 +555,16 @@ class ChatDBG(ChatDBGSuper):
         self.was_chat = True
 
         full_prompt = self._build_prompt(arg, self._assistant != None)
+        full_prompt = strip_color(full_prompt)
+        full_prompt = truncate_proportionally(full_prompt)
+
+        self._clear_history()
 
         if self._assistant == None:
             self._make_assistant()
 
-
-        full_prompt = strip_color(full_prompt)
-        full_prompt = truncate_proportionally(full_prompt)
-
         self._log.push_chat(arg, full_prompt)
-        stats = self._assistant.run(full_prompt)
+        stats = self._assistant.query(full_prompt)
         self._log.pop_chat(stats)
 
         self.message(f"\n[Cost: ~${stats['cost']:.2f} USD]")
@@ -591,166 +587,201 @@ class ChatDBG(ChatDBGSuper):
         except TraitError as e:
             self.error(f"{e}")
 
-            # Get the documentation and source code (if available) for any function or method visible in the current frame.  The argument to info can be the name of the function or an expression of the form `obj.method_name`  to see the information for the method_name method of object obj.",
-
     def _make_assistant(self):
         def info(value):
             """
             {
-                "name": "info",
-                "description": "Get the documentation and source code for a reference, which may be a variable, function, method reference, field reference, or dotted reference visible in the current frame.  Examples include n, e.n where e is an expression, and t.n where t is a type.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "value": {
-                            "type": "string",
-                            "description": "The reference to get the information for."
-                        }
-                    },
-                    "required": [ "value"  ]
-                }
+                "schema": {
+                    "name": "info",
+                    "description": "Get the documentation and source code for a reference, which may be a variable, function, method reference, field reference, or dotted reference visible in the current frame.  Examples include n, e.n where e is an expression, and t.n where t is a type.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "value": {
+                                "type": "string",
+                                "description": "The reference to get the information for."
+                            }
+                        },
+                        "required": [ "value"  ]
+                    }
+                },
+                "format": "info {value}"
             }
             """
             command = f"info {value}"
             result = self._capture_onecmd(command)
-            self.message(
-                self._format_history_entry((command, result), indent=self._chat_prefix)
-            )
-            result = strip_color(result)
             self._log.function(command, result)
             return truncate_proportionally(result, top_proportion=1)
 
         def debug(command):
             """
             {
-                "name": "debug",
-                "description": "Run a pdb command and get the response.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "command": {
-                            "type": "string",
-                            "description": "The pdb command to run."
-                        }
-                    },
-                    "required": [ "command" ]
-                }
+                "schema" : {
+                    "name": "debug",
+                    "description": "Run a pdb command and get the response.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "command": {
+                                "type": "string",
+                                "description": "The pdb command to run."
+                            }
+                        },
+                        "required": [ "command" ]
+                    }
+                },
+                "format": "{command}"
             }
             """
             cmd = command if command != "list" else "ll"
+            # old_curframe = self.curframe
             result = self._capture_onecmd(cmd)
-
-            self.message(
-                self._format_history_entry((command, result), indent=self._chat_prefix)
-            )
-
-            result = strip_color(result)
             self._log.function(command, result)
 
             # help the LLM know where it is...
-            result += strip_color(self._stack_prompt())
+            # if old_curframe != self.curframe:
+            #     result += strip_color(self._stack_prompt())
+
             return truncate_proportionally(result, maxlen=8000, top_proportion=0.9)
 
         def slice(name):
             """
             {
-                "name": "slice",
-                "description": "Return the code to compute a global variable used in the current frame",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "name": {
-                            "type": "string",
-                            "description": "The variable to look at."
-                        }
-                    },
-                    "required": [ "name"  ]
-                }
+                "schema": {
+                    "name": "slice",
+                    "description": "Return the code to compute a global variable used in the current frame",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "The variable to look at."
+                            }
+                        },
+                        "required": [ "name"  ]
+                    }
+                },
+                "format": "slice {name}"
             }
-
             """
             command = f"slice {name}"
             result = self._capture_onecmd(command)
-            self.message(
-                self._format_history_entry((command, result), indent=self._chat_prefix)
-            )
-            result = strip_color(result)
             self._log.function(command, result)
             return truncate_proportionally(result, top_proportion=0.5)
 
-        self._clear_history()
-        instruction_prompt = pdb_instructions(
-            self._supports_flow, chatdbg_config.take_the_wheel
-        )
-
+        instruction_prompt = self._ip_instructions()
         self._log.instructions(instruction_prompt)
 
-        if not chatdbg_config.model in _valid_models:
-            print(
-                f"'{chatdbg_config.model}' is not a valid OpenAI model.  Choose from: {_valid_models}."
-            )
-            sys.exit(0)
+        if chatdbg_config.take_the_wheel:
+            functions = [ debug, info ]
+            if self._supports_flow:
+                functions += [ slice ]
+        else:
+            functions = []
 
         self._assistant = Assistant(
-            "ChatDBG",
             instruction_prompt,
             model=chatdbg_config.model,
-            printer=ChatAssistantOutput(self.stdout, self._log, self._chat_prefix, 
-                                        self._text_width, chatdbg_config.stream_response)
+            debug=chatdbg_config.debug,
+            functions=functions,
+            clients=[ ChatAssistantClient(self.stdout, 
+                                       self.prompt,
+                                       self._chat_prefix, 
+                                       self._text_width) ]
         )
 
-        if chatdbg_config.take_the_wheel:
-            self._assistant.add_function(debug)
-            self._assistant.add_function(info)
-
-            if self._supports_flow:
-                self._assistant.add_function(slice)
 
 
     ###############################################################
 
 
-class ChatAssistantOutput:
-    def __init__(self, stdout, prefix, width, chat_log, stream_response):
-        self.stdout = stdout
-        self.chat_log = chat_log
-        self.prefix = prefix
+
+class ChatAssistantClient(AbstractAssistantClient):
+    def __init__(self, out, debugger_prompt, chat_prefix, width):
+        self.out = out
+        self.debugger_prompt = debugger_prompt
+        self.chat_prefix = chat_prefix
         self.width = width
-        if stream_response and False:
-            self.streamer = StreamTextWrapper(indent=self.prefix, width=self.width)
-        else:
-            self.streamer = None
-            
-    def begin_stream(self):
-        if self.streamer:
-            print(file=self.stdout)
+        self._assistant = None
+    
+    # Call backs
 
-    def stream(self, text=''):
-        if self.streamer:
-            print(self.streamer.add(text), file=self.stdout, flush=True, end='')
+    def begin_query(self, user_prompt):
+        pass
 
-    def end_stream(self):
-        if self.streamer:
-            print(self.streamer.flush(), file=self.stdout)
+    def end_query(self, stats):
+        pass
 
-    def complete_message(self, text=''):
-        line = llm_utils.word_wrap_except_code_blocks(text, self.width - 5)
-        self.log.message(line)
-        if self.streamer:
-            print(self.streamer.add('', flush=True), file=self.stdout, flush=True, end='')
-        else:
-            line = textwrap.indent(line, self.prefix, lambda _: True)
-            print(line, file=self.stdout, flush=True)
+    def _print(self, text):
+        print(textwrap.indent(text, self.chat_prefix, lambda _: True), file=self.out)
 
-    def log(self, json_obj):
-        if chatdbg_config.debug:
-            self.chat_log.log(json_obj)
+    def warn(self, text):
+        self._print(textwrap.indent(text, '*** '))
 
-    def fail(self, message='Failed'):
-        print(file=self.stdout)
-        print(textwrap.wrap(message, width=70, initial_indent='*** '),file=self.stdout)
+    def fail(self, text):
+        self._print(textwrap.indent(text, '*** '))
         sys.exit(1)
+
+    def stream(self, event, text):
+        # begin / none, step / delta , complete / full
+        pass
+
+    def response(self, text):
+        if text != None:
+            text = llm_utils.utils.word_wrap_except_code_blocks(text, self.width-len(self.chat_prefix))
+            self._print(text)
         
-    def warn(self, message='Warning'):
-        print(file=self.stdout)
-        print(textwrap.wrap(message, width=70, initial_indent='*** '),file=self.stdout)
+    def function_call(self, call, result):
+        if result and len(result) > 0:
+            entry = f"{self.debugger_prompt}{call}\n{result}"
+        else:
+            entry = f"{self.debugger_prompt}{call}"
+        self._print(entry)
+        
+
+
+
+# class ChatAssistantOutput:
+#     def __init__(self, stdout, prefix, width, chat_log, stream_response):
+#         self.stdout = stdout
+#         self.chat_log = chat_log
+#         self.prefix = prefix
+#         self.width = width
+#         if stream_response and False:
+#             self.streamer = StreamTextWrapper(indent=self.prefix, width=self.width)
+#         else:
+#             self.streamer = None
+            
+#     def begin_stream(self):
+#         if self.streamer:
+#             print(file=self.stdout)
+
+#     def stream(self, text=''):
+#         if self.streamer:
+#             print(self.streamer.add(text), file=self.stdout, flush=True, end='')
+
+#     def end_stream(self):
+#         if self.streamer:
+#             print(self.streamer.flush(), file=self.stdout)
+
+#     def complete_message(self, text=''):
+#         line = llm_utils.word_wrap_except_code_blocks(text, self.width - 5)
+#         self.log.message(line)
+#         if self.streamer:
+#             print(self.streamer.add('', flush=True), file=self.stdout, flush=True, end='')
+#         else:
+#             line = textwrap.indent(line, self.prefix, lambda _: True)
+#             print(line, file=self.stdout, flush=True)
+
+#     def log(self, json_obj):
+#         if chatdbg_config.debug:
+#             self.chat_log.log(json_obj)
+
+#     def fail(self, message='Failed'):
+#         print(file=self.stdout)
+#         print(textwrap.wrap(message, width=70, initial_indent='*** '),file=self.stdout)
+#         sys.exit(1)
+        
+#     def warn(self, message='Warning'):
+#         print(file=self.stdout)
+#         print(textwrap.wrap(message, width=70, initial_indent='*** '),file=self.stdout)

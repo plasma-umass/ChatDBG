@@ -1,3 +1,4 @@
+import atexit
 import ast
 import inspect
 import linecache
@@ -73,6 +74,8 @@ class ChatDBG(ChatDBGSuper):
         self._chat_prefix = "   "
         self._text_width = 80
         self._assistant = None
+        atexit.register(lambda: self._close_assistant())
+
         self._history = []
         self._error_specific_prompt = ""
 
@@ -103,7 +106,13 @@ class ChatDBG(ChatDBGSuper):
         # set this to True ONLY AFTER we have had access to stack frames
         self._show_locals = False
 
-        self._log = ChatDBGLog(chatdbg_config)
+        self._log = ChatDBGLog(log_filename=chatdbg_config.log, 
+                               config=chatdbg_config.to_json(),
+                               capture_streams=True)
+
+    def _close_assistant(self):
+        if self._assistant != None:
+            self._assistant.close()
 
     def _is_user_frame(self, frame):
         if not self._is_user_file(frame.f_code.co_filename):
@@ -201,7 +210,8 @@ class ChatDBG(ChatDBGSuper):
             finally:
                 self.stdout = hist_file.getfile()
                 output = strip_color(hist_file.getvalue())
-                self._log.user_command(line, output)
+                if not self.was_chat:
+                    self._log.function_call(line, output)
                 if (
                     line.split(' ')[0] not in ["hist", "test_prompt", "c", "cont", "continue", "config"]
                     and not self.was_chat
@@ -563,9 +573,7 @@ class ChatDBG(ChatDBGSuper):
         if self._assistant == None:
             self._make_assistant()
 
-        self._log.push_chat(arg, full_prompt)
-        stats = self._assistant.query(full_prompt)
-        self._log.pop_chat(stats)
+        stats = self._assistant.query(full_prompt, user_text=arg)
 
         self.message(f"\n[Cost: ~${stats['cost']:.2f} USD]")
 
@@ -610,7 +618,6 @@ class ChatDBG(ChatDBGSuper):
             """
             command = f"info {value}"
             result = self._capture_onecmd(command)
-            self._log.function(command, result)
             return truncate_proportionally(result, top_proportion=1)
 
         def debug(command):
@@ -636,7 +643,6 @@ class ChatDBG(ChatDBGSuper):
             cmd = command if command != "list" else "ll"
             # old_curframe = self.curframe
             result = self._capture_onecmd(cmd)
-            self._log.function(command, result)
 
             # help the LLM know where it is...
             # if old_curframe != self.curframe:
@@ -666,11 +672,9 @@ class ChatDBG(ChatDBGSuper):
             """
             command = f"slice {name}"
             result = self._capture_onecmd(command)
-            self._log.function(command, result)
             return truncate_proportionally(result, top_proportion=0.5)
 
         instruction_prompt = self._ip_instructions()
-        self._log.instructions(instruction_prompt)
 
         if chatdbg_config.take_the_wheel:
             functions = [ debug, info ]
@@ -687,7 +691,8 @@ class ChatDBG(ChatDBGSuper):
             clients=[ ChatAssistantClient(self.stdout, 
                                        self.prompt,
                                        self._chat_prefix, 
-                                       self._text_width) ]
+                                       self._text_width),
+                      self._log ]
         )
 
 
@@ -706,7 +711,7 @@ class ChatAssistantClient(AbstractAssistantClient):
     
     # Call backs
 
-    def begin_query(self, user_prompt):
+    def begin_query(self, user_text, full_prompt):
         pass
 
     def end_query(self, stats):

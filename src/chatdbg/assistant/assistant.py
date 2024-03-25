@@ -6,45 +6,35 @@ import litellm
 import openai
 import textwrap
 
-import abc
 import textwrap
 import sys
 
-class AbstractAssistantClient(abc.ABC):
+class AbstractAssistantClient:
 
-    @abc.abstractmethod
     def begin_dialog(self, instructions):
         pass
 
-    @abc.abstractmethod
     def end_dialog(self):
         pass
 
-    @abc.abstractmethod
-    def begin_query(self, user_prompt):
+    def begin_query(self, prompt, **kwargs):
         pass
 
-    @abc.abstractmethod
     def end_query(self, stats):
         pass
 
-    @abc.abstractmethod
     def warn(self, text):
         pass
 
-    @abc.abstractmethod
     def fail(self, text):
         pass
 
-    @abc.abstractmethod
     def stream(self, event, text):
         pass
 
-    @abc.abstractmethod
     def response(self, text):
         pass
 
-    @abc.abstractmethod
     def function_call(self, call, result):
         pass
 
@@ -64,7 +54,7 @@ class PrintintAssistantClient(AbstractAssistantClient):
         # begin / none, step / delta , complete / full
         pass
 
-    def begin_query(self, user_prompt):
+    def begin_query(self, prompt, **kwargs):
         pass
 
     def end_query(self, stats):
@@ -112,38 +102,42 @@ class Assistant:
         self._conversation = [{"role": "system", "content": instructions}]
         self._max_call_response_tokens = max_call_response_tokens
 
-        self.check_model()
+        self._check_model()
+        self._broadcast('begin_dialog', instructions)
 
-    def broadcast(self, method_name, *args, **kwargs):
+    def close(self):
+        self._broadcast('end_dialog')
+
+    def _broadcast(self, method_name, *args, **kwargs):
         for client in self._clients:
             method = getattr(client, method_name, None)
             if callable(method):
                 method(*args, **kwargs)
 
-    def check_model(self):
+    def _check_model(self):
         result = litellm.validate_environment(self._model)
         missing_keys = result["missing_keys"]
         if missing_keys != []:
             _, provider, _, _ = litellm.get_llm_provider(self._model)
             if provider == 'openai':
-                self.broadcast('fail', textwrap.dedent(f"""\
+                self._broadcast('fail', textwrap.dedent(f"""\
                     You need an OpenAI key to use the {self._model} model.
                     You can get a key here: https://platform.openai.com/api-keys.
                     Set the environment variable OPENAI_API_KEY to your key value."""))
                 sys.exit(1)
             else:
-                self.broadcast('fail', textwrap.dedent(f"""\
+                self._broadcast('fail', textwrap.dedent(f"""\
                     You need to set the following environment variables
                     to use the {self._model} model: {', '.join(missing_keys)}"""))
                 sys.exit(1)
 
         if not litellm.supports_function_calling(self._model):
-            self.broadcast('fail', textwrap.dedent(f"""\
+            self._broadcast('fail', textwrap.dedent(f"""\
                 The {self._model} model does not support function calls.
                 You must use a model that does, eg. gpt-4."""))
             sys.exit(1)
 
-    def sandwhich_tokens(self, text: str, max_tokens: int, top_proportion: float) -> str:
+    def _sandwhich_tokens(self, text: str, max_tokens: int, top_proportion: float) -> str:
         model = self._model
         if max_tokens == None:
             return text
@@ -180,7 +174,7 @@ class Assistant:
             function = self._functions[name]
             call = function["schema"]["format"].format_map(args)
             result = function["function"](**args)
-            self.broadcast('function_call', call, result)
+            self._broadcast('function_call', call, result)
         except OSError as e:
             # function produced some error -- move this to client???
             result = f"Error: {e}"
@@ -191,12 +185,14 @@ class Assistant:
 
     def query(
         self,
-        prompt: str
+        prompt: str,
+        **kwargs
     ):
         start = time.time()
         cost = 0
 
         try:
+            self._broadcast("begin_query", prompt, kwargs)
             self._conversation.append({"role": "user", "content": prompt})
 
             while True:
@@ -218,14 +214,14 @@ class Assistant:
                 self._conversation.append(response_message)
                 
                 if response_message.content:
-                    self.broadcast('response', '(Message) ' + response_message.content)
+                    self._broadcast('response', '(Message) ' + response_message.content)
 
                 if completion.choices[0].finish_reason == 'tool_calls':
                     tool_calls = response_message.tool_calls
                     try:
                         for tool_call in tool_calls:
                             function_response = self._make_call(tool_call)
-                            function_response = self.sandwhich_tokens(
+                            function_response = self._sandwhich_tokens(
                                                                  function_response, 
                                                                  self._max_call_response_tokens,
                                                                  0.5)
@@ -236,15 +232,15 @@ class Assistant:
                                 "content": function_response,
                             }
                             self._conversation.append(response)
-                        self.broadcast('response', '')
+                        self._broadcast('response', '')
                     except Exception as e:
                         # Warning: potential infinite loop.
-                        self.broadcast('warn', f"Error processing tool calls: {e}")
+                        self._broadcast('warn', f"Error processing tool calls: {e}")
                 else:
                     break
 
             elapsed = time.time() - start
-            return {
+            stats = {
                 "cost": cost,
                 "time": elapsed,
                 "model": self._model,
@@ -252,8 +248,10 @@ class Assistant:
                 "prompt_tokens": completion.usage.prompt_tokens,
                 "completion_tokens": completion.usage.completion_tokens,
             }
+            self._broadcast("end_query", stats)
+            return stats
         except openai.OpenAIError as e:
-            self.broadcast('fail', f"Internal Error: {e.__dict__}")
+            self._broadcast('fail', f"Internal Error: {e.__dict__}")
             sys.exit(1)
 
 if __name__ == '__main__':

@@ -6,52 +6,9 @@ import sys
 import yaml
 from pydantic import BaseModel
 from typing import List, Union, Optional
-
-class Output(BaseModel):
-    type: str
-    output: Optional[str] = None
-
-class FunctionOutput(Output):
-    type: str = "call"
-
-class TextOutput(Output):
-    type: str = "text"
-
-class ChatOutput(BaseModel):
-    type: str = "chat"
-    outputs: List[Output] = []
-
-class Stats(BaseModel):
-    tokens: int = 0
-    cost: float = 0.0
-    time: float = 0.0
-
-    class Config:
-        extra = 'allow'
+from ..assistant.assistant import AbstractAssistantClient
 
 
-class Step(BaseModel):
-    input: str
-    output: Union[TextOutput, ChatOutput]
-    full_prompt: Optional[str] = None
-    stats: Optional[Stats] = None
-
-class Meta(BaseModel):
-    time: datetime
-    command_line: str
-    uid: str
-    config: str
-    mark: str = "?"
-    total_tokens: int = 0
-    total_time: float = 0.0
-    total_cost: float = 0.0
-
-class Log(BaseModel):
-    meta: Meta
-    steps: List[Step]
-    instructions: str
-    stdout: Optional[str]
-    stderr: Optional[str]
 
 class CopyingTextIOWrapper:
     """
@@ -76,74 +33,178 @@ class CopyingTextIOWrapper:
         # Delegate attribute access to the file object
         return getattr(self.file, attr)
 
+# class Output(BaseModel):
+#     type: str
 
-class ChatDBGLog:
+# class TextOutput(BaseModel):
+#     type: str = "text"
+#     output: str
+
+# class ChatOutput(BaseModel):
+#     type:str = 'chat'
+#     outputs: List[Output] = []
+
+# class Function(Output):
+#     type: str = 'call'
+#     input: str
+#     output: TextOutput
+
+# class Stats(BaseModel):
+#     tokens: int = 0
+#     cost: float = 0.0
+#     time: float = 0.0
+
+#     class Config:
+#         extra = 'allow'
+
+# class Chat(BaseModel):
+#     input: str
+#     output: ChatOutput = ChatOutput()
+#     prompt: Optional[str] = None
+#     stats: Optional[Stats] = None
+
+#     def append(self, s: Output):
+#         self.output.outputs.append(s)
+
+# class Meta(BaseModel):
+#     time: datetime
+#     command_line: str
+#     uid: str
+#     config: dict
+#     mark: str = "?"
+#     total_tokens: int = 0
+#     total_time: float = 0.0
+#     total_cost: float = 0.0
+
+# class Log(BaseModel):
+#     meta: Meta
+#     steps: List[Function | Chat] = []
+#     current_chat: Optional[Chat] = None
+#     instructions: Optional[str]
+#     stdout: Optional[str]
+#     stderr: Optional[str]
+
+#     class Config:
+#         exclude = {'current_chat'}
+
+#     def append(self, s: Function | Chat):
+#         self.steps.append(s)
+
+#     def total(self, key):
+#         return sum(
+#             getattr(x.stats, key) for x in self.steps if isinstance(x.output, ChatOutput) and x.stats is not None
+#         )
+
+#     def model_dump_json(self, **kwargs):
+#         self.meta.total_tokens = self.total("tokens")
+#         self.meta.total_time = self.total("time")
+#         self.meta.total_cost = self.total("cost")
+#         return super().model_dump_json(kwargs)
+
+class ChatDBGLog(AbstractAssistantClient):
     def __init__(self, log_filename, config, capture_streams=True):
-        self.meta = Meta(
-            time=datetime.now(),
-            command_line=" ".join(sys.argv),
-            uid=str(uuid.uuid4()),
-            config=config
-        )
-        self.steps = []
-        self.log_filename = log_filename
-        self._instructions = ""
+        self._log_filename = log_filename
+        self.config = config
         if capture_streams:
-            self.stdout_wrapper = CopyingTextIOWrapper(sys.stdout)
-            self.stderr_wrapper = CopyingTextIOWrapper(sys.stderr)
-            sys.stdout = self.stdout_wrapper
-            sys.stderr = self.stdout_wrapper
+            self._stdout_wrapper = CopyingTextIOWrapper(sys.stdout)
+            self._stderr_wrapper = CopyingTextIOWrapper(sys.stderr)
+            sys.stdout = self._stdout_wrapper
+            sys.stderr = self._stdout_wrapper
         else:
-            self.stderr_wrapper = None
-            self.stderr_wrapper = None
-        self.chat_step = None
-        atexit.register(lambda: self.dump())
+            self._stderr_wrapper = None
+            self._stderr_wrapper = None
 
-    def total(self, key):
-        return sum(
-            getattr(x.stats, key) for x in self.steps if x.output.type == "chat" and x.stats is not None
-        )
+        meta = {
+                'time': datetime.now(),
+                'command_line':  " ".join(sys.argv),
+                'uid': str(uuid.uuid4()),
+                'config': self.config
+        }
+        log = {
+            'steps':[],
+            'meta':meta,
+            'instructions':None,
+            'stdout':self._stdout_wrapper.getvalue(),
+            'stderr':self._stderr_wrapper.getvalue(),
+        }
+        self._current_chat = None
+        self._log = log
 
-    def dump(self):
-        self.meta.total_tokens = self.total("tokens")
-        self.meta.total_time = self.total("time")
-        self.meta.total_cost = self.total("cost")
+    def _dump(self):
+        log = self._log
 
-        full_log = Log(
-            meta=self.meta,
-            steps=self.steps,
-            instructions=self._instructions,
-            stdout=self.stdout_wrapper.getvalue(),
-            stderr=self.stderr_wrapper.getvalue(),
-            events=self.events
-        )
+        def total(key):
+            return sum(
+                x['stats'][key] for x in log['steps'] if x['output']['type'] == 'chat' and 'stats' in x['output']
+            )
 
-        print(f"*** Write ChatDBG log to {self.log_filename}")
-        with open(self.log_filename, "a") as file:
+        log['meta']['total_tokens'] = total("tokens")
+        log['meta']['total_time'] = total("time")
+        log['meta']['total_cost'] = total("cost")
+
+        print(f"*** Writing ChatDBG dialog log to {self._log_filename}")
+
+        with open(self._log_filename, "a") as file:
             def literal_presenter(dumper, data):
-                return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
+                if "\n" in data:
+                    return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
+                else:
+                    return dumper.represent_scalar("tag:yaml.org,2002:str", data)
 
             yaml.add_representer(str, literal_presenter)
-            yaml.dump(full_log, file, default_flow_style=False, indent=4)
+            yaml.dump([ log ], file, default_flow_style=False, indent=2)
 
-    def instructions(self, instructions):
-        self._instructions = instructions
+    def begin_dialog(self, instructions):
+        log = self._log
+        assert log != None
+        log['instructions'] = instructions
 
-    def user_command(self, line, output):
-        if self.chat_step is not None:
-            x = self.chat_step
-            self.chat_step = None
+    def end_dialog(self):
+        if self._log != None:
+            self._dump()
+        self._log = None
+
+    def begin_query(self, prompt, kwargs):
+        log = self._log
+        assert log != None
+        assert self._current_chat == None
+        self._current_chat = {
+            'input':kwargs['user_text'],
+            'prompt':prompt,
+            'output': { 'type': 'chat', 'outputs': []}
+        }
+
+    def end_query(self, stats):
+        log = self._log
+        assert log != None
+        assert self._current_chat != None
+        log['steps'] += [ self._current_chat ]
+        self._current_chat = None
+
+    def _post(self, text, kind):
+        log = self._log
+        assert log != None
+        if self._current_chat != None:
+            self._current_chat['output']['outputs'].append({ 'type': 'text', 'output': f"*** {kind}: {text}"})
         else:
-            x = Step(input=line, output=TextOutput(output=output))
-        self.steps.append(x)
+            log['steps'].append({ 'type': 'call', 'input': f"*** {kind}", 'output': { 'type': 'text', 'output': text } })
 
-    def push_chat(self, line, full_prompt):
-        self.chat_step = Step(
-            input=line,
-            full_prompt=full_prompt,
-            output=ChatOutput()
-        )
+    def warn(self, text):
+        self._post(text, "Warning")
 
-    def pop_chat(self, stats):
-        if self.chat_step is not None:
-            self.chat_step.stats = Stats(**stats)
+    def fail(self, text):
+        self._post(text, "Failure")
+
+    def response(self, text):
+        log = self._log
+        assert log != None
+        assert self._current_chat != None
+        self._current_chat['output']['outputs'].append({ 'type': 'text', 'output': text})
+
+    def function_call(self, call, result):
+        log = self._log
+        assert log != None
+        if self._current_chat != None:
+            self._current_chat['output']['outputs'].append({ 'type': 'call', 'input': call, 'output': { 'type': 'text', 'output': result }})
+        else:
+            log['steps'].append({ 'type': 'call', 'input': call, 'output': { 'type': 'text', 'output': result }})

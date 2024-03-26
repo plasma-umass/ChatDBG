@@ -598,45 +598,39 @@ class ChatDBG(ChatDBGSuper):
         def info(value):
             """
             {
-                "schema": {
-                    "name": "info",
-                    "description": "Get the documentation and source code for a reference, which may be a variable, function, method reference, field reference, or dotted reference visible in the current frame.  Examples include n, e.n where e is an expression, and t.n where t is a type.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "value": {
-                                "type": "string",
-                                "description": "The reference to get the information for."
-                            }
-                        },
-                        "required": [ "value"  ]
-                    }
-                },
-                "format": "info {value}"
+                "name": "info",
+                "description": "Get the documentation and source code for a reference, which may be a variable, function, method reference, field reference, or dotted reference visible in the current frame.  Examples include n, e.n where e is an expression, and t.n where t is a type.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "value": {
+                            "type": "string",
+                            "description": "The reference to get the information for."
+                        }
+                    },
+                    "required": [ "value"  ]
+                }
             }
             """
             command = f"info {value}"
             result = self._capture_onecmd(command)
-            return truncate_proportionally(result, top_proportion=1)
+            return command, truncate_proportionally(result, top_proportion=1)
 
         def debug(command):
             """
             {
-                "schema" : {
-                    "name": "debug",
-                    "description": "Run a pdb command and get the response.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "command": {
-                                "type": "string",
-                                "description": "The pdb command to run."
-                            }
-                        },
-                        "required": [ "command" ]
-                    }
-                },
-                "format": "{command}"
+                "name": "debug",
+                "description": "Run a pdb command and get the response.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "description": "The pdb command to run."
+                        }
+                    },
+                    "required": [ "command" ]
+                }
             }
             """
             cmd = command if command != "list" else "ll"
@@ -647,31 +641,28 @@ class ChatDBG(ChatDBGSuper):
             # if old_curframe != self.curframe:
             #     result += strip_color(self._stack_prompt())
 
-            return truncate_proportionally(result, maxlen=8000, top_proportion=0.9)
+            return command, truncate_proportionally(result, maxlen=8000, top_proportion=0.9)
 
         def slice(name):
             """
             {
-                "schema": {
-                    "name": "slice",
-                    "description": "Return the code to compute a global variable used in the current frame",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "name": {
-                                "type": "string",
-                                "description": "The variable to look at."
-                            }
-                        },
-                        "required": [ "name"  ]
-                    }
-                },
-                "format": "slice {name}"
+                "name": "slice",
+                "description": "Return the code to compute a global variable used in the current frame",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "The variable to look at."
+                        }
+                    },
+                    "required": [ "name"  ]
+                }
             }
             """
             command = f"slice {name}"
             result = self._capture_onecmd(command)
-            return truncate_proportionally(result, top_proportion=0.5)
+            return command, truncate_proportionally(result, top_proportion=0.5)
 
         instruction_prompt = self._ip_instructions()
 
@@ -687,10 +678,12 @@ class ChatDBG(ChatDBGSuper):
             model=chatdbg_config.model,
             debug=chatdbg_config.debug,
             functions=functions,
+            stream_response=chatdbg_config.stream_response,
             clients=[ ChatAssistantClient(self.stdout, 
                                        self.prompt,
                                        self._chat_prefix, 
-                                       self._text_width),
+                                       self._text_width,
+                                       stream=chatdbg_config.stream_response),
                       self._log ]
         )
 
@@ -701,23 +694,24 @@ class ChatDBG(ChatDBGSuper):
 
 
 class ChatAssistantClient(AbstractAssistantClient):
-    def __init__(self, out, debugger_prompt, chat_prefix, width):
+    def __init__(self, out, debugger_prompt, chat_prefix, width, stream=False):
         self.out = out
         self.debugger_prompt = debugger_prompt
         self.chat_prefix = chat_prefix
         self.width = width
         self._assistant = None
+        self._stream = stream
     
     # Call backs
 
-    def begin_query(self, user_text, full_prompt):
+    def begin_query(self, prompt='', user_text=''):
         pass
 
     def end_query(self, stats):
         pass
 
-    def _print(self, text):
-        print(textwrap.indent(text, self.chat_prefix, lambda _: True), file=self.out)
+    def _print(self, text, **kwargs):
+        print(textwrap.indent(text, self.chat_prefix, lambda _: True), file=self.out, **kwargs)
 
     def warn(self, text):
         self._print(textwrap.indent(text, '*** '))
@@ -726,12 +720,22 @@ class ChatAssistantClient(AbstractAssistantClient):
         self._print(textwrap.indent(text, '*** '))
         sys.exit(1)
 
-    def stream(self, event, text):
-        # begin / none, step / delta , complete / full
-        pass
+    def begin_stream(self):
+        self._stream_wrapper = StreamingTextWrapper(self.chat_prefix, width=80)
+        self._at_start = True
+        # print(self._stream_wrapper.append("\n", False), end='', flush=True, file=self.out)
+    
+    def stream_delta(self, text):
+        if self._at_start:
+            self._at_start = False
+            print(self._stream_wrapper.append("\n(Message) ", False), end='', flush=True, file=self.out)    
+        print(self._stream_wrapper.append(text, False), end='', flush=True, file=self.out)
+    
+    def end_stream(self):
+        print(self._stream_wrapper.flush(), end='', flush=True, file=self.out)
 
     def response(self, text):
-        if text != None:
+        if not self._stream and text != None:
             text = word_wrap_except_code_blocks(text, self.width-len(self.chat_prefix))
             self._print(text)
         

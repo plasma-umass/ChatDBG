@@ -54,13 +54,13 @@ class PrintingAssistantClient(AbstractAssistantClient):
         sys.exit(1)
 
     def begin_stream(self):
-        print("<<<", file=self.out)
+        pass
 
     def stream_delta(self, text):
-        print(text, end='', file=self.out)
+        print(text, end='', file=self.out, flush=True)
 
     def end_stream(self):
-        print(">>>", file=self.out)
+        pass
 
     def begin_query(self, prompt, **kwargs):
         pass
@@ -80,7 +80,21 @@ class PrintingAssistantClient(AbstractAssistantClient):
         print(entry, file=self.out)
         
 
+class StreamingAssistantClient(PrintingAssistantClient):
+    def __init__(self, out=sys.stdout):
+        super().__init__(out)
 
+    def begin_stream(self):
+        print('', flush=True)
+
+    def stream_delta(self, text):
+        print(text, end='', file=self.out, flush=True)
+
+    def end_stream(self):
+        print('', flush=True)
+
+    def response(self, text):
+        pass
 
 class Assistant:
     def __init__(
@@ -92,6 +106,7 @@ class Assistant:
         functions=[],
         max_call_response_tokens=4096,
         debug=False,
+        stream_response=False
     ):
         if debug:
             log_file = open(f"chatdbg.log", "w")
@@ -109,6 +124,7 @@ class Assistant:
         self._timeout = timeout
         self._conversation = [{"role": "system", "content": instructions}]
         self._max_call_response_tokens = max_call_response_tokens
+        self._stream_response = stream_response
 
         self._check_model()
         self._broadcast('begin_dialog', instructions)
@@ -158,19 +174,14 @@ class Assistant:
             bot_len = int((1-top_proportion) * total_len)
             return litellm.decode(model, tokens[0:top_len]) + " [...] " + litellm.decode(model, tokens[-bot_len:])
 
-
-
     def _add_function(self, function):
         """
         Add a new function to the list of function tools.
-        The function should have the necessary json spec as its docstring, with
-        this format:
-            "schema": function schema
-            "format": format to print call
+        The function should have the necessary json spec as its docstring
         """
         schema = json.loads(function.__doc__)
-        assert "name" in schema['schema'], "Bad JSON in docstring for function tool."
-        self._functions[schema['schema']["name"]] = {
+        assert "name" in schema, "Bad JSON in docstring for function tool."
+        self._functions[schema["name"]] = {
             "function": function,
             "schema": schema
         }
@@ -180,8 +191,7 @@ class Assistant:
         try:
             args = json.loads(tool_call.function.arguments)
             function = self._functions[name]
-            call = function["schema"]["format"].format_map(args)
-            result = function["function"](**args)
+            call, result = function["function"](**args)
             self._broadcast('function_call', call, result)
         except OSError as e:
             # function produced some error -- move this to client???
@@ -190,11 +200,20 @@ class Assistant:
             result = f"Ill-formed function call: {e}"
         return result
 
-
     def query(
         self,
         prompt: str,
-        stream = False,
+        **kwargs
+    ):
+        if self._stream_response:
+            return self._streamed_query(prompt=prompt, **kwargs)
+        else:
+            return self._batch_query(prompt=prompt, **kwargs)
+
+
+    def _batch_query(
+        self,
+        prompt: str,
         **kwargs
     ):
         start = time.time()
@@ -207,19 +226,7 @@ class Assistant:
             while True:
                 self._conversation = litellm.utils.trim_messages(self._conversation, self._model)
 
-                if stream:
-                    self._broadcast('begin_stream')
-                    completion_stream = self.completion(stream)
-                    chunks = []
-                    for chunk in completion_stream:
-                        print(chunk)
-                        self._broadcast('stream_delta', chunk.choices[0].delta.content or "")
-                        chunks.append(chunk)
-                    completion = litellm.stream_chunk_builder(chunks, messages=self._conversation)
-                    print('---', completion)
-                    self._broadcast('end_stream')
-                else:
-                    completion = self.completion(stream)
+                completion = self.completion()
 
                 cost += litellm.completion_cost(completion)
 
@@ -249,22 +256,96 @@ class Assistant:
             self._broadcast('fail', f"Internal Error: {e.__dict__}")
             sys.exit(1)
 
-    def completion(self, stream):
-        completion = litellm.completion(
-                    model=self._model,
-                    messages=self._conversation,
-                    tools=[
-                        {"type": "function", "function": f["schema"]["schema"]}
-                        for f in self._functions.values()
-                    ],
-                    timeout=self._timeout,
-                    logger_fn=self._logger,
-                    stream=stream
-                )
-        
-        return completion
+    def _streamed_query(
+        self,
+        prompt: str,
+        **kwargs
+    ):
+        start = time.time()
+        cost = 0
+
+        try:
+            self._broadcast("begin_query", prompt, **kwargs)
+            self._conversation.append({"role": "user", "content": prompt})
+
+            while True:
+                self._conversation = litellm.utils.trim_messages(self._conversation, self._model)
+                # print("\n".join([str(x) for x in self._conversation]))
+
+                stream = self.completion(stream=True)
+
+                # litellm is broken for new GPT models that have content before calls, so...
+
+                # stream the response, collecting the tool_call parts separately from the content
+                self._broadcast('begin_stream')
+                chunks = []
+                tool_chunks = []
+                for chunk in stream:
+                    chunks.append(chunk)
+                    if chunk.choices[0].delta.content != None:
+                        self._broadcast('stream_delta', chunk.choices[0].delta.content)
+                    else:
+                        tool_chunks.append(chunk)
+                self._broadcast('end_stream')
+
+                # compute for the part that litellm gives back.
+                completion = litellm.stream_chunk_builder(chunks, messages=self._conversation)
+                cost += litellm.completion_cost(completion)
+
+                # add content to conversation, but if there is no content, then the message
+                # has only tool calls, and skip this step
+                response_message = completion.choices[0].message
+                if response_message.content != None:
+                    self._conversation.append(response_message)
+                
+                if response_message.content != None:
+                    self._broadcast('response', '(Message) ' + response_message.content)
+
+                if completion.choices[0].finish_reason == 'tool_calls':
+                    # create a message with just the tool calls, append that to the conversation, and generate the responses.
+                    tool_completion = litellm.stream_chunk_builder(tool_chunks,self._conversation)
+
+                    # this part wasn't counted above...
+                    cost += litellm.completion_cost(tool_completion)
+
+                    tool_message = tool_completion.choices[0].message
+                    cost += litellm.completion_cost(tool_completion)
+                    self._conversation.append(tool_message)
+                    self._add_function_results_to_conversation(tool_message)
+                else:
+                    break
+
+            elapsed = time.time() - start
+            stats = {
+                "cost": cost,
+                "time": elapsed,
+                "model": self._model,
+                "tokens": completion.usage.total_tokens,
+                "prompt_tokens": completion.usage.prompt_tokens,
+                "completion_tokens": completion.usage.completion_tokens,
+            }
+            self._broadcast("end_query", stats)
+            return stats
+        except openai.OpenAIError as e:
+            self._broadcast('fail', f"Internal Error: {e.__dict__}")
+            sys.exit(1)
+
+
+    def completion(self, stream=False):
+        return litellm.completion(
+            model=self._model,
+            messages=self._conversation,
+            tools=[
+                {"type": "function", "function": f["schema"]}
+                for f in self._functions.values()
+            ],
+            timeout=self._timeout,
+            logger_fn=self._logger,
+            stream=stream
+        )
 
     def _add_function_results_to_conversation(self, response_message):
+        response_message['role'] = 'assistant'
         tool_calls = response_message.tool_calls
         try:
             for tool_call in tool_calls:
@@ -280,68 +361,14 @@ class Assistant:
                                 "content": function_response,
                             }
                 self._conversation.append(response)
-            self._broadcast('response', '')
         except Exception as e:
                         # Warning: potential infinite loop.
             self._broadcast('warn', f"Error processing tool calls: {e}")
 
-    def query2(
-        self,
-        prompt: str,
-        stream: bool = False,
-        **kwargs
-    ):
-        start = time.time()
-        cost = 0
-
-        try:
-            self._broadcast("begin_query", prompt, **kwargs)
-            self._conversation.append({"role": "user", "content": prompt})
-
-            while True:
-                self._conversation = litellm.utils.trim_messages(self._conversation, self._model)
-                response = litellm.completion(
-                    model=self._model,
-                    messages=self._conversation,
-                    tools=[
-                        {"type": "function", "function": f["schema"]["schema"]}
-                        for f in self._functions.values()
-                    ],
-                    timeout=self._timeout,
-                    logger_fn=self._logger,
-                    stream=True
-                )
-
-                chunks=[]
-                for chunk in response: 
-                    print(chunk)
-                    chunks.append(chunk)
-
-                print('---\n',litellm.stream_chunk_builder(chunks, messages=self._conversation))
-
-                break
-            
-            elapsed = time.time() - start
-            stats = {
-                "cost": cost,
-                "time": elapsed,
-                "model": self._model,
-                # "tokens": completion.usage.total_tokens,
-                # "prompt_tokens": completion.usage.prompt_tokens,
-                # "completion_tokens": completion.usage.completion_tokens,
-            }
-            self._broadcast("end_query", stats)
-            return stats
-        except openai.OpenAIError as e:
-            self._broadcast('fail', f"Internal Error: {e.__dict__}")
-            sys.exit(1)
-
-
 if __name__ == '__main__':
-    def weather(location):
+    def weather(location,unit='f'):
         """
         {
-            "schema":{
             "name": "get_weather",
             "description": "Determine weather in my location",
             "parameters": {
@@ -363,15 +390,13 @@ if __name__ == '__main__':
                 "location"
                 ]
             }
-            },
-            "format": "(ChatDBG) weather in {location}"
         }
         """
-        return "Sunny and 72 degrees."
+        return f"weather(location, unit)", "Sunny and 72 degrees."
 
-    a = Assistant("You generate text.")
-    a._add_function(weather)
-    # x = a.query("tell me what model you are before making any function calls.  And what's the weather in Boston?", stream=True)
-    x = a.query("What's the weather in Boston?", stream=True)
+
+
+    a = Assistant("You generate text.", clients=[ StreamingAssistantClient() ], functions=[weather])
+    x = a.query("tell me what model you are before making any function calls.  And what's the weather in Boston?", stream=True)
     print(x)
 

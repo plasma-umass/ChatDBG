@@ -97,12 +97,12 @@ class ChatDBGLog(AbstractAssistantClient):
             self._dump()
         self._log = None
 
-    def begin_query(self, prompt, kwargs):
+    def begin_query(self, prompt, user_text):
         log = self._log
         assert log != None
         assert self._current_chat == None
         self._current_chat = {
-            'input':kwargs['user_text'],
+            'input':user_text,
             'prompt':prompt,
             'output': { 'type': 'chat', 'outputs': []}
         }

@@ -1,15 +1,15 @@
 import textwrap
 import re
 import sys
-from llm_utils import word_wrap_except_code_blocks
+from .text import word_wrap_except_code_blocks
 
 
-class StreamTextWrapper:
+class StreamingTextWrapper:
 
     def __init__(self, indent='  ', width=70):
-        self.buffer = ''
-        self.wrapped = ''
-        self.pending = ''
+        self.buffer = ''   # the raw text so far
+        self.wrapped = ''  # the successfully wrapped text do far
+        self.pending = ''  # the part after the last space in buffer -- has not been wrapped yet
         self.indent = indent
         self.width = width
 
@@ -22,17 +22,13 @@ class StreamTextWrapper:
             self.pending = text_bits[-1]
             self.buffer += (''.join(text_bits[0:-1]))
 
-        # print('---', self.buffer, '---', self.pending)
         wrapped = word_wrap_except_code_blocks(self.buffer, self.width)
         wrapped = textwrap.indent(wrapped, self.indent, lambda _: True)
-        printable_part = wrapped[len(self.wrapped):]
+        wrapped_delta = wrapped[len(self.wrapped):]
         self.wrapped = wrapped
-        return printable_part
+        return wrapped_delta
 
     def flush(self):
-        # if self.pending == '':
-        #     return None
-        # else:
         result = self.add('', flush=True)
         self.buffer = ''
         self.wrapped = '' 
@@ -41,7 +37,7 @@ class StreamTextWrapper:
 
 
 if __name__ == '__main__':
-    s = StreamTextWrapper(3,20)
+    s = StreamingTextWrapper(3,20)
     for x in sys.argv[1:]:
         y = s.add(' ' + x)
         print(y, end='', flush=True)

@@ -14,15 +14,6 @@ Call `pdb` to print any variable value or expression that you believe may
 contribute to the error.
 """
 
-# _info_function="""\
-# Call the `info` function to get the documentation and source code for any
-# function or method reference visible in the current frame. The argument to
-# info is a function name or a method reference.
-
-# Unless it is from a common, widely-used library, you MUST call `info` exactly once on any
-# function or method reference that is called in code leading up to the error, that appears
-# in the argument list for a function call in the code, or that appears on the call stack.
-# """
 
 _info_function = """\
 Call the `info` function to get the documentation and source code for any

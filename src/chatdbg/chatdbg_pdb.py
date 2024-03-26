@@ -13,7 +13,6 @@ from pathlib import Path
 from pprint import pprint
 
 import IPython
-import llm_utils
 from traitlets import TraitError
 
 from chatdbg.ipdb_util.capture import CaptureInput
@@ -23,7 +22,7 @@ from .ipdb_util.chatlog import ChatDBGLog, CopyingTextIOWrapper
 from .ipdb_util.config import Chat
 from .ipdb_util.locals import *
 from .ipdb_util.prompts import pdb_instructions
-from .ipdb_util.streamwrap import StreamTextWrapper
+from .ipdb_util.streamwrap import StreamingTextWrapper
 from .ipdb_util.text import *
 
 chatdbg_config: Chat = None
@@ -733,7 +732,7 @@ class ChatAssistantClient(AbstractAssistantClient):
 
     def response(self, text):
         if text != None:
-            text = llm_utils.utils.word_wrap_except_code_blocks(text, self.width-len(self.chat_prefix))
+            text = word_wrap_except_code_blocks(text, self.width-len(self.chat_prefix))
             self._print(text)
         
     def function_call(self, call, result):
@@ -743,50 +742,3 @@ class ChatAssistantClient(AbstractAssistantClient):
             entry = f"{self.debugger_prompt}{call}"
         self._print(entry)
         
-
-
-
-# class ChatAssistantOutput:
-#     def __init__(self, stdout, prefix, width, chat_log, stream_response):
-#         self.stdout = stdout
-#         self.chat_log = chat_log
-#         self.prefix = prefix
-#         self.width = width
-#         if stream_response and False:
-#             self.streamer = StreamTextWrapper(indent=self.prefix, width=self.width)
-#         else:
-#             self.streamer = None
-            
-#     def begin_stream(self):
-#         if self.streamer:
-#             print(file=self.stdout)
-
-#     def stream(self, text=''):
-#         if self.streamer:
-#             print(self.streamer.add(text), file=self.stdout, flush=True, end='')
-
-#     def end_stream(self):
-#         if self.streamer:
-#             print(self.streamer.flush(), file=self.stdout)
-
-#     def complete_message(self, text=''):
-#         line = llm_utils.word_wrap_except_code_blocks(text, self.width - 5)
-#         self.log.message(line)
-#         if self.streamer:
-#             print(self.streamer.add('', flush=True), file=self.stdout, flush=True, end='')
-#         else:
-#             line = textwrap.indent(line, self.prefix, lambda _: True)
-#             print(line, file=self.stdout, flush=True)
-
-#     def log(self, json_obj):
-#         if chatdbg_config.debug:
-#             self.chat_log.log(json_obj)
-
-#     def fail(self, message='Failed'):
-#         print(file=self.stdout)
-#         print(textwrap.wrap(message, width=70, initial_indent='*** '),file=self.stdout)
-#         sys.exit(1)
-        
-#     def warn(self, message='Warning'):
-#         print(file=self.stdout)
-#         print(textwrap.wrap(message, width=70, initial_indent='*** '),file=self.stdout)

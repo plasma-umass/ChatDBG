@@ -4,7 +4,7 @@ from traitlets import Bool, Int, TraitError, Unicode
 from traitlets.config import Configurable
 
 
-def chat_get_env(option_name, default_value):
+def _chat_get_env(option_name, default_value):
     env_name = "CHATDBG_" + option_name.upper()
     v = os.getenv(env_name, str(default_value))
     if type(default_value) == int:
@@ -17,43 +17,43 @@ def chat_get_env(option_name, default_value):
 
 class Chat(Configurable):
     model = Unicode(
-        chat_get_env("model", "gpt-4-1106-preview"), help="The LLM model"
+        _chat_get_env("model", "gpt-4-1106-preview"), help="The LLM model"
     ).tag(config=True)
 
-    debug = Bool(chat_get_env("debug", False), help="Log LLM calls").tag(config=True)
+    debug = Bool(_chat_get_env("debug", False), help="Log LLM calls").tag(config=True)
 
-    log = Unicode(chat_get_env("log", "log.yaml"), help="The log file").tag(config=True)
+    log = Unicode(_chat_get_env("log", "log.yaml"), help="The log file").tag(config=True)
 
-    tag = Unicode(chat_get_env("tag", ""), help="Any extra info for log file").tag(
+    tag = Unicode(_chat_get_env("tag", ""), help="Any extra info for log file").tag(
         config=True
     )
     rc_lines = Unicode(
-        chat_get_env("rc_lines", "[]"), help="lines to run at startup"
+        _chat_get_env("rc_lines", "[]"), help="lines to run at startup"
     ).tag(config=True)
 
     context = Int(
-        chat_get_env("context", 10),
+        _chat_get_env("context", 10),
         help="lines of source code to show when displaying stacktrace information",
     ).tag(config=True)
 
     show_locals = Bool(
-        chat_get_env("show_locals", True), help="show local var values in stacktrace"
+        _chat_get_env("show_locals", True), help="show local var values in stacktrace"
     ).tag(config=True)
 
     show_libs = Bool(
-        chat_get_env("show_libs", False), help="show library frames in stacktrace"
+        _chat_get_env("show_libs", False), help="show library frames in stacktrace"
     ).tag(config=True)
 
     show_slices = Bool(
-        chat_get_env("show_slices", True), help="support the `slice` command"
+        _chat_get_env("show_slices", True), help="support the `slice` command"
     ).tag(config=True)
 
     take_the_wheel = Bool(
-        chat_get_env("take_the_wheel", True), help="Let LLM take the wheel"
+        _chat_get_env("take_the_wheel", True), help="Let LLM take the wheel"
     ).tag(config=True)
 
     stream = Bool(
-        chat_get_env("stream", False), help="Stream the response at it arrives"
+        _chat_get_env("stream", False), help="Stream the response at it arrives"
     ).tag(config=True)
 
     def to_json(self):

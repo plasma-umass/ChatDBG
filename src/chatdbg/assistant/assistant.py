@@ -188,7 +188,7 @@ class Assistant:
         cost = 0
 
         try:
-            self._broadcast("begin_query", prompt, extra=extra)
+            self._broadcast("begin_query", prompt, extra)
             self._conversation.append({"role": "user", "content": prompt})
 
             while True:
@@ -292,42 +292,3 @@ class Assistant:
             # Warning: potential infinite loop.
             self._broadcast("warn", f"Error processing tool calls: {e}")
 
-
-if __name__ == "__main__":
-
-    def weather(location, unit="f"):
-        """
-        {
-            "name": "get_weather",
-            "description": "Determine weather in my location",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                "location": {
-                    "type": "string",
-                    "description": "The city and state e.g. San Francisco, CA"
-                },
-                "unit": {
-                    "type": "string",
-                    "enum": [
-                    "c",
-                    "f"
-                    ]
-                }
-                },
-                "required": [
-                "location"
-                ]
-            }
-        }
-        """
-        return f"weather(location, unit)", "Sunny and 72 degrees."
-
-    a = Assistant(
-        "You generate text.", clients=[StreamingPrinter()], functions=[weather]
-    )
-    x = a.query(
-        "tell me what model you are before making any function calls.  And what's the weather in Boston?",
-        stream=True,
-    )
-    print(x)

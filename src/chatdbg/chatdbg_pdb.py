@@ -17,7 +17,8 @@ from traitlets import TraitError
 
 from chatdbg.ipdb_util.capture import CaptureInput
 
-from .assistant.assistant import Assistant, AbsAssistantListener
+from .assistant.assistant import Assistant
+from .assistant.listeners import AbsAssistantListener
 from .ipdb_util.chatlog import ChatDBGLog, CopyingTextIOWrapper
 from .ipdb_util.config import Chat, chatdbg_config
 from .ipdb_util.locals import *
@@ -577,7 +578,7 @@ class ChatDBG(ChatDBGSuper):
         if self._assistant == None:
             self._make_assistant()
 
-        stats = self._assistant.query(full_prompt, user_text=arg)
+        stats = self._assistant.query(full_prompt, extra=arg)
 
         self.message(f"\n[Cost: ~${stats['cost']:.2f} USD]")
 

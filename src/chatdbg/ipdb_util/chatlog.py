@@ -6,7 +6,7 @@ import sys
 import yaml
 from pydantic import BaseModel
 from typing import List, Union, Optional
-from ..assistant.assistant import AbsAssistantListener
+from ..assistant.listeners import AbsAssistantListener
 
 
 class CopyingTextIOWrapper:

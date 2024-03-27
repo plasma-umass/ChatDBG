@@ -23,7 +23,7 @@ class Chat(Configurable):
     debug = Bool(chat_get_env("debug", False), help="Log LLM calls").tag(config=True)
 
     log = Unicode(chat_get_env("log", "log.yaml"), help="The log file").tag(config=True)
-    
+
     tag = Unicode(chat_get_env("tag", ""), help="Any extra info for log file").tag(
         config=True
     )
@@ -39,19 +39,19 @@ class Chat(Configurable):
     show_locals = Bool(
         chat_get_env("show_locals", True), help="show local var values in stacktrace"
     ).tag(config=True)
-    
+
     show_libs = Bool(
         chat_get_env("show_libs", False), help="show library frames in stacktrace"
     ).tag(config=True)
-    
+
     show_slices = Bool(
         chat_get_env("show_slices", True), help="support the `slice` command"
     ).tag(config=True)
-    
+
     take_the_wheel = Bool(
         chat_get_env("take_the_wheel", True), help="Let LLM take the wheel"
     ).tag(config=True)
-    
+
     stream = Bool(
         chat_get_env("stream", False), help="Stream the response at it arrives"
     ).tag(config=True)
@@ -71,5 +71,6 @@ class Chat(Configurable):
             "take_the_wheel": self.take_the_wheel,
             "stream": self.stream,
         }
+
 
 chatdbg_config: Chat = Chat()

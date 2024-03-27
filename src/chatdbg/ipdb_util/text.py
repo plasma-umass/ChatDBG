@@ -5,6 +5,7 @@ import numbers
 import numpy as np
 import textwrap
 
+
 def make_arrow(pad):
     """generate the leading arrow in front of traceback or debugger"""
     if pad >= 2:
@@ -117,6 +118,7 @@ def truncate_proportionally(text, maxlen=32000, top_proportion=0.5):
         return text[:pre] + "..." + text[len(text) - post :]
     return text
 
+
 def word_wrap_except_code_blocks(text: str, width: int = 80) -> str:
     """
     Wraps text except for code blocks for nice terminal formatting.
@@ -132,11 +134,11 @@ def word_wrap_except_code_blocks(text: str, width: int = 80) -> str:
     Returns:
         The wrapped text.
     """
-    blocks = text.split('```')
+    blocks = text.split("```")
     for i in range(len(blocks)):
         if i % 2 == 0:
-            paras = blocks[i].split('\n')
-            wrapped = [ textwrap.fill(para, width=width) for para in paras]
+            paras = blocks[i].split("\n")
+            wrapped = [textwrap.fill(para, width=width) for para in paras]
             blocks[i] = "\n".join(wrapped)
 
-    return '```'.join(blocks)
+    return "```".join(blocks)

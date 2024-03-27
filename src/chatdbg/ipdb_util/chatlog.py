@@ -9,7 +9,6 @@ from typing import List, Union, Optional
 from ..assistant.assistant import AbstractAssistantClient
 
 
-
 class CopyingTextIOWrapper:
     """
     File wrapper that will stash a copy of everything written.
@@ -53,17 +52,17 @@ class ChatDBGLog(AbstractAssistantClient):
 
     def _make_log(self):
         meta = {
-                'time': datetime.now(),
-                'command_line':  " ".join(sys.argv),
-                'uid': str(uuid.uuid4()),
-                'config': self.config
+            "time": datetime.now(),
+            "command_line": " ".join(sys.argv),
+            "uid": str(uuid.uuid4()),
+            "config": self.config,
         }
         return {
-            'steps':[],
-            'meta':meta,
-            'instructions':None,
-            'stdout':self._stdout_wrapper.getvalue(),
-            'stderr':self._stderr_wrapper.getvalue(),
+            "steps": [],
+            "meta": meta,
+            "instructions": None,
+            "stdout": self._stdout_wrapper.getvalue(),
+            "stderr": self._stderr_wrapper.getvalue(),
         }
 
     def _dump(self):
@@ -71,29 +70,34 @@ class ChatDBGLog(AbstractAssistantClient):
 
         def total(key):
             return sum(
-                x['stats'][key] for x in log['steps'] if x['output']['type'] == 'chat' and 'stats' in x['output']
+                x["stats"][key]
+                for x in log["steps"]
+                if x["output"]["type"] == "chat" and "stats" in x["output"]
             )
 
-        log['meta']['total_tokens'] = total("tokens")
-        log['meta']['total_time'] = total("time")
-        log['meta']['total_cost'] = total("cost")
+        log["meta"]["total_tokens"] = total("tokens")
+        log["meta"]["total_time"] = total("time")
+        log["meta"]["total_cost"] = total("cost")
 
         print(f"*** Writing ChatDBG dialog log to {self._log_filename}")
 
         with open(self._log_filename, "a") as file:
+
             def literal_presenter(dumper, data):
                 if "\n" in data:
-                    return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
+                    return dumper.represent_scalar(
+                        "tag:yaml.org,2002:str", data, style="|"
+                    )
                 else:
                     return dumper.represent_scalar("tag:yaml.org,2002:str", data)
 
             yaml.add_representer(str, literal_presenter)
-            yaml.dump([ log ], file, default_flow_style=False, indent=2)
+            yaml.dump([log], file, default_flow_style=False, indent=2)
 
     def begin_dialog(self, instructions):
         log = self._log
         assert log != None
-        log['instructions'] = instructions
+        log["instructions"] = instructions
 
     def end_dialog(self):
         if self._log != None:
@@ -105,25 +109,33 @@ class ChatDBGLog(AbstractAssistantClient):
         assert log != None
         assert self._current_chat == None
         self._current_chat = {
-            'input':user_text,
-            'prompt':prompt,
-            'output': { 'type': 'chat', 'outputs': []}
+            "input": user_text,
+            "prompt": prompt,
+            "output": {"type": "chat", "outputs": []},
         }
 
     def end_query(self, stats):
         log = self._log
         assert log != None
         assert self._current_chat != None
-        log['steps'] += [ self._current_chat ]
+        log["steps"] += [self._current_chat]
         self._current_chat = None
 
     def _post(self, text, kind):
         log = self._log
         assert log != None
         if self._current_chat != None:
-            self._current_chat['output']['outputs'].append({ 'type': 'text', 'output': f"*** {kind}: {text}"})
+            self._current_chat["output"]["outputs"].append(
+                {"type": "text", "output": f"*** {kind}: {text}"}
+            )
         else:
-            log['steps'].append({ 'type': 'call', 'input': f"*** {kind}", 'output': { 'type': 'text', 'output': text } })
+            log["steps"].append(
+                {
+                    "type": "call",
+                    "input": f"*** {kind}",
+                    "output": {"type": "text", "output": text},
+                }
+            )
 
     def warn(self, text):
         self._post(text, "Warning")
@@ -135,12 +147,24 @@ class ChatDBGLog(AbstractAssistantClient):
         log = self._log
         assert log != None
         assert self._current_chat != None
-        self._current_chat['output']['outputs'].append({ 'type': 'text', 'output': text})
+        self._current_chat["output"]["outputs"].append({"type": "text", "output": text})
 
     def function_call(self, call, result):
         log = self._log
         assert log != None
         if self._current_chat != None:
-            self._current_chat['output']['outputs'].append({ 'type': 'call', 'input': call, 'output': { 'type': 'text', 'output': result }})
+            self._current_chat["output"]["outputs"].append(
+                {
+                    "type": "call",
+                    "input": call,
+                    "output": {"type": "text", "output": result},
+                }
+            )
         else:
-            log['steps'].append({ 'type': 'call', 'input': call, 'output': { 'type': 'text', 'output': result }})
+            log["steps"].append(
+                {
+                    "type": "call",
+                    "input": call,
+                    "output": {"type": "text", "output": result},
+                }
+            )

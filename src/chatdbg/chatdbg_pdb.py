@@ -100,9 +100,11 @@ class ChatDBG(ChatDBGSuper):
         # set this to True ONLY AFTER we have had access to stack frames
         self._show_locals = False
 
-        self._log = ChatDBGLog(log_filename=chatdbg_config.log, 
-                               config=chatdbg_config.to_json(),
-                               capture_streams=True)
+        self._log = ChatDBGLog(
+            log_filename=chatdbg_config.log,
+            config=chatdbg_config.to_json(),
+            capture_streams=True,
+        )
 
     def _close_assistant(self):
         if self._assistant != None:
@@ -206,9 +208,14 @@ class ChatDBG(ChatDBGSuper):
                 output = strip_color(hist_file.getvalue())
                 if not self.was_chat_or_renew:
                     self._log.function_call(line, output)
-                    if (
-                        line.split(' ')[0] not in ["hist", "test_prompt", "c", "cont", "continue", "config" ]
-                    ):
+                    if line.split(" ")[0] not in [
+                        "hist",
+                        "test_prompt",
+                        "c",
+                        "cont",
+                        "continue",
+                        "config",
+                    ]:
                         self._history += [(line, output)]
 
     def message(self, msg) -> None:
@@ -216,7 +223,7 @@ class ChatDBG(ChatDBGSuper):
         Override to remove tabs for messages so we can indent them.
         """
         return super().message(str(msg).expandtabs())
- 
+
     def error(self, msg) -> None:
         """
         Override to remove tabs for messages so we can indent them.
@@ -514,17 +521,16 @@ class ChatDBG(ChatDBGSuper):
             self.stdout = stdout
 
     def _ip_instructions(self):
-        return pdb_instructions(
-            self._supports_flow, chatdbg_config.take_the_wheel
-        )
+        return pdb_instructions(self._supports_flow, chatdbg_config.take_the_wheel)
+
     def _ip_enchriched_stack_trace(self):
         return f"The program has this stack trace:\n```\n{self.format_stack_trace()}\n```\n"
-    
+
     def _ip_error(self):
         return self._error_specific_prompt
 
     def _ip_inputs(self):
-        inputs = ''
+        inputs = ""
         if len(sys.argv) > 1:
             inputs += f"\nThese were the command line options:\n```\n{' '.join(sys.argv)}\n```\n"
         input = sys.stdin.get_captured_input()
@@ -538,7 +544,7 @@ class ChatDBG(ChatDBGSuper):
             hist = f"\nThis is the history of some pdb commands I ran and the results.\n```\n{hist}\n```\n"
             return hist
         else:
-            return ''
+            return ""
 
     def concat_prompt(self, *args):
         args = [a for a in args if len(a) > 0]
@@ -546,15 +552,15 @@ class ChatDBG(ChatDBGSuper):
 
     def _build_prompt(self, arg, conversing):
         if not conversing:
-            return self.concat_prompt(  self._ip_enchriched_stack_trace(),
-                                        self._ip_inputs(),
-                                        self._ip_error(),
-                                        self._ip_history(),
-                                        arg)
+            return self.concat_prompt(
+                self._ip_enchriched_stack_trace(),
+                self._ip_inputs(),
+                self._ip_error(),
+                self._ip_history(),
+                arg,
+            )
         else:
-            return self.concat_prompt(self._ip_history(),
-                                        self._stack_prompt(),
-                                        arg)
+            return self.concat_prompt(self._ip_history(), self._stack_prompt(), arg)
 
     def do_chat(self, arg):
         """chat
@@ -650,7 +656,9 @@ class ChatDBG(ChatDBGSuper):
             # if old_curframe != self.curframe:
             #     result += strip_color(self._stack_prompt())
 
-            return command, truncate_proportionally(result, maxlen=8000, top_proportion=0.9)
+            return command, truncate_proportionally(
+                result, maxlen=8000, top_proportion=0.9
+            )
 
         def slice(name):
             """
@@ -676,9 +684,9 @@ class ChatDBG(ChatDBGSuper):
         instruction_prompt = self._ip_instructions()
 
         if chatdbg_config.take_the_wheel:
-            functions = [ debug, info ]
+            functions = [debug, info]
             if self._supports_flow:
-                functions += [ slice ]
+                functions += [slice]
         else:
             functions = []
 
@@ -688,18 +696,19 @@ class ChatDBG(ChatDBGSuper):
             debug=chatdbg_config.debug,
             functions=functions,
             stream_response=chatdbg_config.stream,
-            clients=[ ChatAssistantClient(self.stdout, 
-                                       self.prompt,
-                                       self._chat_prefix, 
-                                       self._text_width,
-                                       stream=chatdbg_config.stream),
-                      self._log ]
+            clients=[
+                ChatAssistantClient(
+                    self.stdout,
+                    self.prompt,
+                    self._chat_prefix,
+                    self._text_width,
+                    stream=chatdbg_config.stream,
+                ),
+                self._log,
+            ],
         )
 
-
-
     ###############################################################
-
 
 
 class ChatAssistantClient(AbstractAssistantClient):
@@ -710,48 +719,60 @@ class ChatAssistantClient(AbstractAssistantClient):
         self.width = width
         self._assistant = None
         self._stream = stream
-    
+
     # Call backs
 
-    def begin_query(self, prompt='', user_text=''):
+    def begin_query(self, prompt="", user_text=""):
         pass
 
     def end_query(self, stats):
         pass
 
     def _print(self, text, **kwargs):
-        print(textwrap.indent(text, self.chat_prefix, lambda _: True), file=self.out, **kwargs)
+        print(
+            textwrap.indent(text, self.chat_prefix, lambda _: True),
+            file=self.out,
+            **kwargs,
+        )
 
     def warn(self, text):
-        self._print(textwrap.indent(text, '*** '))
+        self._print(textwrap.indent(text, "*** "))
 
     def fail(self, text):
-        self._print(textwrap.indent(text, '*** '))
+        self._print(textwrap.indent(text, "*** "))
         sys.exit(1)
 
     def begin_stream(self):
         self._stream_wrapper = StreamingTextWrapper(self.chat_prefix, width=80)
         self._at_start = True
         # print(self._stream_wrapper.append("\n", False), end='', flush=True, file=self.out)
-    
+
     def stream_delta(self, text):
         if self._at_start:
             self._at_start = False
-            print(self._stream_wrapper.append("\n(Message) ", False), end='', flush=True, file=self.out)    
-        print(self._stream_wrapper.append(text, False), end='', flush=True, file=self.out)
-    
+            print(
+                self._stream_wrapper.append("\n(Message) ", False),
+                end="",
+                flush=True,
+                file=self.out,
+            )
+        print(
+            self._stream_wrapper.append(text, False), end="", flush=True, file=self.out
+        )
+
     def end_stream(self):
-        print(self._stream_wrapper.flush(), end='', flush=True, file=self.out)
+        print(self._stream_wrapper.flush(), end="", flush=True, file=self.out)
 
     def response(self, text):
         if not self._stream and text != None:
-            text = word_wrap_except_code_blocks(text, self.width-len(self.chat_prefix))
+            text = word_wrap_except_code_blocks(
+                text, self.width - len(self.chat_prefix)
+            )
             self._print(text)
-        
+
     def function_call(self, call, result):
         if result and len(result) > 0:
             entry = f"{self.debugger_prompt}{call}\n{result}"
         else:
             entry = f"{self.debugger_prompt}{call}"
         self._print(entry)
-        

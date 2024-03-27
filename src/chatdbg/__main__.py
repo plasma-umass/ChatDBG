@@ -27,27 +27,30 @@ ChatDBG-specific options may appear anywhere before pyfile:
 
 """
 
+
 def main():
     ipdb.__main__._get_debugger_cls = lambda: ChatDBG
 
-    opts, args = getopt.getopt(sys.argv[1:], "mhc:", ['help', 'debug', 'log=', 'model=', 'stream', 'command=' ])
-    pdb_args = [ sys.argv[0] ]
+    opts, args = getopt.getopt(
+        sys.argv[1:], "mhc:", ["help", "debug", "log=", "model=", "stream", "command="]
+    )
+    pdb_args = [sys.argv[0]]
     for opt, optarg in opts:
-        if opt in ['-h', '--help']:
+        if opt in ["-h", "--help"]:
             print(_usage)
             sys.exit()
-        elif opt in ['--debug']:
+        elif opt in ["--debug"]:
             chatdbg_config.debug = True
-        elif opt in ['--stream']:
+        elif opt in ["--stream"]:
             chatdbg_config.stream = True
-        elif opt in ['--model']:
+        elif opt in ["--model"]:
             chatdbg_config.model = optarg
-        elif opt in ['--log']:
+        elif opt in ["--log"]:
             chatdbg_config.model = optarg
-        elif opt in ['-c', '--command']:
-            pdb_args += [ opt, optarg ] 
-        elif opt in ['-m']:
-            pdb_args = [ opt ]
+        elif opt in ["-c", "--command"]:
+            pdb_args += [opt, optarg]
+        elif opt in ["-m"]:
+            pdb_args = [opt]
 
     sys.argv = pdb_args + args
 

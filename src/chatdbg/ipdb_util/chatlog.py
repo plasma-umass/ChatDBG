@@ -6,7 +6,7 @@ import sys
 import yaml
 from pydantic import BaseModel
 from typing import List, Union, Optional
-from ..assistant.assistant import AbstractAssistantClient
+from ..assistant.assistant import AbsAssistantListener
 
 
 class CopyingTextIOWrapper:
@@ -33,7 +33,7 @@ class CopyingTextIOWrapper:
         return getattr(self.file, attr)
 
 
-class ChatDBGLog(AbstractAssistantClient):
+class ChatDBGLog(AbsAssistantListener):
 
     def __init__(self, log_filename, config, capture_streams=True):
         self._log_filename = log_filename
@@ -104,12 +104,12 @@ class ChatDBGLog(AbstractAssistantClient):
             self._dump()
         self._log = self._make_log()
 
-    def begin_query(self, prompt, user_text):
+    def begin_query(self, prompt, extra):
         log = self._log
         assert log != None
         assert self._current_chat == None
         self._current_chat = {
-            "input": user_text,
+            "input": extra,
             "prompt": prompt,
             "output": {"type": "chat", "outputs": []},
         }
@@ -119,6 +119,7 @@ class ChatDBGLog(AbstractAssistantClient):
         assert log != None
         assert self._current_chat != None
         log["steps"] += [self._current_chat]
+        log['stats'] = stats
         self._current_chat = None
 
     def _post(self, text, kind):

@@ -17,7 +17,7 @@ from traitlets import TraitError
 
 from chatdbg.ipdb_util.capture import CaptureInput
 
-from .assistant.assistant import Assistant, AbstractAssistantClient
+from .assistant.assistant import Assistant, AbsAssistantListener
 from .ipdb_util.chatlog import ChatDBGLog, CopyingTextIOWrapper
 from .ipdb_util.config import Chat, chatdbg_config
 from .ipdb_util.locals import *
@@ -711,7 +711,7 @@ class ChatDBG(ChatDBGSuper):
     ###############################################################
 
 
-class ChatAssistantClient(AbstractAssistantClient):
+class ChatAssistantClient(AbsAssistantListener):
     def __init__(self, out, debugger_prompt, chat_prefix, width, stream=False):
         self.out = out
         self.debugger_prompt = debugger_prompt
@@ -722,7 +722,7 @@ class ChatAssistantClient(AbstractAssistantClient):
 
     # Call backs
 
-    def begin_query(self, prompt="", user_text=""):
+    def begin_query(self, prompt, extra):
         pass
 
     def end_query(self, stats):
@@ -745,7 +745,6 @@ class ChatAssistantClient(AbstractAssistantClient):
     def begin_stream(self):
         self._stream_wrapper = StreamingTextWrapper(self.chat_prefix, width=80)
         self._at_start = True
-        # print(self._stream_wrapper.append("\n", False), end='', flush=True, file=self.out)
 
     def stream_delta(self, text):
         if self._at_start:

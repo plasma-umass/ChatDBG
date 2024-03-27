@@ -8,97 +8,7 @@ import textwrap
 import textwrap
 import sys
 
-
-class AbstractAssistantClient:
-
-    def begin_dialog(self, instructions):
-        pass
-
-    def end_dialog(self):
-        pass
-
-    def begin_query(self, prompt, **kwargs):
-        pass
-
-    def end_query(self, stats):
-        pass
-
-    def warn(self, text):
-        pass
-
-    def fail(self, text):
-        pass
-
-    def begin_stream(self):
-        pass
-
-    def stream_delta(self, text):
-        pass
-
-    def end_stream(self):
-        pass
-
-    def response(self, text):
-        pass
-
-    def function_call(self, call, result):
-        pass
-
-
-class PrintingAssistantClient(AbstractAssistantClient):
-    def __init__(self, out=sys.stdout):
-        self.out = out
-
-    def warn(self, text):
-        print(textwrap.indent(text, "*** "), file=self.out)
-
-    def fail(self, text):
-        print(textwrap.indent(text, "*** "), file=self.out)
-        sys.exit(1)
-
-    def begin_stream(self):
-        pass
-
-    def stream_delta(self, text):
-        print(text, end="", file=self.out, flush=True)
-
-    def end_stream(self):
-        pass
-
-    def begin_query(self, prompt, **kwargs):
-        pass
-
-    def end_query(self, stats):
-        pass
-
-    def response(self, text):
-        if text != None:
-            print(text, file=self.out)
-
-    def function_call(self, call, result):
-        if result and len(result) > 0:
-            entry = f"{call}\n{result}"
-        else:
-            entry = f"{call}"
-        print(entry, file=self.out)
-
-
-class StreamingAssistantClient(PrintingAssistantClient):
-    def __init__(self, out=sys.stdout):
-        super().__init__(out)
-
-    def begin_stream(self):
-        print("", flush=True)
-
-    def stream_delta(self, text):
-        print(text, end="", file=self.out, flush=True)
-
-    def end_stream(self):
-        print("", flush=True)
-
-    def response(self, text):
-        pass
-
+from .listeners import Printer, StreamingPrinter
 
 class Assistant:
     def __init__(
@@ -106,7 +16,7 @@ class Assistant:
         instructions,
         model="gpt-3.5-turbo-1106",
         timeout=30,
-        clients=[PrintingAssistantClient()],
+        clients=[Printer()],
         functions=[],
         max_call_response_tokens=4096,
         debug=False,
@@ -138,11 +48,11 @@ class Assistant:
     def close(self):
         self._broadcast("end_dialog")
 
-    def _broadcast(self, method_name, *args, **kwargs):
+    def _broadcast(self, method_name, *args):
         for client in self._clients:
             method = getattr(client, method_name, None)
             if callable(method):
-                method(*args, **kwargs)
+                method(*args)
 
     def _check_model(self):
         result = litellm.validate_environment(self._model)
@@ -224,18 +134,18 @@ class Assistant:
             result = f"Ill-formed function call: {e}"
         return result
 
-    def query(self, prompt: str, **kwargs):
+    def query(self, prompt: str, extra = None):
         if self._stream_response:
-            return self._streamed_query(prompt=prompt, **kwargs)
+            return self._streamed_query(prompt=prompt, extra=extra)
         else:
-            return self._batch_query(prompt=prompt, **kwargs)
+            return self._batch_query(prompt=prompt, extra=extra)
 
-    def _batch_query(self, prompt: str, **kwargs):
+    def _batch_query(self, prompt: str, extra):
         start = time.time()
         cost = 0
 
         try:
-            self._broadcast("begin_query", prompt, **kwargs)
+            self._broadcast("begin_query", prompt, extra)
             self._conversation.append({"role": "user", "content": prompt})
 
             while True:
@@ -273,12 +183,12 @@ class Assistant:
             self._broadcast("fail", f"Internal Error: {e.__dict__}")
             sys.exit(1)
 
-    def _streamed_query(self, prompt: str, **kwargs):
+    def _streamed_query(self, prompt: str, extra = None):
         start = time.time()
         cost = 0
 
         try:
-            self._broadcast("begin_query", prompt, **kwargs)
+            self._broadcast("begin_query", prompt, extra=extra)
             self._conversation.append({"role": "user", "content": prompt})
 
             while True:
@@ -414,7 +324,7 @@ if __name__ == "__main__":
         return f"weather(location, unit)", "Sunny and 72 degrees."
 
     a = Assistant(
-        "You generate text.", clients=[StreamingAssistantClient()], functions=[weather]
+        "You generate text.", clients=[StreamingPrinter()], functions=[weather]
     )
     x = a.query(
         "tell me what model you are before making any function calls.  And what's the weather in Boston?",

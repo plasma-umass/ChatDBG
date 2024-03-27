@@ -1,5 +1,5 @@
-import atexit
 import ast
+import atexit
 import inspect
 import linecache
 import os
@@ -21,10 +21,15 @@ from .assistant.assistant import Assistant
 from .assistant.listeners import BaseAssistantListener
 from .ipdb_util.chatlog import ChatDBGLog
 from .ipdb_util.config import chatdbg_config
-from .ipdb_util.locals import *
+from .ipdb_util.locals import extract_locals
 from .ipdb_util.prompts import pdb_instructions
 from .ipdb_util.streamwrap import StreamingTextWrapper
-from .ipdb_util.text import *
+from .ipdb_util.text import (
+    format_limited,
+    strip_color,
+    truncate_proportionally,
+    word_wrap_except_code_blocks,
+)
 
 
 def load_ipython_extension(ipython):

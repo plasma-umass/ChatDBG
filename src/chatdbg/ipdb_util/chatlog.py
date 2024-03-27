@@ -6,41 +6,19 @@ import sys
 import yaml
 from pydantic import BaseModel
 from typing import List, Union, Optional
-from ..assistant.listeners import AbsAssistantListener
+
+from chatdbg.ipdb_util.capture import CaptureOutput
+from ..assistant.listeners import BaseAssistantListener
 
 
-class CopyingTextIOWrapper:
-    """
-    File wrapper that will stash a copy of everything written.
-    """
-
-    def __init__(self, file):
-        self.file = file
-        self.buffer = StringIO()
-
-    def write(self, data):
-        self.buffer.write(data)
-        return self.file.write(data)
-
-    def getvalue(self):
-        return self.buffer.getvalue()
-
-    def getfile(self):
-        return self.file
-
-    def __getattr__(self, attr):
-        # Delegate attribute access to the file object
-        return getattr(self.file, attr)
-
-
-class ChatDBGLog(AbsAssistantListener):
+class ChatDBGLog(BaseAssistantListener):
 
     def __init__(self, log_filename, config, capture_streams=True):
         self._log_filename = log_filename
         self.config = config
         if capture_streams:
-            self._stdout_wrapper = CopyingTextIOWrapper(sys.stdout)
-            self._stderr_wrapper = CopyingTextIOWrapper(sys.stderr)
+            self._stdout_wrapper = CaptureOutput(sys.stdout)
+            self._stderr_wrapper = CaptureOutput(sys.stderr)
             sys.stdout = self._stdout_wrapper
             sys.stderr = self._stdout_wrapper
         else:
@@ -94,17 +72,17 @@ class ChatDBGLog(AbsAssistantListener):
             yaml.add_representer(str, literal_presenter)
             yaml.dump([log], file, default_flow_style=False, indent=2)
 
-    def begin_dialog(self, instructions):
+    def on_begin_dialog(self, instructions):
         log = self._log
         assert log != None
         log["instructions"] = instructions
 
-    def end_dialog(self):
+    def on_end_dialog(self):
         if self._log != None:
             self._dump()
         self._log = self._make_log()
 
-    def begin_query(self, prompt, extra):
+    def on_begin_query(self, prompt, extra):
         log = self._log
         assert log != None
         assert self._current_chat == None
@@ -114,12 +92,12 @@ class ChatDBGLog(AbsAssistantListener):
             "output": {"type": "chat", "outputs": []},
         }
 
-    def end_query(self, stats):
+    def on_end_query(self, stats):
         log = self._log
         assert log != None
         assert self._current_chat != None
         log["steps"] += [self._current_chat]
-        log['stats'] = stats
+        log["stats"] = stats
         self._current_chat = None
 
     def _post(self, text, kind):
@@ -144,13 +122,13 @@ class ChatDBGLog(AbsAssistantListener):
     def fail(self, text):
         self._post(text, "Failure")
 
-    def response(self, text):
+    def on_response(self, text):
         log = self._log
         assert log != None
         assert self._current_chat != None
         self._current_chat["output"]["outputs"].append({"type": "text", "output": text})
 
-    def function_call(self, call, result):
+    def on_function_call(self, call, result):
         log = self._log
         assert log != None
         if self._current_chat != None:

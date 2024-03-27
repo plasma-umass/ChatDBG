@@ -15,12 +15,12 @@ from pprint import pprint
 import IPython
 from traitlets import TraitError
 
-from chatdbg.ipdb_util.capture import CaptureInput
+from chatdbg.ipdb_util.capture import CaptureInput, CaptureOutput
 
 from .assistant.assistant import Assistant
-from .assistant.listeners import AbsAssistantListener
-from .ipdb_util.chatlog import ChatDBGLog, CopyingTextIOWrapper
-from .ipdb_util.config import Chat, chatdbg_config
+from .assistant.listeners import BaseAssistantListener
+from .ipdb_util.chatlog import ChatDBGLog
+from .ipdb_util.config import chatdbg_config
 from .ipdb_util.locals import *
 from .ipdb_util.prompts import pdb_instructions
 from .ipdb_util.streamwrap import StreamingTextWrapper
@@ -30,10 +30,10 @@ from .ipdb_util.text import *
 def load_ipython_extension(ipython):
     global chatdbg_config
     from chatdbg.chatdbg_pdb import ChatDBG
-    from chatdbg.ipdb_util.config import Chat, chatdbg_config
+    from chatdbg.ipdb_util.config import ChatDBGConfig, chatdbg_config
 
     ipython.InteractiveTB.debugger_cls = ChatDBG
-    chatdbg_config = Chat(config=ipython.config)
+    chatdbg_config = ChatDBGConfig(config=ipython.config)
     print("*** Loaded ChatDBG ***")
 
 
@@ -80,20 +80,7 @@ class ChatDBG(ChatDBGSuper):
 
         sys.stdin = CaptureInput(sys.stdin)
 
-        # Only use flow when we are in jupyter or using stdin in ipython.   In both
-        # cases, there will be no python file at the start of argv after the
-        # ipython commands.
-        self._supports_flow = chatdbg_config.show_slices
-        if self._supports_flow:
-            if ChatDBGSuper is not IPython.core.debugger.InterruptiblePdb:
-                for arg in sys.argv:
-                    if arg.endswith("ipython") or arg.endswith("ipython3"):
-                        continue
-                    if arg.startswith("-"):
-                        continue
-                    if Path(arg).suffix in [".py", ".ipy"]:
-                        self._supports_flow = False
-                    break
+        self._supports_flow = self.can_support_flow()
 
         self.do_context(chatdbg_config.context)
         self.rcLines += ast.literal_eval(chatdbg_config.rc_lines)
@@ -111,6 +98,23 @@ class ChatDBG(ChatDBGSuper):
         if self._assistant != None:
             self._assistant.close()
 
+    def can_support_flow(self):
+        # Only use flow when we are in jupyter or using stdin in ipython.   In both
+        # cases, there will be no python file at the start of argv after the
+        # ipython commands.
+        if chatdbg_config.show_slices:
+            if ChatDBGSuper is not IPython.core.debugger.InterruptiblePdb:
+                for arg in sys.argv:
+                    if arg.endswith("ipython") or arg.endswith("ipython3"):
+                        continue
+                    if arg.startswith("-"):
+                        continue
+                    if Path(arg).suffix in [".py", ".ipy"]:
+                        return False
+            return True
+        else:
+            return False
+
     def _is_user_frame(self, frame):
         if not self._is_user_file(frame.f_code.co_filename):
             return False
@@ -120,11 +124,13 @@ class ChatDBG(ChatDBGSuper):
     def _is_user_file(self, file_name):
         if file_name.endswith(".pyx"):
             return False
-        if file_name == "<string>":
+        elif file_name == "<string>":
             return False
+
         for prefix in _user_file_prefixes:
             if file_name.startswith(prefix):
                 return True
+
         return False
 
     def format_stack_trace(self, context=None):
@@ -199,7 +205,7 @@ class ChatDBG(ChatDBGSuper):
             # blank -- let super call back to into onecmd
             return super().onecmd(line)
         else:
-            hist_file = CopyingTextIOWrapper(self.stdout)
+            hist_file = CaptureOutput(self.stdout)
             self.stdout = hist_file
             try:
                 self.was_chat_or_renew = False
@@ -208,7 +214,7 @@ class ChatDBG(ChatDBGSuper):
                 self.stdout = hist_file.getfile()
                 output = strip_color(hist_file.getvalue())
                 if not self.was_chat_or_renew:
-                    self._log.function_call(line, output)
+                    self._log.on_function_call(line, output)
                     if line.split(" ")[0] not in [
                         "hist",
                         "test_prompt",
@@ -313,9 +319,7 @@ class ChatDBG(ChatDBGSuper):
             # didn't find anything
             if obj == None:
                 self.message(f"No name `{arg}` is visible in the current frame.")
-                return
-
-            if self._is_user_file(inspect.getfile(obj)):
+            elif self._is_user_file(inspect.getfile(obj)):
                 self.do_source(x)
             else:
                 self.do_pydoc(x)
@@ -578,7 +582,7 @@ class ChatDBG(ChatDBGSuper):
         if self._assistant == None:
             self._make_assistant()
 
-        stats = self._assistant.query(full_prompt, extra=arg)
+        stats = self._assistant.query(full_prompt, user_text=arg)
 
         self.message(f"\n[Cost: ~${stats['cost']:.2f} USD]")
 
@@ -611,83 +615,12 @@ class ChatDBG(ChatDBGSuper):
             self.error(f"{e}")
 
     def _make_assistant(self):
-        def info(value):
-            """
-            {
-                "name": "info",
-                "description": "Get the documentation and source code for a reference, which may be a variable, function, method reference, field reference, or dotted reference visible in the current frame.  Examples include n, e.n where e is an expression, and t.n where t is a type.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "value": {
-                            "type": "string",
-                            "description": "The reference to get the information for."
-                        }
-                    },
-                    "required": [ "value"  ]
-                }
-            }
-            """
-            command = f"info {value}"
-            result = self._capture_onecmd(command)
-            return command, truncate_proportionally(result, top_proportion=1)
-
-        def debug(command):
-            """
-            {
-                "name": "debug",
-                "description": "Run a pdb command and get the response.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "command": {
-                            "type": "string",
-                            "description": "The pdb command to run."
-                        }
-                    },
-                    "required": [ "command" ]
-                }
-            }
-            """
-            cmd = command if command != "list" else "ll"
-            # old_curframe = self.curframe
-            result = self._capture_onecmd(cmd)
-
-            # help the LLM know where it is...
-            # if old_curframe != self.curframe:
-            #     result += strip_color(self._stack_prompt())
-
-            return command, truncate_proportionally(
-                result, maxlen=8000, top_proportion=0.9
-            )
-
-        def slice(name):
-            """
-            {
-                "name": "slice",
-                "description": "Return the code to compute a global variable used in the current frame",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "name": {
-                            "type": "string",
-                            "description": "The variable to look at."
-                        }
-                    },
-                    "required": [ "name"  ]
-                }
-            }
-            """
-            command = f"slice {name}"
-            result = self._capture_onecmd(command)
-            return command, truncate_proportionally(result, top_proportion=0.5)
-
         instruction_prompt = self._ip_instructions()
 
         if chatdbg_config.take_the_wheel:
-            functions = [debug, info]
+            functions = [self.debug, self.info]
             if self._supports_flow:
-                functions += [slice]
+                functions += [self.slice]
         else:
             functions = []
 
@@ -696,7 +629,7 @@ class ChatDBG(ChatDBGSuper):
             model=chatdbg_config.model,
             debug=chatdbg_config.debug,
             functions=functions,
-            stream_response=chatdbg_config.stream,
+            stream=chatdbg_config.stream,
             clients=[
                 ChatAssistantClient(
                     self.stdout,
@@ -709,10 +642,81 @@ class ChatDBG(ChatDBGSuper):
             ],
         )
 
+    ### Callbacks for LLM
+
+    def info(self, value):
+        """
+        {
+            "name": "info",
+            "description": "Get the documentation and source code for a reference, which may be a variable, function, method reference, field reference, or dotted reference visible in the current frame.  Examples include n, e.n where e is an expression, and t.n where t is a type.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "value": {
+                        "type": "string",
+                        "description": "The reference to get the information for."
+                    }
+                },
+                "required": [ "value"  ]
+            }
+        }
+        """
+        command = f"info {value}"
+        result = self._capture_onecmd(command)
+        return command, truncate_proportionally(result, top_proportion=1)
+
+    def debug(self, command):
+        """
+        {
+            "name": "debug",
+            "description": "Run a pdb command and get the response.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {
+                        "type": "string",
+                        "description": "The pdb command to run."
+                    }
+                },
+                "required": [ "command" ]
+            }
+        }
+        """
+        cmd = command if command != "list" else "ll"
+        # old_curframe = self.curframe
+        result = self._capture_onecmd(cmd)
+
+        # help the LLM know where it is...
+        # if old_curframe != self.curframe:
+        #     result += strip_color(self._stack_prompt())
+
+        return command, truncate_proportionally(result, maxlen=8000, top_proportion=0.9)
+
+    def slice(self, name):
+        """
+        {
+            "name": "slice",
+            "description": "Return the code to compute a global variable used in the current frame",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "The variable to look at."
+                    }
+                },
+                "required": [ "name"  ]
+            }
+        }
+        """
+        command = f"slice {name}"
+        result = self._capture_onecmd(command)
+        return command, truncate_proportionally(result, top_proportion=0.5)
+
     ###############################################################
 
 
-class ChatAssistantClient(AbsAssistantListener):
+class ChatAssistantClient(BaseAssistantListener):
     def __init__(self, out, debugger_prompt, chat_prefix, width, stream=False):
         self.out = out
         self.debugger_prompt = debugger_prompt
@@ -723,10 +727,10 @@ class ChatAssistantClient(AbsAssistantListener):
 
     # Call backs
 
-    def begin_query(self, prompt, extra):
+    def on_begin_query(self, prompt, user_text):
         pass
 
-    def end_query(self, stats):
+    def on_end_query(self, stats):
         pass
 
     def _print(self, text, **kwargs):
@@ -743,11 +747,11 @@ class ChatAssistantClient(AbsAssistantListener):
         self._print(textwrap.indent(text, "*** "))
         sys.exit(1)
 
-    def begin_stream(self):
+    def on_begin_stream(self):
         self._stream_wrapper = StreamingTextWrapper(self.chat_prefix, width=80)
         self._at_start = True
 
-    def stream_delta(self, text):
+    def on_stream_delta(self, text):
         if self._at_start:
             self._at_start = False
             print(
@@ -760,17 +764,17 @@ class ChatAssistantClient(AbsAssistantListener):
             self._stream_wrapper.append(text, False), end="", flush=True, file=self.out
         )
 
-    def end_stream(self):
+    def on_end_stream(self):
         print(self._stream_wrapper.flush(), end="", flush=True, file=self.out)
 
-    def response(self, text):
+    def on_response(self, text):
         if not self._stream and text != None:
             text = word_wrap_except_code_blocks(
                 text, self.width - len(self.chat_prefix)
             )
             self._print(text)
 
-    def function_call(self, call, result):
+    def on_function_call(self, call, result):
         if result and len(result) > 0:
             entry = f"{self.debugger_prompt}{call}\n{result}"
         else:

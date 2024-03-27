@@ -1,21 +1,46 @@
-
 import sys
 import textwrap
 
 
-class AbsAssistantListener:
+class BaseAssistantListener:
+    """
+    Events that the Assistant generates.  Override these for the client.
+    """
 
-    def begin_dialog(self, instructions):
+    # Dialogs capture 1 or more queries.
+
+    def on_begin_dialog(self, instructions):
         pass
 
-    def end_dialog(self):
+    def on_end_dialog(self):
         pass
 
-    def begin_query(self, prompt, extra):
+    # Events for a single query
+
+    def on_begin_query(self, prompt, user_text):
         pass
 
-    def end_query(self, stats):
+    def on_response(self, text):
         pass
+
+    def on_function_call(self, call, result):
+        pass
+
+    def on_end_query(self, stats):
+        pass
+
+    # For clients wishing to stream responses
+
+    def on_begin_stream(self):
+        pass
+
+    def on_stream_delta(self, text):
+        pass
+
+    def on_end_stream(self):
+        pass
+
+    # Notifications of non-fatal / fatal problems
 
     def warn(self, text):
         pass
@@ -23,23 +48,8 @@ class AbsAssistantListener:
     def fail(self, text):
         pass
 
-    def begin_stream(self):
-        pass
 
-    def stream_delta(self, text):
-        pass
-
-    def end_stream(self):
-        pass
-
-    def response(self, text):
-        pass
-
-    def function_call(self, call, result):
-        pass
-
-
-class Printer(AbsAssistantListener):
+class Printer(BaseAssistantListener):
     def __init__(self, out=sys.stdout):
         self.out = out
 
@@ -50,26 +60,26 @@ class Printer(AbsAssistantListener):
         print(textwrap.indent(text, "*** "), file=self.out)
         sys.exit(1)
 
-    def begin_stream(self):
+    def on_begin_stream(self):
         pass
 
-    def stream_delta(self, text):
+    def on_stream_delta(self, text):
         print(text, end="", file=self.out, flush=True)
 
-    def end_stream(self):
+    def on_end_stream(self):
         pass
 
-    def begin_query(self, prompt, extra):
+    def on_begin_query(self, prompt, user_text):
         pass
 
-    def end_query(self, stats):
+    def on_end_query(self, stats):
         pass
 
-    def response(self, text):
+    def on_response(self, text):
         if text != None:
             print(text, file=self.out)
 
-    def function_call(self, call, result):
+    def on_function_call(self, call, result):
         if result and len(result) > 0:
             entry = f"{call}\n{result}"
         else:
@@ -81,14 +91,14 @@ class StreamingPrinter(Printer):
     def __init__(self, out=sys.stdout):
         super().__init__(out)
 
-    def begin_stream(self):
+    def on_begin_stream(self):
         print("", flush=True)
 
-    def stream_delta(self, text):
+    def on_stream_delta(self, text):
         print(text, end="", file=self.out, flush=True)
 
-    def end_stream(self):
+    def on_end_stream(self):
         print("", flush=True)
 
-    def response(self, text):
+    def on_response(self, text):
         pass

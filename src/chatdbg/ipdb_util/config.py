@@ -4,7 +4,7 @@ from traitlets import Bool, Int, TraitError, Unicode
 from traitlets.config import Configurable
 
 
-def _chat_get_env(option_name, default_value):
+def _chatdbg_get_env(option_name, default_value):
     env_name = "CHATDBG_" + option_name.upper()
     v = os.getenv(env_name, str(default_value))
     if type(default_value) == int:
@@ -15,45 +15,50 @@ def _chat_get_env(option_name, default_value):
         return v
 
 
-class Chat(Configurable):
+class ChatDBGConfig(Configurable):
     model = Unicode(
-        _chat_get_env("model", "gpt-4-1106-preview"), help="The LLM model"
+        _chatdbg_get_env("model", "gpt-4-1106-preview"), help="The LLM model"
     ).tag(config=True)
 
-    debug = Bool(_chat_get_env("debug", False), help="Log LLM calls").tag(config=True)
+    debug = Bool(_chatdbg_get_env("debug", False), help="Log LLM calls").tag(
+        config=True
+    )
 
-    log = Unicode(_chat_get_env("log", "log.yaml"), help="The log file").tag(config=True)
+    log = Unicode(_chatdbg_get_env("log", "log.yaml"), help="The log file").tag(
+        config=True
+    )
 
-    tag = Unicode(_chat_get_env("tag", ""), help="Any extra info for log file").tag(
+    tag = Unicode(_chatdbg_get_env("tag", ""), help="Any extra info for log file").tag(
         config=True
     )
     rc_lines = Unicode(
-        _chat_get_env("rc_lines", "[]"), help="lines to run at startup"
+        _chatdbg_get_env("rc_lines", "[]"), help="lines to run at startup"
     ).tag(config=True)
 
     context = Int(
-        _chat_get_env("context", 10),
+        _chatdbg_get_env("context", 10),
         help="lines of source code to show when displaying stacktrace information",
     ).tag(config=True)
 
     show_locals = Bool(
-        _chat_get_env("show_locals", True), help="show local var values in stacktrace"
+        _chatdbg_get_env("show_locals", True),
+        help="show local var values in stacktrace",
     ).tag(config=True)
 
     show_libs = Bool(
-        _chat_get_env("show_libs", False), help="show library frames in stacktrace"
+        _chatdbg_get_env("show_libs", False), help="show library frames in stacktrace"
     ).tag(config=True)
 
     show_slices = Bool(
-        _chat_get_env("show_slices", True), help="support the `slice` command"
+        _chatdbg_get_env("show_slices", True), help="support the `slice` command"
     ).tag(config=True)
 
     take_the_wheel = Bool(
-        _chat_get_env("take_the_wheel", True), help="Let LLM take the wheel"
+        _chatdbg_get_env("take_the_wheel", True), help="Let LLM take the wheel"
     ).tag(config=True)
 
     stream = Bool(
-        _chat_get_env("stream", False), help="Stream the response at it arrives"
+        _chatdbg_get_env("stream", False), help="Stream the response at it arrives"
     ).tag(config=True)
 
     def to_json(self):
@@ -73,4 +78,4 @@ class Chat(Configurable):
         }
 
 
-chatdbg_config: Chat = Chat()
+chatdbg_config: ChatDBGConfig = ChatDBGConfig()

@@ -30,3 +30,27 @@ class CaptureInput:
 
     def get_captured_input(self):
         return self.capture_buffer.getvalue()
+
+
+class CaptureOutput:
+    """
+    File wrapper that will stash a copy of everything written.
+    """
+
+    def __init__(self, file):
+        self.file = file
+        self.buffer = StringIO()
+
+    def write(self, data):
+        self.buffer.write(data)
+        return self.file.write(data)
+
+    def getvalue(self):
+        return self.buffer.getvalue()
+
+    def getfile(self):
+        return self.file
+
+    def __getattr__(self, attr):
+        # Delegate attribute access to the file object
+        return getattr(self.file, attr)

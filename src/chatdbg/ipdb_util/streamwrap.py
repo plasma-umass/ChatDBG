@@ -6,12 +6,12 @@ from .text import word_wrap_except_code_blocks
 
 class StreamingTextWrapper:
 
-    def __init__(self, indent='  ', width=70):
+    def __init__(self, indent='  ', width=80):
         self._buffer = ''   # the raw text so far
         self._wrapped = ''  # the successfully wrapped text do far
         self._pending = ''  # the part after the last space in buffer -- has not been wrapped yet
         self._indent = indent
-        self._width = width
+        self._width = width - len(indent)
 
     def append(self, text, flush=False):
         if flush:
@@ -22,7 +22,7 @@ class StreamingTextWrapper:
             self._pending = text_bits[-1]
             self._buffer += (''.join(text_bits[0:-1]))
 
-        wrapped = word_wrap_except_code_blocks(self._buffer, self._width)
+        wrapped = word_wrap_except_code_blocks(self._buffer)
         wrapped = textwrap.indent(wrapped, self._indent, lambda _: True)
         wrapped_delta = wrapped[len(self._wrapped):]
         self._wrapped = wrapped

@@ -19,18 +19,17 @@ from chatdbg.ipdb_util.capture import CaptureInput
 
 from .assistant.assistant import Assistant, AbstractAssistantClient
 from .ipdb_util.chatlog import ChatDBGLog, CopyingTextIOWrapper
-from .ipdb_util.config import Chat
+from .ipdb_util.config import Chat, chatdbg_config
 from .ipdb_util.locals import *
 from .ipdb_util.prompts import pdb_instructions
 from .ipdb_util.streamwrap import StreamingTextWrapper
 from .ipdb_util.text import *
 
-chatdbg_config: Chat = None
-
 
 def load_ipython_extension(ipython):
     global chatdbg_config
-    from chatdbg.chatdbg_pdb import Chat, ChatDBG
+    from chatdbg.chatdbg_pdb import ChatDBG
+    from chatdbg.ipdb_util.config import Chat, chatdbg_config
 
     ipython.InteractiveTB.debugger_cls = ChatDBG
     chatdbg_config = Chat(config=ipython.config)
@@ -77,10 +76,6 @@ class ChatDBG(ChatDBGSuper):
 
         self._history = []
         self._error_specific_prompt = ""
-
-        global chatdbg_config
-        if chatdbg_config == None:
-            chatdbg_config = Chat()
 
         sys.stdin = CaptureInput(sys.stdin)
 
@@ -204,18 +199,17 @@ class ChatDBG(ChatDBGSuper):
             hist_file = CopyingTextIOWrapper(self.stdout)
             self.stdout = hist_file
             try:
-                self.was_chat = False
+                self.was_chat_or_renew = False
                 return super().onecmd(line)
             finally:
                 self.stdout = hist_file.getfile()
                 output = strip_color(hist_file.getvalue())
-                if not self.was_chat:
+                if not self.was_chat_or_renew:
                     self._log.function_call(line, output)
-                if (
-                    line.split(' ')[0] not in ["hist", "test_prompt", "c", "cont", "continue", "config"]
-                    and not self.was_chat
-                ):
-                    self._history += [(line, output)]
+                    if (
+                        line.split(' ')[0] not in ["hist", "test_prompt", "c", "cont", "continue", "config" ]
+                    ):
+                        self._history += [(line, output)]
 
     def message(self, msg) -> None:
         """
@@ -332,6 +326,11 @@ class ChatDBG(ChatDBGSuper):
             )
 
     def do_slice(self, arg):
+        """
+        slice
+        Print the backwards slice for a variable used in the current cell but
+        defined in an earlier cell.  [interactive IPython / Jupyter only]
+        """
         if not self._supports_flow:
             self.message("*** `slice` is only supported in Jupyter notebooks")
             return
@@ -558,10 +557,10 @@ class ChatDBG(ChatDBGSuper):
                                         arg)
 
     def do_chat(self, arg):
-        """chat/:
+        """chat
         Send a chat message.
         """
-        self.was_chat = True
+        self.was_chat_or_renew = True
 
         full_prompt = self._build_prompt(arg, self._assistant != None)
         full_prompt = strip_color(full_prompt)
@@ -575,6 +574,16 @@ class ChatDBG(ChatDBGSuper):
         stats = self._assistant.query(full_prompt, user_text=arg)
 
         self.message(f"\n[Cost: ~${stats['cost']:.2f} USD]")
+
+    def do_renew(self, arg):
+        """renew
+        End the current chat dialog and prepare to start a new one.
+        """
+        if self._assistant != None:
+            self._assistant.close()
+            self._assistant = None
+        self.was_chat_or_renew = True
+        self.message(f"Ready to start a new dialog.")
 
     def do_config(self, arg):
         args = arg.split()
@@ -678,12 +687,12 @@ class ChatDBG(ChatDBGSuper):
             model=chatdbg_config.model,
             debug=chatdbg_config.debug,
             functions=functions,
-            stream_response=chatdbg_config.stream_response,
+            stream_response=chatdbg_config.stream,
             clients=[ ChatAssistantClient(self.stdout, 
                                        self.prompt,
                                        self._chat_prefix, 
                                        self._text_width,
-                                       stream=chatdbg_config.stream_response),
+                                       stream=chatdbg_config.stream),
                       self._log ]
         )
 

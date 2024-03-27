@@ -35,6 +35,7 @@ class CopyingTextIOWrapper:
 
 
 class ChatDBGLog(AbstractAssistantClient):
+
     def __init__(self, log_filename, config, capture_streams=True):
         self._log_filename = log_filename
         self.config = config
@@ -47,21 +48,23 @@ class ChatDBGLog(AbstractAssistantClient):
             self._stderr_wrapper = None
             self._stderr_wrapper = None
 
+        self._log = self._make_log()
+        self._current_chat = None
+
+    def _make_log(self):
         meta = {
                 'time': datetime.now(),
                 'command_line':  " ".join(sys.argv),
                 'uid': str(uuid.uuid4()),
                 'config': self.config
         }
-        log = {
+        return {
             'steps':[],
             'meta':meta,
             'instructions':None,
             'stdout':self._stdout_wrapper.getvalue(),
             'stderr':self._stderr_wrapper.getvalue(),
         }
-        self._current_chat = None
-        self._log = log
 
     def _dump(self):
         log = self._log
@@ -95,7 +98,7 @@ class ChatDBGLog(AbstractAssistantClient):
     def end_dialog(self):
         if self._log != None:
             self._dump()
-        self._log = None
+        self._log = self._make_log()
 
     def begin_query(self, prompt, user_text):
         log = self._log

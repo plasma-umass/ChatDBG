@@ -17,11 +17,13 @@ def chat_get_env(option_name, default_value):
 
 class Chat(Configurable):
     model = Unicode(
-        chat_get_env("model", "gpt-4-1106-preview"), help="The OpenAI model"
+        chat_get_env("model", "gpt-4-1106-preview"), help="The LLM model"
     ).tag(config=True)
-    # model = Unicode(default_value='gpt-3.5-turbo-1106', help="The OpenAI model").tag(config=True)
-    debug = Bool(chat_get_env("debug", False), help="Log OpenAI calls").tag(config=True)
+
+    debug = Bool(chat_get_env("debug", False), help="Log LLM calls").tag(config=True)
+
     log = Unicode(chat_get_env("log", "log.yaml"), help="The log file").tag(config=True)
+    
     tag = Unicode(chat_get_env("tag", ""), help="Any extra info for log file").tag(
         config=True
     )
@@ -30,23 +32,28 @@ class Chat(Configurable):
     ).tag(config=True)
 
     context = Int(
-        chat_get_env("context", 5),
+        chat_get_env("context", 10),
         help="lines of source code to show when displaying stacktrace information",
     ).tag(config=True)
+
     show_locals = Bool(
         chat_get_env("show_locals", True), help="show local var values in stacktrace"
     ).tag(config=True)
+    
     show_libs = Bool(
         chat_get_env("show_libs", False), help="show library frames in stacktrace"
     ).tag(config=True)
+    
     show_slices = Bool(
         chat_get_env("show_slices", True), help="support the `slice` command"
     ).tag(config=True)
+    
     take_the_wheel = Bool(
         chat_get_env("take_the_wheel", True), help="Let LLM take the wheel"
     ).tag(config=True)
-    stream_response = Bool(
-        chat_get_env("stream_response", True), help="Stream the response at it arrives"
+    
+    stream = Bool(
+        chat_get_env("stream", False), help="Stream the response at it arrives"
     ).tag(config=True)
 
     def to_json(self):
@@ -62,5 +69,7 @@ class Chat(Configurable):
             "show_libs": self.show_libs,
             "show_slices": self.show_slices,
             "take_the_wheel": self.take_the_wheel,
-            "stream_response": self.stream_response,
+            "stream": self.stream,
         }
+
+chatdbg_config: Chat = Chat()

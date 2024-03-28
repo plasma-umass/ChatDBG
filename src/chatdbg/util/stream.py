@@ -1,7 +1,7 @@
 import textwrap
 import re
 import sys
-from .text import word_wrap_except_code_blocks
+from .wrap import word_wrap_except_code_blocks
 
 
 class StreamingTextWrapper:

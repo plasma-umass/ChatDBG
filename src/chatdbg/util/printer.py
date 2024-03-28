@@ -1,8 +1,8 @@
 
 import textwrap
-from assistant.listeners import BaseAssistantListener
-from util.streamwrap import StreamingTextWrapper
-from util.text import word_wrap_except_code_blocks
+from ..assistant.listeners import BaseAssistantListener
+from .stream import StreamingTextWrapper
+from .wrap import word_wrap_except_code_blocks
 
 
 class ChatDBGPrinter(BaseAssistantListener):

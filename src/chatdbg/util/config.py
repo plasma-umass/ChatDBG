@@ -1,6 +1,6 @@
 import os
 
-from traitlets import Bool, Int, TraitError, Unicode
+from traitlets import Bool, Int, Unicode
 from traitlets.config import Configurable
 
 

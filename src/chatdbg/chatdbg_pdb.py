@@ -16,13 +16,13 @@ import IPython
 from traitlets import TraitError
 
 from .assistant.assistant import Assistant
-from .util.capture import CaptureInput, CaptureOutput
+from .pdb.capture import CaptureInput, CaptureOutput
 from .util.config import chatdbg_config
-from .util.locals import extract_locals
+from .pdb.locals import extract_locals
 from .util.log import ChatDBGLog
 from .util.printer import ChatDBGPrinter
-from .util.prompts import pdb_instructions
-from .util.text import (format_limited, strip_color, truncate_proportionally)
+from .pdb.prompts import pdb_instructions
+from .pdb.text import (format_limited, strip_color, truncate_proportionally)
 
 
 def load_ipython_extension(ipython):

@@ -5,8 +5,8 @@ from datetime import datetime
 import yaml
 
 from ..assistant.listeners import BaseAssistantListener
-from ..util.capture import CaptureOutput
-from .text import word_wrap_except_code_blocks
+from ..pdb.capture import CaptureOutput
+from .wrap import word_wrap_except_code_blocks
 
 
 class ChatDBGLog(BaseAssistantListener):

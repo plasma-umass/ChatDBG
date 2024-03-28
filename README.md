@@ -10,6 +10,8 @@ ChatDBG is an experimental debugger for C/C++/Python/Rust code that integrates l
 
 As far as we are aware, ChatDBG is the *first* debugger to automatically perform root cause analysis and to provide suggested fixes.
 
+For technical details and a complete evaluation, see our arXiv paper, [_ChatDBG: An AI-Powered Debugging Assistant_](https://arxiv.org/abs/2403.16354) ([PDF](https://github.com/plasma-umass/ChatDBG/blob/main/ChatDBG-arxiv-2403.16354.pdf)).
+
 ## Installation
 
 > **Note**

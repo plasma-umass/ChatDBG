@@ -59,3 +59,7 @@ def main():
     sys.argv = pdb_args + args
 
     ipdb.__main__.main()
+
+if __name__ == "__main__":
+    main()
+    

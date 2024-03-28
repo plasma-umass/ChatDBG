@@ -4,10 +4,9 @@ from datetime import datetime
 
 import yaml
 
-from chatdbg.util.capture import CaptureOutput
-
 from ..assistant.listeners import BaseAssistantListener
-from ..util.text import word_wrap_except_code_blocks
+from ..util.capture import CaptureOutput
+from .text import word_wrap_except_code_blocks
 
 
 class ChatDBGLog(BaseAssistantListener):

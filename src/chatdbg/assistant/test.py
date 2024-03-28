@@ -7,7 +7,7 @@ class AssistantTest:
     def __init__(self):
         self.a = Assistant(
             "You generate text.",
-            clients=[StreamingPrinter()],
+            listeners=[StreamingPrinter()],
             functions=[self.weather],
             stream=True,
         )

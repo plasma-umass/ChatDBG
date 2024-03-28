@@ -8,7 +8,7 @@ import textwrap
 import textwrap
 import sys
 
-from .listeners import Printer, StreamingPrinter
+from .listeners import Printer
 
 
 class Assistant:
@@ -17,7 +17,7 @@ class Assistant:
         instructions,
         model="gpt-3.5-turbo-1106",
         timeout=30,
-        clients=[Printer()],
+        listeners=[Printer()],
         functions=[],
         max_call_response_tokens=4096,
         debug=False,
@@ -31,7 +31,7 @@ class Assistant:
         else:
             self._logger = None
 
-        self._clients = clients
+        self._clients = listeners
 
         self._functions = {}
         for f in functions:
@@ -44,10 +44,10 @@ class Assistant:
         self._stream = stream
 
         self._check_model()
-        self._broadcast("begin_dialog", instructions)
+        self._broadcast("on_begin_dialog", instructions)
 
     def close(self):
-        self._broadcast("end_dialog")
+        self._broadcast("on_end_dialog")
 
     def query(self, prompt: str, user_text):
         """
@@ -73,7 +73,7 @@ class Assistant:
             _, provider, _, _ = litellm.get_llm_provider(self._model)
             if provider == "openai":
                 self._broadcast(
-                    "fail",
+                    "on_fail",
                     textwrap.dedent(
                         f"""\
                     You need an OpenAI key to use the {self._model} model.
@@ -84,7 +84,7 @@ class Assistant:
                 sys.exit(1)
             else:
                 self._broadcast(
-                    "fail",
+                    "on_fail",
                     textwrap.dedent(
                         f"""\
                     You need to set the following environment variables
@@ -95,7 +95,7 @@ class Assistant:
 
         if not litellm.supports_function_calling(self._model):
             self._broadcast(
-                "fail",
+                "on_fail",
                 textwrap.dedent(
                     f"""\
                 The {self._model} model does not support function calls.
@@ -188,7 +188,7 @@ class Assistant:
             self._broadcast("on_end_query", stats)
             return stats
         except openai.OpenAIError as e:
-            self._broadcast("fail", f"Internal Error: {e.__dict__}")
+            self._broadcast("on_fail", f"Internal Error: {e.__dict__}")
             sys.exit(1)
 
     def _streamed_query(self, prompt: str, user_text):
@@ -207,9 +207,11 @@ class Assistant:
 
                 stream = self._completion(stream=True)
 
-                # litellm is broken for new GPT models that have content before calls, so...
+                # litellm.stream_chunk_builder is broken for new GPT models 
+                # that have content before calls, so...
 
-                # stream the response, collecting the tool_call parts separately from the content
+                # stream the response, collecting the tool_call parts separately 
+                # from the content
                 self._broadcast("on_begin_stream")
                 chunks = []
                 tool_chunks = []
@@ -223,7 +225,7 @@ class Assistant:
                         tool_chunks.append(chunk)
                 self._broadcast("on_end_stream")
 
-                # compute for the part that litellm gives back.
+                # then compute for the part that litellm gives back.
                 completion = litellm.stream_chunk_builder(
                     chunks, messages=self._conversation
                 )
@@ -268,7 +270,7 @@ class Assistant:
             self._broadcast("on_end_query", stats)
             return stats
         except openai.OpenAIError as e:
-            self._broadcast("fail", f"Internal Error: {e.__dict__}")
+            self._broadcast("on_fail", f"Internal Error: {e.__dict__}")
             sys.exit(1)
 
     def _completion(self, stream=False):
@@ -301,5 +303,6 @@ class Assistant:
                 }
                 self._conversation.append(response)
         except Exception as e:
-            # Warning: potential infinite loop.
-            self._broadcast("warn", f"Error processing tool calls: {e}")
+            # Warning: potential infinite loop if the LLM keeps sending 
+            # the same bad call.
+            self._broadcast("on_warn", f"Error processing tool calls: {e}")

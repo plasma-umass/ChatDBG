@@ -15,16 +15,16 @@ from pprint import pprint
 import IPython
 from traitlets import TraitError
 
-from chatdbg.ipdb_util.capture import CaptureInput, CaptureOutput
+from chatdbg.util.capture import CaptureInput, CaptureOutput
 
 from .assistant.assistant import Assistant
 from .assistant.listeners import BaseAssistantListener
-from .ipdb_util.chatlog import ChatDBGLog
-from .ipdb_util.config import chatdbg_config
-from .ipdb_util.locals import extract_locals
-from .ipdb_util.prompts import pdb_instructions
-from .ipdb_util.streamwrap import StreamingTextWrapper
-from .ipdb_util.text import (
+from .util.chatlog import ChatDBGLog
+from .util.config import chatdbg_config
+from .util.locals import extract_locals
+from .util.prompts import pdb_instructions
+from .util.streamwrap import StreamingTextWrapper
+from .util.text import (
     format_limited,
     strip_color,
     truncate_proportionally,
@@ -35,7 +35,7 @@ from .ipdb_util.text import (
 def load_ipython_extension(ipython):
     global chatdbg_config
     from chatdbg.chatdbg_pdb import ChatDBG
-    from chatdbg.ipdb_util.config import ChatDBGConfig, chatdbg_config
+    from chatdbg.util.config import ChatDBGConfig, chatdbg_config
 
     ipython.InteractiveTB.debugger_cls = ChatDBG
     chatdbg_config = ChatDBGConfig(config=ipython.config)
@@ -635,7 +635,7 @@ class ChatDBG(ChatDBGSuper):
             debug=chatdbg_config.debug,
             functions=functions,
             stream=chatdbg_config.stream,
-            clients=[
+            listeners=[
                 ChatAssistantClient(
                     self.stdout,
                     self.prompt,
@@ -745,12 +745,11 @@ class ChatAssistantClient(BaseAssistantListener):
             **kwargs,
         )
 
-    def warn(self, text):
+    def on_warn(self, text):
         self._print(textwrap.indent(text, "*** "))
 
-    def fail(self, text):
+    def on_fail(self, text):
         self._print(textwrap.indent(text, "*** "))
-        sys.exit(1)
 
     def on_begin_stream(self):
         self._stream_wrapper = StreamingTextWrapper(self.chat_prefix, width=80)

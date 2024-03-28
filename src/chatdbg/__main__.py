@@ -1,6 +1,6 @@
 import ipdb
 from chatdbg.chatdbg_pdb import ChatDBG
-from chatdbg.ipdb_util.config import chatdbg_config
+from chatdbg.util.config import chatdbg_config
 import sys
 import getopt
 
@@ -20,10 +20,10 @@ To let the script run up to a given line X in the debugged file, use
 Option -m is available only in Python 3.7 and later.
 
 ChatDBG-specific options may appear anywhere before pyfile:
-  -debug         dump the LLM messages to a chatdbg.log
-  -log file      where to write the log of the debugging session
-  -model model   the LLM model to use.
-  -stream        stream responses from the LLM
+  --debug         dump the LLM messages to a chatdbg.log
+  --log file      where to write the log of the debugging session
+  --model model   the LLM model to use.
+  --stream        stream responses from the LLM
 
 """
 

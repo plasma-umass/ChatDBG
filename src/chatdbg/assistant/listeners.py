@@ -42,10 +42,10 @@ class BaseAssistantListener:
 
     # Notifications of non-fatal / fatal problems
 
-    def warn(self, text):
+    def on_warn(self, text):
         pass
 
-    def fail(self, text):
+    def on_fail(self, text):
         pass
 
 
@@ -53,10 +53,10 @@ class Printer(BaseAssistantListener):
     def __init__(self, out=sys.stdout):
         self.out = out
 
-    def warn(self, text):
+    def on_warn(self, text):
         print(textwrap.indent(text, "*** "), file=self.out)
 
-    def fail(self, text):
+    def on_fail(self, text):
         print(textwrap.indent(text, "*** "), file=self.out)
         sys.exit(1)
 

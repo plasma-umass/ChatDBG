@@ -1,3 +1,5 @@
+import os
+
 _intro = f"""\
 You are a debugging assistant. You will be given a Python stack trace for an
 error and answer questions related to the root cause of the error.
@@ -11,6 +13,7 @@ may call the `pdb` function to run the following commands: `bt`, `up`, `down`,
 Call `pdb` to print any variable value or expression that you believe may
 contribute to the error.
 """
+
 
 _info_function = """\
 Call the `info` function to get the documentation and source code for any

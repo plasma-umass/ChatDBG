@@ -1,16 +1,20 @@
 import argparse
+from io import StringIO
 import os
 import json
 import textwrap
 from typing import Any, List, Optional, Tuple, Union
 
+from chatdbg.util.log import ChatDBGLog
+from chatdbg.util.printer import ChatDBGPrinter
 import lldb
 
 import llm_utils
 
-from assistant.lite_assistant import LiteAssistant
+from assistant.assistant import Assistant
 import chatdbg_utils
 import clangd_lsp_integration
+from util.config import chatdbg_config
 
 from lldb_utils.enriched_stack import *
 
@@ -307,12 +311,37 @@ def _function_definition(
     )
     result.AppendMessage(f"""File '{path}' at {line_string}:\n```\n{content}\n```""")
 
+# The log file used by the listener on the Assistant
+_log = ChatDBGLog(
+    log_filename=chatdbg_config.log,
+    config=chatdbg_config.to_json(),
+    capture_streams=False,  # don't have access to target's stdout/stderr here.
+)
+
+class LLDBPrinter(ChatDBGPrinter):
+    def __init__(self, debugger_prompt, chat_prefix, width, stream=False):
+        super().__init__(StringIO(), debugger_prompt, chat_prefix, width, stream)
+
+    def get_output_and_reset(self):
+        result = self.out.getvalue()
+        self.out = StringIO()
+        return result
+
+_lldb_printer = LLDBPrinter(
+                PROMPT + ' ',   # must end with ' ' to match other tools
+                '   ',
+                80,
+                stream=chatdbg_config.stream,
+            )
+
+
 
 def _make_assistant(
     debugger: lldb.SBDebugger,
-    args: argparse.Namespace,
     result: lldb.SBCommandReturnObject,
-) -> LiteAssistant:
+) -> Assistant:
+
+    # TODO: Move these functions to the toplevel and use functools.partial 
     def llm_debug(command: str) -> str:
         """
         {
@@ -330,7 +359,7 @@ def _make_assistant(
             }
         }
         """
-        return _capture_onecmd(debugger, f"debug {command}")
+        return command, _capture_onecmd(debugger, f"debug {command}")
 
     def llm_get_code_surrounding(filename: str, lineno: int) -> str:
         """
@@ -353,53 +382,56 @@ def _make_assistant(
             }
         }
         """
-        return _capture_onecmd(debugger, f"code {filename}:{lineno}")
+        return f"code {filename}:{lineno}", _capture_onecmd(debugger, f"code {filename}:{lineno}")
 
-    assistant = LiteAssistant(
-        _instructions(),
-        model=args.llm,
-        timeout=args.timeout,
-        max_result_tokens=args.tool_call_max_result_tokens,
-        debug=args.debug,
-    )
+    def llm_find_definition(filename: str, lineno: int, symbol: str) -> str:
+        """
+        {
+            "name": "find_definition",
+            "description": "Returns the definition for the given symbol at the given source line number.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "filename": {
+                        "type": "string",
+                        "description": "The filename the symbol is from."
+                    },
+                    "lineno": {
+                        "type": "integer",
+                        "description": "The line number where the symbol is present."
+                    },
+                    "symbol": {
+                        "type": "string",
+                        "description": "The symbol to lookup."
+                    }
+                },
+                "required": [ "filename", "lineno", "symbol" ]
+            }
+        }
+        """
+        return f"definition {filename}:{lineno} {symbol}", _capture_onecmd(debugger, f"definition {filename}:{lineno} {symbol}")
 
-    assistant.add_function(llm_debug)
-    assistant.add_function(llm_get_code_surrounding)
-
+    functions = [ llm_debug, llm_get_code_surrounding ]
     if not clangd_lsp_integration.is_available():
         result.AppendWarning(
             "`clangd` was not found. The `find_definition` function will not be made available."
         )
     else:
+        functions += [ llm_find_definition ]
 
-        def llm_find_definition(filename: str, lineno: int, symbol: str) -> str:
-            """
-            {
-                "name": "find_definition",
-                "description": "Returns the definition for the given symbol at the given source line number.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "filename": {
-                            "type": "string",
-                            "description": "The filename the symbol is from."
-                        },
-                        "lineno": {
-                            "type": "integer",
-                            "description": "The line number where the symbol is present."
-                        },
-                        "symbol": {
-                            "type": "string",
-                            "description": "The symbol to lookup."
-                        }
-                    },
-                    "required": [ "filename", "lineno", "symbol" ]
-                }
-            }
-            """
-            return _capture_onecmd(debugger, f"definition {filename}:{lineno} {symbol}")
+    instruction_prompt = _instructions()
 
-        assistant.add_function(llm_find_definition)
+    assistant = Assistant(
+        instruction_prompt,
+        model=chatdbg_config.model,
+        debug=chatdbg_config.debug,
+        functions=functions,
+        stream=chatdbg_config.stream,
+        listeners=[
+            _lldb_printer,
+            _log
+        ],
+    )
 
     return assistant
 
@@ -430,12 +462,10 @@ def chat(
     args, remaining = chatdbg_utils.parse_known_args(command.split())
 
     global _assistant
-    if not _assistant or args.fresh:
-        _assistant = _make_assistant(debugger, args, result)
 
     parts = []
 
-    if _assistant.conversation_size() == 1:
+    if _assistant == None:
         error_message = get_error_message(debugger)
         if not error_message:
             result.AppendWarning("could not generate an error message.")
@@ -516,20 +546,19 @@ def chat(
             except FileNotFoundError:
                 result.AppendWarning("could not retrieve the input data.")
 
-    parts.append(
-        " ".join(remaining)
-        if remaining
-        else "What's the problem? Provide code to fix the issue."
-    )
+    user_text = " ".join(remaining) if remaining else "What's the problem? Provide code to fix the issue."
+
+    parts.append(user_text)
 
     prompt = "\n\n".join(parts)
 
-    _assistant.run(
-        prompt,
-        result.AppendMessage,
-        result.AppendWarning,
-        result.SetError,
-    )
+    if not _assistant: # or args.fresh:
+        _assistant = _make_assistant(debugger, result)
+
+    # TODO: make the 
+    _assistant.query(prompt, user_text)
+    result.AppendMessage(_lldb_printer.get_output_and_reset())
+
 
 
 @lldb.command("repl")
@@ -554,3 +583,30 @@ def repl(
         print("-----------------------------------")
         print(result, end="")
         print("-----------------------------------")
+
+
+"""
+
+def why() -> just goes to chat
+
+def chat(line):
+   make assistant
+   run the query
+   while True:
+      line = input()
+      if line is a nother why or chat line:
+          run another query and pass in history as part of prompt and reset history
+      elif line is done:
+          break
+      else:
+          run it as a command
+          match response:
+             case "command not recognized" -> run as query
+             case error -> report error   # check on what result objects look like...
+             case anything else -> print it
+                and record history (input, result output)
+    
+
+
+
+"""

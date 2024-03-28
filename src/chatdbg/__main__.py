@@ -52,6 +52,10 @@ def main():
         elif opt in ["-m"]:
             pdb_args = [opt]
 
+    if not args:
+        print(_usage)
+        sys.exit(2)
+
     sys.argv = pdb_args + args
 
     ipdb.__main__.main()

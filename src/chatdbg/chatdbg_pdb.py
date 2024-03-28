@@ -17,12 +17,12 @@ from traitlets import TraitError
 
 from .assistant.assistant import Assistant
 from .pdb.capture import CaptureInput, CaptureOutput
+from .pdb.locals import print_locals
+from .pdb.prompts import pdb_instructions
+from .pdb.text import strip_color, truncate_proportionally
 from .util.config import chatdbg_config
-from .pdb.locals import extract_locals
 from .util.log import ChatDBGLog
 from .util.printer import ChatDBGPrinter
-from .pdb.prompts import pdb_instructions
-from .pdb.text import (format_limited, strip_color, truncate_proportionally)
 
 
 def load_ipython_extension(ipython):
@@ -131,7 +131,7 @@ class ChatDBG(ChatDBGSuper):
 
         return False
 
-    def format_stack_trace(self, context=None):
+    def enriched_stack_trace(self, context=None):
         old_stdout = self.stdout
         buf = StringIO()
         self.stdout = buf
@@ -188,7 +188,7 @@ class ChatDBG(ChatDBGSuper):
         # do before running rclines -- our stack should be set up by now.
         if not chatdbg_config.show_libs:
             self._hide_lib_frames()
-        self._error_stack_trace = f"The program has the following stack trace:\n```\n{self.format_stack_trace()}\n```\n"
+        self._error_stack_trace = f"The program has the following stack trace:\n```\n{self.enriched_stack_trace()}\n```\n"
 
         # finally safe to enable this.
         self._show_locals = chatdbg_config.show_locals and not chatdbg_config.show_libs
@@ -462,7 +462,7 @@ class ChatDBG(ChatDBGSuper):
                     skipped = 0
                 self.print_stack_entry(frame_lineno, context=context)
                 if locals:
-                    self._print_locals(frame_lineno[0])
+                    print_locals(self.stdout, frame_lineno[0])
             if skipped:
                 print(
                     f"{Colors.excName}    [... skipping {skipped} hidden frame(s)]{ColorsNormal}\n",
@@ -471,34 +471,6 @@ class ChatDBG(ChatDBGSuper):
         except KeyboardInterrupt:
             pass
 
-    def _print_locals(self, frame):
-        locals = frame.f_locals
-        in_global_scope = locals is frame.f_globals
-        defined_locals = extract_locals(frame)
-        # Unclear benefit: possibly some benefit w/ stack only runs, but large context...
-        # if in_global_scope and "In" in locals:  # in notebook
-        #     defined_locals = defined_locals | extract_nb_globals(locals)
-        if len(defined_locals) > 0:
-            if in_global_scope:
-                print(f"    Global variables:", file=self.stdout)
-            else:
-                print(f"    Variables in this frame:", file=self.stdout)
-            for name in sorted(defined_locals):
-                value = locals[name]
-                t = type(value).__name__
-                prefix = f"      {name}: {t} = "
-                rep = format_limited(value, limit=20).split("\n")
-                if len(rep) > 1:
-                    rep = (
-                        prefix
-                        + rep[0]
-                        + "\n"
-                        + textwrap.indent("\n".join(rep[1:]), prefix=" " * len(prefix))
-                    )
-                else:
-                    rep = prefix + rep[0]
-                print(rep, file=self.stdout)
-            print(file=self.stdout)
 
     def _stack_prompt(self):
         stdout = self.stdout
@@ -523,16 +495,16 @@ class ChatDBG(ChatDBGSuper):
         finally:
             self.stdout = stdout
 
-    def _ip_instructions(self):
+    def _initial_prompt_instructions(self):
         return pdb_instructions(self._supports_flow, chatdbg_config.take_the_wheel)
 
-    def _ip_enchriched_stack_trace(self):
-        return f"The program has this stack trace:\n```\n{self.format_stack_trace()}\n```\n"
+    def _initial_prompt_enchriched_stack_trace(self):
+        return f"The program has this stack trace:\n```\n{self.enriched_stack_trace()}\n```\n"
 
-    def _ip_error(self):
+    def _initial_prompt_error(self):
         return self._error_specific_prompt
 
-    def _ip_inputs(self):
+    def _initial_prompt_inputs(self):
         inputs = ""
         if len(sys.argv) > 1:
             inputs += f"\nThese were the command line options:\n```\n{' '.join(sys.argv)}\n```\n"
@@ -541,7 +513,7 @@ class ChatDBG(ChatDBGSuper):
             inputs += f"\nThis was the program's input :\n```\n{input}```\n"
         return inputs
 
-    def _ip_history(self):
+    def _initial_prompt_history(self):
         if len(self._history) > 0:
             hist = textwrap.indent(self._capture_onecmd("hist"), "")
             hist = f"\nThis is the history of some pdb commands I ran and the results.\n```\n{hist}\n```\n"
@@ -556,14 +528,14 @@ class ChatDBG(ChatDBGSuper):
     def _build_prompt(self, arg, conversing):
         if not conversing:
             return self.concat_prompt(
-                self._ip_enchriched_stack_trace(),
-                self._ip_inputs(),
-                self._ip_error(),
-                self._ip_history(),
+                self._initial_prompt_enchriched_stack_trace(),
+                self._initial_prompt_inputs(),
+                self._initial_prompt_error(),
+                self._initial_prompt_history(),
                 arg,
             )
         else:
-            return self.concat_prompt(self._ip_history(), self._stack_prompt(), arg)
+            return self.concat_prompt(self._initial_prompt_history(), self._stack_prompt(), arg)
 
     def do_chat(self, arg):
         """chat
@@ -595,6 +567,10 @@ class ChatDBG(ChatDBGSuper):
         self.message(f"Ready to start a new dialog.")
 
     def do_config(self, arg):
+        """
+        config
+        Print out the ChatDBG config options.
+        """
         args = arg.split()
         if len(args) == 0:
             pprint(chatdbg_config.to_json(), sort_dicts=True, stream=self.stdout)
@@ -613,7 +589,7 @@ class ChatDBG(ChatDBGSuper):
             self.error(f"{e}")
 
     def _make_assistant(self):
-        instruction_prompt = self._ip_instructions()
+        instruction_prompt = self._initial_prompt_instructions()
 
         if chatdbg_config.take_the_wheel:
             functions = [self.debug, self.info]

@@ -2,6 +2,7 @@ import argparse
 from io import StringIO
 import os
 import json
+import sys
 import textwrap
 from typing import Any, List, Optional, Tuple, Union
 
@@ -21,11 +22,11 @@ from lldb_utils.enriched_stack import *
 
 # The file produced by the panic handler if the Rust program is using the chatdbg crate.
 RUST_PANIC_LOG_FILENAME = "panic_log.txt"
-PROMPT = "(ChatDBG lldb)"
+PROMPT = "(ChatDBG lldb) "
 
 
 def __lldb_init_module(debugger: lldb.SBDebugger, internal_dict: dict) -> None:
-    debugger.HandleCommand(f"settings set prompt '{PROMPT} '")
+    debugger.HandleCommand(f"settings set prompt '{PROMPT}'")
 
 
 def is_debug_build(debugger: lldb.SBDebugger) -> bool:
@@ -306,24 +307,6 @@ _log = ChatDBGLog(
     capture_streams=False,  # don't have access to target's stdout/stderr here.
 )
 
-class LLDBPrinter(ChatDBGPrinter):
-    def __init__(self, debugger_prompt, chat_prefix, width, stream=False):
-        super().__init__(StringIO(), debugger_prompt, chat_prefix, width, stream)
-
-    def get_output_and_reset(self):
-        result = self.out.getvalue()
-        self.out = StringIO()
-        return result
-
-_lldb_printer = LLDBPrinter(
-                PROMPT + ' ',   # must end with ' ' to match other tools
-                '   ',
-                80,
-                stream=chatdbg_config.stream,
-            )
-
-
-
 def _make_assistant(
     debugger: lldb.SBDebugger,
     result: lldb.SBCommandReturnObject,
@@ -416,7 +399,13 @@ def _make_assistant(
         functions=functions,
         stream=chatdbg_config.stream,
         listeners=[
-            _lldb_printer,
+            ChatDBGPrinter(
+                sys.stdout,
+                PROMPT,   # must end with ' ' to match other tools
+                '   ',
+                80,
+                stream=chatdbg_config.stream,
+            ),
             _log
         ],
     )
@@ -428,6 +417,7 @@ _assistant = None
 
 
 @lldb.command("chat")
+@lldb.command("why")
 def chat(
     debugger: lldb.SBDebugger,
     command: str,
@@ -447,7 +437,7 @@ def chat(
         result.SetError("must run the code first to use `chat`.")
         return
 
-    args, remaining = chatdbg_utils.parse_known_args(command.split())
+    # args, remaining = chatdbg_utils.parse_known_args(command.split())
 
     global _assistant
 
@@ -534,18 +524,17 @@ def chat(
             except FileNotFoundError:
                 result.AppendWarning("could not retrieve the input data.")
 
-    user_text = " ".join(remaining) if remaining else "What's the problem? Provide code to fix the issue."
+    user_text = command if command else "What's the problem? Provide code to fix the issue."
 
     parts.append(user_text)
 
     prompt = "\n\n".join(parts)
 
-    if not _assistant: # or args.fresh:
+    if not _assistant:
         _assistant = _make_assistant(debugger, result)
 
-    # TODO: make the 
     _assistant.query(prompt, user_text)
-    result.AppendMessage(_lldb_printer.get_output_and_reset())
+    
 
 
 
@@ -561,7 +550,7 @@ def repl(
 
     while True:
         try:
-            command = input(f"{PROMPT} ").strip()
+            command = input(PROMPT).strip()
         except EOFError:
             break
 
@@ -573,6 +562,19 @@ def repl(
         print("-----------------------------------")
 
 
+@lldb.command("config")
+def config(
+    debugger: lldb.SBDebugger,
+    command: str,
+    result: lldb.SBCommandReturnObject,
+    internal_dict: dict,
+):
+    args = command.split()
+    unknown = chatdbg_config.parse_user_flags(args)
+    if unknown:
+        result.AppendWarning(f"Chatdbg options are only:\n{chatdbg_config.user_flags_help()}  ")
+    else:        
+        result.AppendMessage(chatdbg_config.user_flags())    
 """
 
 def why() -> just goes to chat

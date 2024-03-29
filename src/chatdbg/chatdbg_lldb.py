@@ -383,11 +383,7 @@ def _make_assistant(
         return f"definition {filename}:{lineno} {symbol}", _capture_onecmd(debugger, f"definition {filename}:{lineno} {symbol}")
 
     functions = [ llm_debug, llm_get_code_surrounding ]
-    if not clangd_lsp_integration.is_available():
-        result.AppendWarning(
-            "`clangd` was not found. The `find_definition` function will not be made available."
-        )
-    else:
+    if clangd_lsp_integration.is_available():
         functions += [ llm_find_definition ]
 
     instruction_prompt = _instructions()
@@ -413,7 +409,29 @@ def _make_assistant(
     return assistant
 
 
-_assistant = None
+def _check_debugger_state(
+    debugger: lldb.SBDebugger,
+    result: lldb.SBCommandReturnObject,
+):
+    if not debugger.GetSelectedTarget():
+        result.SetError("must be attached to a program to use `chat`.")
+        return False
+    if not is_debug_build(debugger):
+        result.SetError(
+            "your program must be compiled with debug information (`-g`) to use `chat`."
+        )
+        return False
+    thread = get_thread(debugger)
+    if not thread:
+        result.SetError("must run the code first to use `chat`.")
+        return False
+    
+    if not clangd_lsp_integration.is_available():
+        result.AppendWarning(
+            "`clangd` was not found. The `find_definition` function will not be made available."
+        )
+
+    return True
 
 
 @lldb.command("chat")
@@ -424,142 +442,147 @@ def chat(
     result: lldb.SBCommandReturnObject,
     internal_dict: dict,
 ):
-    if not debugger.GetSelectedTarget():
-        result.SetError("must be attached to a program to use `chat`.")
-        return
-    if not is_debug_build(debugger):
-        result.SetError(
-            "your program must be compiled with debug information (`-g`) to use `chat`."
-        )
-        return
-    thread = get_thread(debugger)
-    if not thread:
-        result.SetError("must run the code first to use `chat`.")
-        return
-
-    # args, remaining = chatdbg_utils.parse_known_args(command.split())
-
     global _assistant
 
-    parts = []
+    state_result = lldb.SBCommandReturnObject()
 
-    if _assistant == None:
-        error_message = get_error_message(debugger)
-        if not error_message:
-            result.AppendWarning("could not generate an error message.")
-        else:
-            parts.append(
-                "Here is the reason the program stopped execution:\n```\n"
-                + error_message
-                + "\n```"
-            )
-
-        summaries = get_frame_summaries(debugger)
-        if not summaries:
-            result.AppendWarning("could not generate any frame summary.")
-        else:
-            frame_summary = "\n".join([str(s) for s in summaries])
-            parts.append(
-                "Here is a summary of the stack frames, omitting those not associated with user source code:\n```\n"
-                + frame_summary
-                + "\n```"
-            )
-
-            total_frames = sum(
-                [
-                    s.count() if isinstance(s, SkippedFramesEntry) else 1
-                    for s in summaries
-                ]
-            )
-
-            if total_frames > 1000:
-                parts.append(
-                    "Note that there are over 1000 frames in the stack trace, hinting at a possible stack overflow error."
-                )
-
-        max_initial_locations_to_send = 3
-        source_code_entries = []
-        for summary in summaries:
-            if isinstance(summary, FrameSummaryEntry):
-                file_path, lineno = summary.file_path(), summary.lineno()
-                lines, first = llm_utils.read_lines(file_path, lineno - 10, lineno + 9)
-                block = llm_utils.number_group_of_lines(lines, first)
-                source_code_entries.append(
-                    f"Frame #{summary.index()} at {file_path}:{lineno}:\n```\n{block}\n```"
-                )
-
-                if len(source_code_entries) == max_initial_locations_to_send:
-                    break
-
-        if source_code_entries:
-            parts.append(
-                f"Here is the source code for the first {len(source_code_entries)} frames:\n\n"
-                + "\n\n".join(source_code_entries)
-            )
-        else:
-            result.AppendWarning("could not retrieve source code for any frames.")
-
-        command_line_invocation = get_command_line_invocation(debugger)
-        if command_line_invocation:
-            parts.append(
-                "Here is the command line invocation that started the program:\n```\n"
-                + command_line_invocation
-                + "\n```"
-            )
-        else:
-            result.AppendWarning("could not retrieve the command line invocation.")
-
-        input_path = get_input_path(debugger)
-        if input_path:
-            try:
-                with open(input_path, "r", errors="ignore") as file:
-                    input_contents = file.read()
-                    if len(input_contents) > 512:
-                        input_contents = input_contents[:512] + "\n\n[...]"
-                    parts.append(
-                        "Here is the input data that was used:\n```\n"
-                        + input_contents
-                        + "\n```"
-                    )
-            except FileNotFoundError:
-                result.AppendWarning("could not retrieve the input data.")
+    debuggable = _check_debugger_state(debugger, state_result)
+    print(state_result)
+    if not debuggable:
+        return
 
     user_text = command if command else "What's the problem? Provide code to fix the issue."
-
-    parts.append(user_text)
-
-    prompt = "\n\n".join(parts)
-
-    if not _assistant:
-        _assistant = _make_assistant(debugger, result)
-
-    _assistant.query(prompt, user_text)
-    
+    dialog(debugger, user_text)
 
 
-
-@lldb.command("repl")
-def repl(
-    debugger: lldb.SBDebugger,
-    command: str,
-    result: lldb.SBCommandReturnObject,
-    internal_dict: dict,
-):
-    if command.strip():
-        result.AppendWarning("`repl` does not take any arguments (arguments ignored).")
-
+def dialog(debugger, user_text):
+    result = lldb.SBCommandReturnObject()
+    assistant = _make_assistant(debugger, result)
+    initial_prompt = _build_initial_prompt(debugger, user_text)
+    stats = assistant.query(initial_prompt, user_text)
+    print(stats)
     while True:
         try:
             command = input(PROMPT).strip()
+            if command == "exit":
+                break
+            result = _capture_onecmd(debugger, command)
+            print(result)
         except EOFError:
             break
 
-        if command == "exit":
-            break
-        result = _capture_onecmd(debugger, command)
-        print("-----------------------------------")
-        print(result, end="")
-        print("-----------------------------------")
+    assistant.close()
+
+
+def _initial_prompt_error(debugger, result):
+    error_message = get_error_message(debugger)
+    if error_message:
+        return (
+            "Here is the reason the program stopped execution:\n```\n"
+            + error_message
+            + "\n```"
+        )
+    else:
+        result.AppendWarning("could not generate an error message.")
+        return ''
+
+
+def _initial_prompt_enriched_stack_trace(debugger, result):
+    parts = []
+    summaries = get_frame_summaries(debugger)
+    if not summaries:
+        result.AppendWarning("could not generate any frame summary.")
+    else:
+        frame_summary = "\n".join([str(s) for s in summaries])
+        parts.append(
+            "Here is a summary of the stack frames, omitting those not associated with user source code:\n```\n"
+            + frame_summary
+            + "\n```"
+        )
+
+        total_frames = sum(
+            [
+                s.count() if isinstance(s, SkippedFramesEntry) else 1
+                for s in summaries
+            ]
+        )
+
+        if total_frames > 1000:
+            parts.append(
+                "Note that there are over 1000 frames in the stack trace, hinting at a possible stack overflow error."
+            )
+
+    max_initial_locations_to_send = 3
+    source_code_entries = []
+    for summary in summaries:
+        if isinstance(summary, FrameSummaryEntry):
+            file_path, lineno = summary.file_path(), summary.lineno()
+            lines, first = llm_utils.read_lines(file_path, lineno - 10, lineno + 9)
+            block = llm_utils.number_group_of_lines(lines, first)
+            source_code_entries.append(
+                f"Frame #{summary.index()} at {file_path}:{lineno}:\n```\n{block}\n```"
+            )
+
+            if len(source_code_entries) == max_initial_locations_to_send:
+                break
+
+    if source_code_entries:
+        parts.append(
+            f"Here is the source code for the first {len(source_code_entries)} frames:\n\n"
+            + "\n\n".join(source_code_entries)
+        )
+    else:
+        result.AppendWarning("could not retrieve source code for any frames.")
+
+    return "\n\n".join(parts)
+
+
+def _initial_prompt_inputs(debugger, result):
+    parts = []
+    command_line_invocation = get_command_line_invocation(debugger)
+    if command_line_invocation:
+        parts.append(
+            "Here is the command line invocation that started the program:\n```\n"
+            + command_line_invocation
+            + "\n```"
+        )
+    else:
+        result.AppendWarning("could not retrieve the command line invocation.")
+
+    input_path = get_input_path(debugger)
+    if input_path:
+        try:
+            with open(input_path, "r", errors="ignore") as file:
+                input_contents = file.read()
+                if len(input_contents) > 512:
+                    input_contents = input_contents[:512] + "\n\n[...]"
+                parts.append(
+                    "Here is the input data that was used:\n```\n"
+                    + input_contents
+                    + "\n```"
+                )
+        except FileNotFoundError:
+            result.AppendWarning("could not retrieve the input data.")
+
+    return "\n\n".join(parts)
+
+def _build(*args):
+    return '\n'.join(args)
+
+def _build_initial_prompt(debugger, user_text) -> str:
+    result = lldb.SBCommandReturnObject()
+    prompt = _build(_initial_prompt_error(debugger, result),
+            _initial_prompt_enriched_stack_trace(debugger, result),
+            _initial_prompt_inputs(debugger, result),
+            user_text)
+    print('***', result, '***')
+    return prompt
+
+def _build_followup_prompt(debugger, user_text) -> str:
+    result = lldb.SBCommandReturnObject()
+    prompt = _build(user_text)
+    print('***', result, '***')
+    return prompt
 
 
 @lldb.command("config")

@@ -30,10 +30,10 @@ class ChatDBGPrinter(BaseAssistantListener):
         )
 
     def on_warn(self, text):
-        self._print(textwrap.indent(text, "*** "))
+        print(textwrap.indent(text, "*** "), file=self.out)
 
     def on_fail(self, text):
-        self._print(textwrap.indent(text, "*** "))
+        print(textwrap.indent(text, "*** "), file=self.out)
 
     def on_begin_stream(self):
         self._stream_wrapper = StreamingTextWrapper(self.chat_prefix, width=80)

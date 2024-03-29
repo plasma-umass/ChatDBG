@@ -77,7 +77,7 @@ def print_test(
     for var in frame.get_all_variables():
         # Returns python dictionary for each variable, converts to JSON
         variable = _val_to_json(
-            debugger, command, result, internal_dict, var, recurse_max, addresses
+            var, recurse_max, addresses
         )
         js = json.dumps(variable, indent=4)
         all_vars.append(js)
@@ -89,10 +89,6 @@ def print_test(
     return
 
 def _val_to_json(
-    debugger: lldb.SBDebugger,
-    command: str,
-    result: lldb.SBCommandReturnObject,
-    internal_dict: dict,
     var: lldb.SBValue,
     recurse_max: int,
     address_book: dict,
@@ -120,10 +116,6 @@ def _val_to_json(
                             deref_val = deref_val.Dereference()
                         elif len(deref_val.GetType().get_fields_array()) > 0:
                             value = _val_to_json(
-                                debugger,
-                                command,
-                                result,
-                                internal_dict,
                                 deref_val,
                                 recurse_max - i - 1,
                                 address_book,
@@ -149,10 +141,6 @@ def _val_to_json(
             f = var.GetChildAtIndex(i)
             fields.append(
                 _val_to_json(
-                    debugger,
-                    command,
-                    result,
-                    internal_dict,
                     f,
                     recurse_max - 1,
                     address_book,

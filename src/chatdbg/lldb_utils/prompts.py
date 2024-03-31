@@ -80,7 +80,7 @@ def _initial_prompt_error(debugger, result):
         )
     else:
         result.AppendWarning("could not generate an error message.")
-        return ''
+        return ""
 
 
 def _get_frame_summaries(
@@ -174,10 +174,7 @@ def _initial_prompt_enriched_stack_trace(debugger, result):
         )
 
         total_frames = sum(
-            [
-                s.count() if isinstance(s, _SkippedFramesEntry) else 1
-                for s in summaries
-            ]
+            [s.count() if isinstance(s, _SkippedFramesEntry) else 1 for s in summaries]
         )
 
         if total_frames > 1000:
@@ -286,15 +283,17 @@ def get_thread(debugger: lldb.SBDebugger) -> Optional[lldb.SBThread]:
 
 
 def _build(*args):
-    return '\n'.join(args)
+    return "\n".join(args)
 
 
 def build_initial_prompt(debugger, user_text) -> str:
     result = lldb.SBCommandReturnObject()
-    prompt = _build(_initial_prompt_error(debugger, result),
-            _initial_prompt_enriched_stack_trace(debugger, result),
-            _initial_prompt_inputs(debugger, result),
-            user_text)
+    prompt = _build(
+        _initial_prompt_error(debugger, result),
+        _initial_prompt_enriched_stack_trace(debugger, result),
+        _initial_prompt_inputs(debugger, result),
+        user_text,
+    )
     return prompt
 
 

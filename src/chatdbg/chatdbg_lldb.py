@@ -17,7 +17,7 @@ import chatdbg_utils
 import clangd_lsp_integration
 from util.config import chatdbg_config
 
-from lldb_utils.enriched_stack import *
+from lldb_utils.prompts import build_initial_prompt, build_followup_prompt, get_thread
 
 
 # The file produced by the panic handler if the Rust program is using the chatdbg crate.
@@ -77,9 +77,7 @@ def print_test(
     addresses = {}
     for var in frame.get_all_variables():
         # Returns python dictionary for each variable, converts to JSON
-        variable = _val_to_json(
-            var, recurse_max, addresses
-        )
+        variable = _val_to_json(var, recurse_max, addresses)
         js = json.dumps(variable, indent=4)
         all_vars.append(js)
 
@@ -88,6 +86,7 @@ def print_test(
     for j in all_vars:
         print(j)
     return
+
 
 def _val_to_json(
     var: lldb.SBValue,
@@ -163,6 +162,7 @@ def _capture_onecmd(debugger, cmd):
     else:
         return "Error: " + result.GetError()
 
+
 def _instructions():
     return textwrap.dedent(
         """
@@ -179,6 +179,7 @@ def _instructions():
             Once you have identified the root cause of the problem, explain it and provide a way to fix the issue if you can.
         """
     ).strip()
+
 
 @lldb.command("debug")
 def _function_lldb(
@@ -300,6 +301,7 @@ def _function_definition(
     )
     result.AppendMessage(f"""File '{path}' at {line_string}:\n```\n{content}\n```""")
 
+
 # The log file used by the listener on the Assistant
 _log = ChatDBGLog(
     log_filename=chatdbg_config.log,
@@ -307,12 +309,13 @@ _log = ChatDBGLog(
     capture_streams=False,  # don't have access to target's stdout/stderr here.
 )
 
+
 def _make_assistant(
     debugger: lldb.SBDebugger,
     result: lldb.SBCommandReturnObject,
 ) -> Assistant:
 
-    # TODO: Move these functions to the toplevel and use functools.partial 
+    # TODO: Move these functions to the toplevel and use functools.partial
     def llm_debug(command: str) -> str:
         """
         {
@@ -353,7 +356,9 @@ def _make_assistant(
             }
         }
         """
-        return f"code {filename}:{lineno}", _capture_onecmd(debugger, f"code {filename}:{lineno}")
+        return f"code {filename}:{lineno}", _capture_onecmd(
+            debugger, f"code {filename}:{lineno}"
+        )
 
     def llm_find_definition(filename: str, lineno: int, symbol: str) -> str:
         """
@@ -380,11 +385,13 @@ def _make_assistant(
             }
         }
         """
-        return f"definition {filename}:{lineno} {symbol}", _capture_onecmd(debugger, f"definition {filename}:{lineno} {symbol}")
+        return f"definition {filename}:{lineno} {symbol}", _capture_onecmd(
+            debugger, f"definition {filename}:{lineno} {symbol}"
+        )
 
-    functions = [ llm_debug, llm_get_code_surrounding ]
+    functions = [llm_debug, llm_get_code_surrounding]
     if clangd_lsp_integration.is_available():
-        functions += [ llm_find_definition ]
+        functions += [llm_find_definition]
 
     instruction_prompt = _instructions()
 
@@ -397,12 +404,12 @@ def _make_assistant(
         listeners=[
             ChatDBGPrinter(
                 sys.stdout,
-                PROMPT,   # must end with ' ' to match other tools
-                '   ',
+                PROMPT,  # must end with ' ' to match other tools
+                "   ",
                 80,
                 stream=chatdbg_config.stream,
             ),
-            _log
+            _log,
         ],
     )
 
@@ -416,18 +423,18 @@ def _check_debugger_state(
     if not debugger.GetSelectedTarget():
         result.SetError("must be attached to a program to use `chat`.")
         return False
-    
+
     elif not is_debug_build(debugger):
         result.SetError(
             "your program must be compiled with debug information (`-g`) to use `chat`."
         )
         return False
-    
+
     thread = get_thread(debugger)
     if not thread:
         result.SetError("must run the code first to use `chat`.")
         return False
-    
+
     if not clangd_lsp_integration.is_available():
         result.AppendWarning(
             "`clangd` was not found. The `find_definition` function will not be made available."
@@ -452,7 +459,9 @@ def chat(
     if not debuggable:
         return
 
-    user_text = command if command else "What's the problem? Provide code to fix the issue."
+    user_text = (
+        command if command else "What's the problem? Provide code to fix the issue."
+    )
     dialog(debugger, user_text)
 
 
@@ -503,13 +512,14 @@ def _format_history_entry(entry, indent=""):
         entry = f"{PROMPT}{line}"
     return textwrap.indent(entry, indent, lambda _: True)
 
+
 def do_hist(history):
-        """hist
-        Print the history of user-issued commands since the last chat.
-        """
-        entry_strs = [_format_history_entry(x) for x in history]
-        history_str = "\n".join(entry_strs)
-        print(history_str)
+    """hist
+    Print the history of user-issued commands since the last chat.
+    """
+    entry_strs = [_format_history_entry(x) for x in history]
+    history_str = "\n".join(entry_strs)
+    print(history_str)
 
 
 @lldb.command("config")
@@ -522,6 +532,8 @@ def config(
     args = command.split()
     unknown = chatdbg_config.parse_user_flags(args)
     if unknown:
-        result.AppendWarning(f"Chatdbg options are only:\n{chatdbg_config.user_flags_help()}  ")
-    else:        
+        result.AppendWarning(
+            f"Chatdbg options are only:\n{chatdbg_config.user_flags_help()}  "
+        )
+    else:
         result.AppendMessage(chatdbg_config.user_flags())

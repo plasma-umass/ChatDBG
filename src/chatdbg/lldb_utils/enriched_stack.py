@@ -1,11 +1,11 @@
-import argparse
 import os
 import json
-import textwrap
-from typing import Any, List, Optional, Tuple, Union
+from typing import List, Optional, Union
 
 import lldb
+
 import llm_utils
+
 
 class _ArgumentEntry:
     def __init__(self, type: str, name: str, value: str):
@@ -20,7 +20,7 @@ class _ArgumentEntry:
         return f"_ArgumentEntry({repr(self.type)}, {repr(self._name)}, {repr(self._value)})"
 
 
-class FrameSummaryEntry:
+class _FrameSummaryEntry:
     def __init__(
         self,
         index: int,
@@ -48,10 +48,10 @@ class FrameSummaryEntry:
         return f"{self._index}: {self._name}({', '.join([str(a) for a in self._arguments])}) at {self._file_path}:{self._lineno}"
 
     def __repr__(self):
-        return f"FrameSummaryEntry({self._index}, {repr(self._name)}, {repr(self._arguments)}, {repr(self._file_path)}, {self._lineno})"
+        return f"_FrameSummaryEntry({self._index}, {repr(self._name)}, {repr(self._arguments)}, {repr(self._file_path)}, {self._lineno})"
 
 
-class SkippedFramesEntry:
+class _SkippedFramesEntry:
     def __init__(self, count: int):
         self._count = count
 
@@ -62,22 +62,36 @@ class SkippedFramesEntry:
         return f"[{self._count} skipped frame{'s' if self._count > 1 else ''}...]"
 
     def __repr__(self):
-        return f"SkippedFramesEntry({self._count})"
+        return f"_SkippedFramesEntry({self._count})"
 
-def get_error_message(debugger: lldb.SBDebugger) -> Optional[str]:
+
+def _get_error_message(debugger: lldb.SBDebugger) -> Optional[str]:
     thread = get_thread(debugger)
     return thread.GetStopDescription(1024) if thread else None
 
 
-def get_frame_summaries(
+def _initial_prompt_error(debugger, result):
+    error_message = _get_error_message(debugger)
+    if error_message:
+        return (
+            "Here is the reason the program stopped execution:\n```\n"
+            + error_message
+            + "\n```"
+        )
+    else:
+        result.AppendWarning("could not generate an error message.")
+        return ''
+
+
+def _get_frame_summaries(
     debugger: lldb.SBDebugger, max_entries: int = 20
-) -> Optional[List[Union[FrameSummaryEntry, SkippedFramesEntry]]]:
+) -> Optional[List[Union[_FrameSummaryEntry, _SkippedFramesEntry]]]:
     thread = get_thread(debugger)
     if not thread:
         return None
 
     skipped = 0
-    summaries: List[Union[FrameSummaryEntry, SkippedFramesEntry]] = []
+    summaries: List[Union[_FrameSummaryEntry, _SkippedFramesEntry]] = []
 
     index = -1
     for frame in thread:
@@ -113,40 +127,90 @@ def get_frame_summaries(
             continue
 
         if skipped > 0:
-            summaries.append(SkippedFramesEntry(skipped))
+            summaries.append(_SkippedFramesEntry(skipped))
             skipped = 0
 
-        summaries.append(FrameSummaryEntry(index, name, arguments, file_path, lineno))
+        summaries.append(_FrameSummaryEntry(index, name, arguments, file_path, lineno))
         if len(summaries) >= max_entries:
             break
 
     if skipped > 0:
-        summaries.append(SkippedFramesEntry(skipped))
+        summaries.append(_SkippedFramesEntry(skipped))
         if len(summaries) > max_entries:
             summaries.pop(-2)
 
     total_summary_count = sum(
-        [s.count() if isinstance(s, SkippedFramesEntry) else 1 for s in summaries]
+        [s.count() if isinstance(s, _SkippedFramesEntry) else 1 for s in summaries]
     )
 
     if total_summary_count < len(thread):
-        if isinstance(summaries[-1], SkippedFramesEntry):
-            summaries[-1] = SkippedFramesEntry(
+        if isinstance(summaries[-1], _SkippedFramesEntry):
+            summaries[-1] = _SkippedFramesEntry(
                 len(thread) - total_summary_count + summaries[-1].count()
             )
         else:
-            summaries.append(SkippedFramesEntry(len(thread) - total_summary_count + 1))
+            summaries.append(_SkippedFramesEntry(len(thread) - total_summary_count + 1))
             if len(summaries) > max_entries:
                 summaries.pop(-2)
 
     assert sum(
-        [s.count() if isinstance(s, SkippedFramesEntry) else 1 for s in summaries]
+        [s.count() if isinstance(s, _SkippedFramesEntry) else 1 for s in summaries]
     ) == len(thread)
 
     return summaries
 
 
-def get_command_line_invocation(debugger: lldb.SBDebugger) -> Optional[str]:
+def _initial_prompt_enriched_stack_trace(debugger, result):
+    parts = []
+    summaries = _get_frame_summaries(debugger)
+    if not summaries:
+        result.AppendWarning("could not generate any frame summary.")
+    else:
+        frame_summary = "\n".join([str(s) for s in summaries])
+        parts.append(
+            "Here is a summary of the stack frames, omitting those not associated with user source code:\n```\n"
+            + frame_summary
+            + "\n```"
+        )
+
+        total_frames = sum(
+            [
+                s.count() if isinstance(s, _SkippedFramesEntry) else 1
+                for s in summaries
+            ]
+        )
+
+        if total_frames > 1000:
+            parts.append(
+                "Note that there are over 1000 frames in the stack trace, hinting at a possible stack overflow error."
+            )
+
+    max_initial_locations_to_send = 3
+    source_code_entries = []
+    for summary in summaries:
+        if isinstance(summary, _FrameSummaryEntry):
+            file_path, lineno = summary.file_path(), summary.lineno()
+            lines, first = llm_utils.read_lines(file_path, lineno - 10, lineno + 9)
+            block = llm_utils.number_group_of_lines(lines, first)
+            source_code_entries.append(
+                f"Frame #{summary.index()} at {file_path}:{lineno}:\n```\n{block}\n```"
+            )
+
+            if len(source_code_entries) == max_initial_locations_to_send:
+                break
+
+    if source_code_entries:
+        parts.append(
+            f"Here is the source code for the first {len(source_code_entries)} frames:\n\n"
+            + "\n\n".join(source_code_entries)
+        )
+    else:
+        result.AppendWarning("could not retrieve source code for any frames.")
+
+    return "\n\n".join(parts)
+
+
+def _get_command_line_invocation(debugger: lldb.SBDebugger) -> Optional[str]:
     executable = debugger.GetSelectedTarget().GetExecutable()
     executable_path = os.path.join(executable.GetDirectory(), executable.GetFilename())
     if executable_path.startswith(os.getcwd()):
@@ -160,14 +224,44 @@ def get_command_line_invocation(debugger: lldb.SBDebugger) -> Optional[str]:
     return " ".join([executable_path, *command_line_arguments])
 
 
-def get_input_path(debugger: lldb.SBDebugger) -> Optional[str]:
+def _get_input_path(debugger: lldb.SBDebugger) -> Optional[str]:
     stream = lldb.SBStream()
     debugger.GetSetting("target.input-path").GetAsJSON(stream)
     entry = json.loads(stream.GetData())
     return entry if entry else None
 
 
-def get_process(debugger) -> Optional[lldb.SBProcess]:
+def _initial_prompt_inputs(debugger, result):
+    parts = []
+    command_line_invocation = _get_command_line_invocation(debugger)
+    if command_line_invocation:
+        parts.append(
+            "Here is the command line invocation that started the program:\n```\n"
+            + command_line_invocation
+            + "\n```"
+        )
+    else:
+        result.AppendWarning("could not retrieve the command line invocation.")
+
+    input_path = _get_input_path(debugger)
+    if input_path:
+        try:
+            with open(input_path, "r", errors="ignore") as file:
+                input_contents = file.read()
+                if len(input_contents) > 512:
+                    input_contents = input_contents[:512] + "\n\n[...]"
+                parts.append(
+                    "Here is the input data that was used:\n```\n"
+                    + input_contents
+                    + "\n```"
+                )
+        except FileNotFoundError:
+            result.AppendWarning("could not retrieve the input data.")
+
+    return "\n\n".join(parts)
+
+
+def _get_process(debugger) -> Optional[lldb.SBProcess]:
     """
     Get the process that the current target owns.
     :return: An lldb object representing the process (lldb.SBProcess) that this target owns.
@@ -181,7 +275,7 @@ def get_thread(debugger: lldb.SBDebugger) -> Optional[lldb.SBThread]:
     Returns a currently stopped thread in the debugged process.
     :return: A currently stopped thread or None if no thread is stopped.
     """
-    process = get_process(debugger)
+    process = _get_process(debugger)
     if not process:
         return None
     for thread in process:
@@ -189,3 +283,22 @@ def get_thread(debugger: lldb.SBDebugger) -> Optional[lldb.SBThread]:
         if reason not in [lldb.eStopReasonNone, lldb.eStopReasonInvalid]:
             return thread
     return thread
+
+
+def _build(*args):
+    return '\n'.join(args)
+
+
+def build_initial_prompt(debugger, user_text) -> str:
+    result = lldb.SBCommandReturnObject()
+    prompt = _build(_initial_prompt_error(debugger, result),
+            _initial_prompt_enriched_stack_trace(debugger, result),
+            _initial_prompt_inputs(debugger, result),
+            user_text)
+    return prompt
+
+
+def build_followup_prompt(debugger, user_text) -> str:
+    result = lldb.SBCommandReturnObject()
+    prompt = _build(user_text)
+    return prompt

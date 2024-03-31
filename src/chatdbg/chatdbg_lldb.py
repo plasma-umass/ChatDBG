@@ -161,7 +161,7 @@ def _capture_onecmd(debugger, cmd):
     if result.Succeeded():
         return result.GetOutput()
     else:
-        return result.GetError()
+        return "Error: " + result.GetError()
 
 def _instructions():
     return textwrap.dedent(
@@ -416,11 +416,13 @@ def _check_debugger_state(
     if not debugger.GetSelectedTarget():
         result.SetError("must be attached to a program to use `chat`.")
         return False
-    if not is_debug_build(debugger):
+    
+    elif not is_debug_build(debugger):
         result.SetError(
             "your program must be compiled with debug information (`-g`) to use `chat`."
         )
         return False
+    
     thread = get_thread(debugger)
     if not thread:
         result.SetError("must run the code first to use `chat`.")
@@ -445,9 +447,8 @@ def chat(
     global _assistant
 
     state_result = lldb.SBCommandReturnObject()
-
     debuggable = _check_debugger_state(debugger, state_result)
-    print(state_result)
+    print(state_result.GetError())
     if not debuggable:
         return
 
@@ -458,131 +459,57 @@ def chat(
 def dialog(debugger, user_text):
     result = lldb.SBCommandReturnObject()
     assistant = _make_assistant(debugger, result)
-    initial_prompt = _build_initial_prompt(debugger, user_text)
+    initial_prompt = build_initial_prompt(debugger, user_text)
+
+    history = []
+
     stats = assistant.query(initial_prompt, user_text)
-    print(stats)
+    print(f"\n[Cost: ~${stats['cost']:.2f} USD]")
     while True:
         try:
-            command = input(PROMPT).strip()
-            if command == "exit":
+            command = input(">>> " + PROMPT).strip()
+            if command == "exit" or command == "quit":
                 break
-            result = _capture_onecmd(debugger, command)
-            print(result)
+            if command == "chat" or command == "why":
+                # Pass in the history as part of the followup prompt, and reset hist
+                followup_prompt = build_followup_prompt(debugger, user_text)
+                stats = assistant.query(followup_prompt, user_text)
+                print(f"\n[Cost: ~${stats['cost']:.2f} USD]")
+            elif command == "test-history":
+                do_hist(history)
+            else:
+                # Send the next input as an LLDB command
+                result = _capture_onecmd(debugger, command)
+                # If result is not a recognized command, pass it as a query
+                if result.find("is not a valid command") != -1:
+                    followup_prompt = build_followup_prompt(debugger, command)
+                    stats = assistant.query(followup_prompt, command)
+                    print(f"\n[Cost: ~${stats['cost']:.2f} USD]")
+                else:
+                    history += [(command, result)]
+                    print(result)
         except EOFError:
+            # If it causes an error, break
             break
 
     assistant.close()
 
 
-def _initial_prompt_error(debugger, result):
-    error_message = get_error_message(debugger)
-    if error_message:
-        return (
-            "Here is the reason the program stopped execution:\n```\n"
-            + error_message
-            + "\n```"
-        )
+def _format_history_entry(entry, indent=""):
+    line, output = entry
+    if output:
+        entry = f"{PROMPT}{line}\n{output}"
     else:
-        result.AppendWarning("could not generate an error message.")
-        return ''
+        entry = f"{PROMPT}{line}"
+    return textwrap.indent(entry, indent, lambda _: True)
 
-
-def _initial_prompt_enriched_stack_trace(debugger, result):
-    parts = []
-    summaries = get_frame_summaries(debugger)
-    if not summaries:
-        result.AppendWarning("could not generate any frame summary.")
-    else:
-        frame_summary = "\n".join([str(s) for s in summaries])
-        parts.append(
-            "Here is a summary of the stack frames, omitting those not associated with user source code:\n```\n"
-            + frame_summary
-            + "\n```"
-        )
-
-        total_frames = sum(
-            [
-                s.count() if isinstance(s, SkippedFramesEntry) else 1
-                for s in summaries
-            ]
-        )
-
-        if total_frames > 1000:
-            parts.append(
-                "Note that there are over 1000 frames in the stack trace, hinting at a possible stack overflow error."
-            )
-
-    max_initial_locations_to_send = 3
-    source_code_entries = []
-    for summary in summaries:
-        if isinstance(summary, FrameSummaryEntry):
-            file_path, lineno = summary.file_path(), summary.lineno()
-            lines, first = llm_utils.read_lines(file_path, lineno - 10, lineno + 9)
-            block = llm_utils.number_group_of_lines(lines, first)
-            source_code_entries.append(
-                f"Frame #{summary.index()} at {file_path}:{lineno}:\n```\n{block}\n```"
-            )
-
-            if len(source_code_entries) == max_initial_locations_to_send:
-                break
-
-    if source_code_entries:
-        parts.append(
-            f"Here is the source code for the first {len(source_code_entries)} frames:\n\n"
-            + "\n\n".join(source_code_entries)
-        )
-    else:
-        result.AppendWarning("could not retrieve source code for any frames.")
-
-    return "\n\n".join(parts)
-
-
-def _initial_prompt_inputs(debugger, result):
-    parts = []
-    command_line_invocation = get_command_line_invocation(debugger)
-    if command_line_invocation:
-        parts.append(
-            "Here is the command line invocation that started the program:\n```\n"
-            + command_line_invocation
-            + "\n```"
-        )
-    else:
-        result.AppendWarning("could not retrieve the command line invocation.")
-
-    input_path = get_input_path(debugger)
-    if input_path:
-        try:
-            with open(input_path, "r", errors="ignore") as file:
-                input_contents = file.read()
-                if len(input_contents) > 512:
-                    input_contents = input_contents[:512] + "\n\n[...]"
-                parts.append(
-                    "Here is the input data that was used:\n```\n"
-                    + input_contents
-                    + "\n```"
-                )
-        except FileNotFoundError:
-            result.AppendWarning("could not retrieve the input data.")
-
-    return "\n\n".join(parts)
-
-def _build(*args):
-    return '\n'.join(args)
-
-def _build_initial_prompt(debugger, user_text) -> str:
-    result = lldb.SBCommandReturnObject()
-    prompt = _build(_initial_prompt_error(debugger, result),
-            _initial_prompt_enriched_stack_trace(debugger, result),
-            _initial_prompt_inputs(debugger, result),
-            user_text)
-    print('***', result, '***')
-    return prompt
-
-def _build_followup_prompt(debugger, user_text) -> str:
-    result = lldb.SBCommandReturnObject()
-    prompt = _build(user_text)
-    print('***', result, '***')
-    return prompt
+def do_hist(history):
+        """hist
+        Print the history of user-issued commands since the last chat.
+        """
+        entry_strs = [_format_history_entry(x) for x in history]
+        history_str = "\n".join(entry_strs)
+        print(history_str)
 
 
 @lldb.command("config")
@@ -597,29 +524,4 @@ def config(
     if unknown:
         result.AppendWarning(f"Chatdbg options are only:\n{chatdbg_config.user_flags_help()}  ")
     else:        
-        result.AppendMessage(chatdbg_config.user_flags())    
-"""
-
-def why() -> just goes to chat
-
-def chat(line):
-   make assistant
-   run the query
-   while True:
-      line = input()
-      if line is a nother why or chat line:
-          run another query and pass in history as part of prompt and reset history
-      elif line is done:
-          break
-      else:
-          run it as a command
-          match response:
-             case "command not recognized" -> run as query
-             case error -> report error   # check on what result objects look like...
-             case anything else -> print it
-                and record history (input, result output)
-    
-
-
-
-"""
+        result.AppendMessage(chatdbg_config.user_flags())

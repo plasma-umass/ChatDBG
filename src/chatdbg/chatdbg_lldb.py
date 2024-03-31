@@ -595,9 +595,8 @@ def config(
     args = command.split()
     unknown = chatdbg_config.parse_user_flags(args)
     if unknown:
-        result.AppendWarning(f"Chatdbg options are only:\n{chatdbg_config.user_flags_help()}  ")
-    else:        
-        result.AppendMessage(chatdbg_config.user_flags())    
+        result.AppendWarning(f"Unknown flag.  Available flags are:\n{chatdbg_config.user_flags_help()}  ")
+    result.AppendMessage(f"Current values:\n{chatdbg_config.user_flags()}")    
 """
 
 def why() -> just goes to chat

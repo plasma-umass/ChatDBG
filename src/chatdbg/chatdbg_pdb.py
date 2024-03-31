@@ -572,21 +572,10 @@ class ChatDBG(ChatDBGSuper):
         Print out the ChatDBG config options.
         """
         args = arg.split()
-        if len(args) == 0:
-            pprint(chatdbg_config.to_json(), sort_dicts=True, stream=self.stdout)
-            return
-
-        if len(args) != 2:
-            self.error("Usage: config <option> <value>")
-            self.error("   or: config")
-            return
-
-        option, value = args
-        try:
-            chatdbg_config.set_trait(option, value)
-            pprint(chatdbg_config.to_json(), sort_dicts=True, stream=self.stdout)
-        except TraitError as e:
-            self.error(f"{e}")
+        unknown = chatdbg_config.parse_user_flags(args)
+        if unknown:
+            self.error(f"Unknown flag.  Available flags are:\n{chatdbg_config.user_flags_help()}  ")
+        self.message(f"Current values:\n{chatdbg_config.user_flags()}")    
 
     def _make_assistant(self):
         instruction_prompt = self._initial_prompt_instructions()

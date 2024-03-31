@@ -82,35 +82,33 @@ class ChatDBGConfig(Configurable):
 
     def parse_user_flags(self, argv):
         parser = argparse.ArgumentParser(add_help=False)
-        parser.add_argument('--debug', default=self.debug, action='store_true')
-        parser.add_argument('--log', default=self.log, type=str)
-        parser.add_argument('--model', default=self.model, type=str)
-        parser.add_argument('--stream', default=self.stream, action='store_true')
+        parser.add_argument('--debug', help="dump the LLM messages to a chatdbg.log", default=self.debug, action='store_true')
+        parser.add_argument('--log',  help="where to write the log of the debugging session", default=self.log, type=str)
+        parser.add_argument('--model', help="the LLM model to use", default=self.model, type=str)
+        # parser.add_argument('--stream', help="stream responses from the LLM", default=self.stream, action='store_true')
 
         args, unknown_args = parser.parse_known_args(argv)
         
         self.debug = args.debug
         self.log = args.log
         self.model = args.model
-        self.stream = args.stream
+        # self.stream = args.stream
 
         return unknown_args
 
     def user_flags_help(self):
-        return textwrap.dedent("""\
-            --debug         dump the LLM messages to a chatdbg.log
-            --log=file      where to write the log of the debugging session
-            --model=model   the LLM model to use
-            --stream        stream responses from the LLM
-            """)
+        return textwrap.indent(textwrap.dedent(f"""\
+              --debug         dump the LLM messages to a chatdbg.log
+              --log=file      where to write the log of the debugging session
+              --model=model   the LLM model to use
+            """), '  ')
 
     def user_flags(self):
-        return textwrap.dedent(f"""\
-            debug  {self.debug}
-            log    {self.log}
-            model  {self.model}
-            stream {self.stream}
-            """)
+        return textwrap.indent(textwrap.dedent(f"""\
+                debug:  {self.debug}
+                log:    {self.log}
+                model:  {self.model}
+                """), '  ')
 
 
 

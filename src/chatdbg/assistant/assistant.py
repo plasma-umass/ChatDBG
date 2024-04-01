@@ -210,18 +210,20 @@ class Assistant:
 
                 # stream the response, collecting the tool_call parts separately 
                 # from the content
-                self._broadcast("on_begin_stream")
-                chunks = []
-                tool_chunks = []
-                for chunk in stream:
-                    chunks.append(chunk)
-                    if chunk.choices[0].delta.content != None:
-                        self._broadcast(
-                            "on_stream_delta", chunk.choices[0].delta.content
-                        )
-                    else:
-                        tool_chunks.append(chunk)
-                self._broadcast("on_end_stream")
+                try:
+                    self._broadcast("on_begin_stream")
+                    chunks = []
+                    tool_chunks = []
+                    for chunk in stream:
+                        chunks.append(chunk)
+                        if chunk.choices[0].delta.content != None:
+                            self._broadcast(
+                                "on_stream_delta", chunk.choices[0].delta.content
+                            )
+                        else:
+                            tool_chunks.append(chunk)
+                finally:
+                    self._broadcast("on_end_stream")
 
                 # then compute for the part that litellm gives back.
                 completion = litellm.stream_chunk_builder(

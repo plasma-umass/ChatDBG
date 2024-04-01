@@ -5,6 +5,9 @@ import textwrap
 from traitlets import Bool, Int, Unicode
 from traitlets.config import Configurable, Config
 
+from chatdbg.util.markdown import ChatDBGMarkdownPrinter
+from chatdbg.util.printer import ChatDBGPrinter
+
 
 def _chatdbg_get_env(option_name, default_value):
     env_name = "CHATDBG_" + option_name.upper()
@@ -63,6 +66,10 @@ class ChatDBGConfig(Configurable):
         _chatdbg_get_env("stream", True), help="Stream the response at it arrives"
     ).tag(config=True)
 
+    printer = Unicode(
+        _chatdbg_get_env("printer", "text"), help="The printer to use (text/light/dark)."
+    ).tag(config=True)
+
     def to_json(self):
         """Serialize the object to a JSON string."""
         return {
@@ -85,6 +92,7 @@ class ChatDBGConfig(Configurable):
         parser.add_argument('--debug', help="dump the LLM messages to a chatdbg.log", default=self.debug, action='store_true')
         parser.add_argument('--log',  help="where to write the log of the debugging session", default=self.log, type=str)
         parser.add_argument('--model', help="the LLM model to use", default=self.model, type=str)
+        parser.add_argument('--printer', help="The printer to use (text/light/dark)", default=self.printer, type=str)
         # parser.add_argument('--stream', help="stream responses from the LLM", default=self.stream, action='store_true')
 
         args, unknown_args = parser.parse_known_args(argv)
@@ -92,24 +100,46 @@ class ChatDBGConfig(Configurable):
         self.debug = args.debug
         self.log = args.log
         self.model = args.model
+        self.printer = args.printer
         # self.stream = args.stream
 
         return unknown_args
 
     def user_flags_help(self):
         return textwrap.indent(textwrap.dedent(f"""\
-              --debug         dump the LLM messages to a chatdbg.log
-              --log=file      where to write the log of the debugging session
-              --model=model   the LLM model to use
+              --debug           dump the LLM messages to a chatdbg.log
+              --log=file        where to write the log of the debugging session
+              --model=model     the LLM model to use
+              --printer=printer the printer to use (text/light/dark)
             """), '  ')
 
     def user_flags(self):
         return textwrap.indent(textwrap.dedent(f"""\
-                debug:  {self.debug}
-                log:    {self.log}
-                model:  {self.model}
+                debug:    {self.debug}
+                log:      {self.log}
+                model:    {self.model}
+                printer:  {self.printer}
                 """), '  ')
 
-
+    def make_printer(self, stdout, prompt, prefix, width):
+        printer = chatdbg_config.printer
+        print(printer)
+        if printer in ChatDBGMarkdownPrinter.themes.keys():
+            return ChatDBGMarkdownPrinter(
+                        stdout,
+                        prompt,
+                        prefix,
+                        width,
+                        stream=self.stream,
+                        theme=printer
+                    )
+        else:
+            return ChatDBGPrinter(
+                        stdout,
+                        prompt,
+                        prefix,
+                        width,
+                        stream=self.stream
+                    )
 
 chatdbg_config: ChatDBGConfig = ChatDBGConfig()

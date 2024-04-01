@@ -1,4 +1,5 @@
 
+import re
 import textwrap
 from ..assistant.listeners import BaseAssistantListener
 from rich.console import Console
@@ -11,30 +12,37 @@ from rich.text import Text
 from rich import box
 import os
 
-_theme = Theme({
+_dark = (Theme({
     "markdown.paragraph": 'bright_cyan',
     "markdown.text": 'bright_cyan',
-    # "markdown.em": Style(italic=True),
-    # "markdown.emph": Style(italic=True),  # For commonmark backwards compatibility
-    # "markdown.strong": Style(bold=True),
     "markdown.code": "white",
-    "markdown.code_block": Style(color="cyan"),
-    # "markdown.block_quote": Style(color="magenta"),
-    # "markdown.list": Style(color="cyan"),
-    # "markdown.item": Style(),
-    "markdown.item.bullet": Style(color="cyan", bold=True),
-    "markdown.item.number": Style(color="cyan", bold=True),
-    # "markdown.hr": Style(color="yellow"),
-    # "markdown.h1.border": Style(),
-    "markdown.h1": Style(color="bright_cyan", bold=True),
-    "markdown.h2": Style(color="bright_cyan", bold=True),
-    "markdown.h3": Style(color="bright_cyan", bold=True),
-    "markdown.h4": Style(color="bright_cyan", bold=True),
-    "markdown.h5": Style(color="bright_cyan", bold=True),
-    # "markdown.link": Style(color="bright_blue"),
-    # "markdown.link_url": Style(color="blue", underline=True),
-    # "markdown.s": Style(strike=True)
-})
+    "markdown.code_block": 'cyan',
+    "markdown.item.bullet": 'bold cyan',
+    "markdown.item.number": 'bold cyan',
+    "markdown.h1": 'bold cyan',
+    "markdown.h2": 'bold cyan',
+    "markdown.h3": 'bold cyan',
+    "markdown.h4": 'bold cyan',
+    "markdown.h5": 'bold cyan',
+    "command": "bold bright_yellow",
+    "result": "yellow"
+}), 'monokai')
+
+_light = (Theme({
+    "markdown.paragraph": 'bright_blue',
+    "markdown.text": 'bright_blue',
+    "markdown.code": "cyan",
+    "markdown.code_block": 'blue',
+    "markdown.item.bullet": 'bold blue',
+    "markdown.item.number": 'bold blue',
+    "markdown.h1": 'bold blue',
+    "markdown.h2": 'bold blue',
+    "markdown.h3": 'bold blue',
+    "markdown.h4": 'bold blue',
+    "markdown.h5": 'bold blue',
+    "command": "bold yellow",
+    "result": "yellow"
+}), 'default')
 
 class Heading(TextElement):
     """A heading."""
@@ -87,13 +95,18 @@ class CodeBlock(TextElement):
         yield syntax
 
 class ChatDBGMarkdownPrinter(BaseAssistantListener):
-    def __init__(self, out, debugger_prompt, chat_prefix, width, stream=False):
+
+    themes = { 'light' : _light,
+               'dark' : _dark }
+
+    def __init__(self, out, debugger_prompt, chat_prefix, width, stream=False, theme='light'):
         self._out = out
         self._debugger_prompt = debugger_prompt
         self._chat_prefix = chat_prefix
         self._width = min(width, os.get_terminal_size().columns - len(chat_prefix))
         self._stream = stream
-        self._console = Console(soft_wrap=False, file=out, theme=_theme)
+        self._theme, self._code_theme = ChatDBGMarkdownPrinter.themes[theme]
+        self._console = Console(soft_wrap=False, file=out, theme=self._theme)
         Markdown.elements['fence'] = CodeBlock
         Markdown.elements['code_block'] = CodeBlock
         Markdown.elements["heading_open"] = Heading
@@ -128,7 +141,7 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
 
     def _stream_append(self, text):
         self._streamed += text
-        m = self._wrap_in_panel(Markdown(self._streamed))
+        m = self._wrap_in_panel(Markdown(self._streamed, code_theme=self._code_theme))
         self._live.update(m)
 
     def on_stream_delta(self, text):
@@ -141,12 +154,17 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
 
     def on_response(self, text):
         if not self._stream and text != None:
-            m = self._wrap_in_panel(Markdown(text))
+            m = self._wrap_in_panel(Markdown(text, code_theme=self._code_theme))
             self._console.print(m)
 
     def on_function_call(self, call, result):
-        entry = f"[bold bright_yellow]{self._debugger_prompt}{call}[/]"
+        entry = f"[command]{self._chat_prefix}{self._debugger_prompt}{call}[/]\n"
+        self._print(entry)
         if result and len(result) > 0:
-            entry += f"\n[yellow]{result}[/]"
-        m = textwrap.indent(entry.rstrip()+'\n', prefix=self._chat_prefix)
-        self._print(m)
+            with Live(vertical_overflow='visible', console=self._console) as live:
+                lines = ""
+                result_lines = re.split('(\w)',result)
+                for chunk in result_lines[0:200]:
+                    lines += chunk
+                    live.update(f'[result]{textwrap.indent(lines, self._chat_prefix)}[/]')
+                live.update(f'[result]{textwrap.indent(result, self._chat_prefix)}[/]')

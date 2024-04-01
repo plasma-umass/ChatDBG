@@ -596,13 +596,11 @@ class ChatDBG(ChatDBGSuper):
             functions=functions,
             stream=chatdbg_config.stream,
             listeners=[
-                ChatDBGMarkdownPrinter(
-                    self.stdout,
-                    self.prompt,
-                    self._chat_prefix,
-                    self._text_width,
-                    stream=chatdbg_config.stream,
-                ),
+                chatdbg_config.make_printer(
+                        self.stdout,
+                        self.prompt,
+                        self._chat_prefix,
+                        self._text_width),
                 self._log,
             ],
         )

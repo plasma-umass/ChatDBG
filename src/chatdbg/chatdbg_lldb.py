@@ -1,19 +1,11 @@
-import json
-import sys
-import textwrap
-
-from chatdbg.util.log import ChatDBGLog
-from chatdbg.util.printer import ChatDBGPrinter
 import lldb
 
 import llm_utils
 
-from assistant.assistant import Assistant
 import clangd_lsp_integration
 from util.config import chatdbg_config
 
-from lldb_utils.prompts import build_prompt, get_thread
-from lldb_utils.chat_history import History
+from dbg_dialog import LLDBDialog, DBGError
 
 
 # The file produced by the panic handler if the Rust program is using the chatdbg crate.
@@ -23,19 +15,6 @@ PROMPT = "(ChatDBG lldb) "
 
 def __lldb_init_module(debugger: lldb.SBDebugger, internal_dict: dict) -> None:
     debugger.HandleCommand(f"settings set prompt '{PROMPT}'")
-
-
-def is_debug_build(debugger: lldb.SBDebugger) -> bool:
-    """Returns False if not compiled with debug information."""
-    target = debugger.GetSelectedTarget()
-    if not target:
-        return False
-    for module in target.module_iter():
-        for cu in module.compile_unit_iter():
-            for line_entry in cu:
-                if line_entry.GetLine() > 0:
-                    return True
-    return False
 
 
 @lldb.command("code")
@@ -158,7 +137,7 @@ def chat(
     internal_dict: dict,
 ):
     try:
-        dialog = DBGDialog(PROMPT)
+        dialog = LLDBDialog(PROMPT, debugger)
         dialog.dialog(command)
     except DBGError as e:
         result.setError(e.message)

@@ -117,7 +117,7 @@ class Assistant:
             )
             sys.exit(1)
 
-    def _sandwhich_tokens(
+    def _sandwich_tokens(
         self, text: str, max_tokens: int, top_proportion: float
     ) -> str:
         model = self._model
@@ -305,7 +305,7 @@ class Assistant:
         try:
             for tool_call in tool_calls:
                 function_response = self._make_call(tool_call)
-                function_response = self._sandwhich_tokens(
+                function_response = self._sandwich_tokens(
                     function_response, self._max_call_response_tokens, 0.5
                 )
                 response = {

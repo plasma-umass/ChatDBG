@@ -1,25 +1,32 @@
 import argparse
+from io import StringIO
 import os
 import json
+import sys
 import textwrap
 from typing import Any, List, Optional, Tuple, Union
 
+from chatdbg.util.log import ChatDBGLog
+from chatdbg.util.printer import ChatDBGPrinter
 import lldb
 
 import llm_utils
 
-from assistant.lite_assistant import LiteAssistant
+from assistant.assistant import Assistant
 import chatdbg_utils
 import clangd_lsp_integration
+from util.config import chatdbg_config
+
+from lldb_utils.prompts import build_initial_prompt, build_followup_prompt, get_thread
 
 
 # The file produced by the panic handler if the Rust program is using the chatdbg crate.
 RUST_PANIC_LOG_FILENAME = "panic_log.txt"
-PROMPT = "(ChatDBG lldb)"
+PROMPT = "(ChatDBG lldb) "
 
 
 def __lldb_init_module(debugger: lldb.SBDebugger, internal_dict: dict) -> None:
-    debugger.HandleCommand(f"settings set prompt '{PROMPT} '")
+    debugger.HandleCommand(f"settings set prompt '{PROMPT}'")
 
 
 def is_debug_build(debugger: lldb.SBDebugger) -> bool:
@@ -33,174 +40,6 @@ def is_debug_build(debugger: lldb.SBDebugger) -> bool:
                 if line_entry.GetLine() > 0:
                     return True
     return False
-
-
-def get_process(debugger) -> Optional[lldb.SBProcess]:
-    """
-    Get the process that the current target owns.
-    :return: An lldb object representing the process (lldb.SBProcess) that this target owns.
-    """
-    target = debugger.GetSelectedTarget()
-    return target.process if target else None
-
-
-def get_thread(debugger: lldb.SBDebugger) -> Optional[lldb.SBThread]:
-    """
-    Returns a currently stopped thread in the debugged process.
-    :return: A currently stopped thread or None if no thread is stopped.
-    """
-    process = get_process(debugger)
-    if not process:
-        return None
-    for thread in process:
-        reason = thread.GetStopReason()
-        if reason not in [lldb.eStopReasonNone, lldb.eStopReasonInvalid]:
-            return thread
-    return thread
-
-
-def truncate_string(string, n):
-    if len(string) <= n:
-        return string
-    else:
-        return string[:n] + "..."
-
-
-def buildPrompt(debugger: Any) -> Tuple[str, str, str]:
-    target = debugger.GetSelectedTarget()
-    if not target:
-        return ("", "", "")
-    thread = get_thread(debugger)
-    if not thread:
-        return ("", "", "")
-    if thread.GetStopReason() == lldb.eStopReasonBreakpoint:
-        return ("", "", "")
-    frame = thread.GetFrameAtIndex(0)
-    stack_trace = ""
-    source_code = ""
-
-    # magic number - don't bother walking up more than this many frames.
-    # This is just to prevent overwhelming OpenAI (or to cope with a stack overflow!).
-    max_frames = 10
-
-    index = 0
-    for frame in thread:
-        if index >= max_frames:
-            break
-        function = frame.GetFunction()
-        if not function:
-            continue
-        full_func_name = frame.GetFunctionName()
-        func_name = full_func_name.split("(")[0]
-        arg_list = []
-
-        # Build up an array of argument values to the function, with type info.
-        for i in range(len(frame.GetFunction().GetType().GetFunctionArgumentTypes())):
-            arg = frame.FindVariable(frame.GetFunction().GetArgumentName(i))
-            if not arg:
-                continue
-            arg_name = str(arg).split("=")[0].strip()
-            arg_val = str(arg).split("=")[1].strip()
-            arg_list.append(f"{arg_name} = {arg_val}")
-
-        # Get the frame variables
-        variables = frame.GetVariables(True, True, True, True)
-        var_list = []
-
-        for var in variables:
-            name = var.GetName()
-            value = var.GetValue()
-            type = var.GetTypeName()
-            # Check if the value is a pointer
-            if var.GetType().IsPointerType():
-                # Attempt to dereference the pointer
-                try:
-                    deref_value = var.Dereference().GetValue()
-                    var_list.append(
-                        f"{type} {name} = {value} (*{name} = {deref_value})"
-                    )
-                except:
-                    var_list.append(f"{type} {name} = {value}")
-
-        line_entry = frame.GetLineEntry()
-        file_path = line_entry.GetFileSpec().fullpath
-        lineno = line_entry.GetLine()
-        col_num = line_entry.GetColumn()
-
-        # If we are in a subdirectory, use a relative path instead.
-        if file_path.startswith(os.getcwd()):
-            file_path = os.path.relpath(file_path)
-
-        max_line_length = 100
-
-        try:
-            lines, first = llm_utils.read_lines(file_path, lineno - 10, lineno)
-            block = llm_utils.number_group_of_lines(lines, first)
-
-            stack_trace += (
-                truncate_string(
-                    f'frame {index}: {func_name}({",".join(arg_list)}) at {file_path}:{lineno}:{col_num}',
-                    max_line_length - 3,  # 3 accounts for ellipsis
-                )
-                + "\n"
-            )
-            if len(var_list) > 0:
-                for var in var_list:
-                    stack_trace += "  " + truncate_string(var, max_line_length) + "\n"
-            source_code += f"/* frame {index} in {file_path} */\n"
-            source_code += block + "\n\n"
-        except:
-            # Couldn't find the source for some reason. Skip the file.
-            continue
-        index += 1
-    error_reason = thread.GetStopDescription(255)
-    # If the Rust panic log exists, append it to the error reason.
-    try:
-        with open(RUST_PANIC_LOG_FILENAME, "r") as log:
-            panic_log = log.read()
-        error_reason = panic_log + "\n" + error_reason
-    except:
-        pass
-    return (source_code.strip(), stack_trace.strip(), error_reason.strip())
-
-
-@lldb.command("why")
-def why(
-    debugger: lldb.SBDebugger,
-    command: str,
-    result: lldb.SBCommandReturnObject,
-    internal_dict: dict,
-) -> None:
-    """
-    The why command is where we use the refined stack trace system.
-    We send information once to GPT, and receive an explanation.
-    There is a bit of work to determine what context we end up sending to GPT.
-    Notably, we send a summary of all stack frames, including locals.
-    """
-    if not debugger.GetSelectedTarget():
-        result.SetError("must be attached to a program to ask `why`.")
-        return
-    if not is_debug_build(debugger):
-        result.SetError(
-            "your program must be compiled with debug information (`-g`) to use `why`."
-        )
-        return
-    thread = get_thread(debugger)
-    if not thread:
-        result.SetError("must run the code first to ask `why`.")
-        return
-
-    the_prompt = buildPrompt(debugger)
-    args, _ = chatdbg_utils.parse_known_args(command.split())
-    chatdbg_utils.explain(
-        the_prompt[0],
-        the_prompt[1],
-        the_prompt[2],
-        args,
-        result.AppendMessage,
-        result.AppendWarning,
-        result.SetError,
-    )
 
 
 @lldb.command("print-test")
@@ -238,9 +77,7 @@ def print_test(
     addresses = {}
     for var in frame.get_all_variables():
         # Returns python dictionary for each variable, converts to JSON
-        variable = _val_to_json(
-            debugger, command, result, internal_dict, var, recurse_max, addresses
-        )
+        variable = _val_to_json(var, recurse_max, addresses)
         js = json.dumps(variable, indent=4)
         all_vars.append(js)
 
@@ -252,10 +89,6 @@ def print_test(
 
 
 def _val_to_json(
-    debugger: lldb.SBDebugger,
-    command: str,
-    result: lldb.SBCommandReturnObject,
-    internal_dict: dict,
     var: lldb.SBValue,
     recurse_max: int,
     address_book: dict,
@@ -283,10 +116,6 @@ def _val_to_json(
                             deref_val = deref_val.Dereference()
                         elif len(deref_val.GetType().get_fields_array()) > 0:
                             value = _val_to_json(
-                                debugger,
-                                command,
-                                result,
-                                internal_dict,
                                 deref_val,
                                 recurse_max - i - 1,
                                 address_book,
@@ -312,10 +141,6 @@ def _val_to_json(
             f = var.GetChildAtIndex(i)
             fields.append(
                 _val_to_json(
-                    debugger,
-                    command,
-                    result,
-                    internal_dict,
                     f,
                     recurse_max - 1,
                     address_book,
@@ -335,7 +160,7 @@ def _capture_onecmd(debugger, cmd):
     if result.Succeeded():
         return result.GetOutput()
     else:
-        return result.GetError()
+        return "Error: " + result.GetError()
 
 
 def _instructions():
@@ -477,11 +302,20 @@ def _function_definition(
     result.AppendMessage(f"""File '{path}' at {line_string}:\n```\n{content}\n```""")
 
 
+# The log file used by the listener on the Assistant
+_log = ChatDBGLog(
+    log_filename=chatdbg_config.log,
+    config=chatdbg_config.to_json(),
+    capture_streams=False,  # don't have access to target's stdout/stderr here.
+)
+
+
 def _make_assistant(
     debugger: lldb.SBDebugger,
-    args: argparse.Namespace,
     result: lldb.SBCommandReturnObject,
-) -> LiteAssistant:
+) -> Assistant:
+
+    # TODO: Move these functions to the toplevel and use functools.partial
     def llm_debug(command: str) -> str:
         """
         {
@@ -499,7 +333,7 @@ def _make_assistant(
             }
         }
         """
-        return _capture_onecmd(debugger, f"debug {command}")
+        return command, _capture_onecmd(debugger, f"debug {command}")
 
     def llm_get_code_surrounding(filename: str, lineno: int) -> str:
         """
@@ -522,365 +356,207 @@ def _make_assistant(
             }
         }
         """
-        return _capture_onecmd(debugger, f"code {filename}:{lineno}")
+        return f"code {filename}:{lineno}", _capture_onecmd(
+            debugger, f"code {filename}:{lineno}"
+        )
 
-    assistant = LiteAssistant(
-        _instructions(),
-        model=args.llm,
-        timeout=args.timeout,
-        max_result_tokens=args.tool_call_max_result_tokens,
-        debug=args.debug,
+    def llm_find_definition(filename: str, lineno: int, symbol: str) -> str:
+        """
+        {
+            "name": "find_definition",
+            "description": "Returns the definition for the given symbol at the given source line number.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "filename": {
+                        "type": "string",
+                        "description": "The filename the symbol is from."
+                    },
+                    "lineno": {
+                        "type": "integer",
+                        "description": "The line number where the symbol is present."
+                    },
+                    "symbol": {
+                        "type": "string",
+                        "description": "The symbol to lookup."
+                    }
+                },
+                "required": [ "filename", "lineno", "symbol" ]
+            }
+        }
+        """
+        return f"definition {filename}:{lineno} {symbol}", _capture_onecmd(
+            debugger, f"definition {filename}:{lineno} {symbol}"
+        )
+
+    functions = [llm_debug, llm_get_code_surrounding]
+    if clangd_lsp_integration.is_available():
+        functions += [llm_find_definition]
+
+    instruction_prompt = _instructions()
+
+    assistant = Assistant(
+        instruction_prompt,
+        model=chatdbg_config.model,
+        debug=chatdbg_config.debug,
+        functions=functions,
+        stream=chatdbg_config.stream,
+        listeners=[
+            ChatDBGPrinter(
+                sys.stdout,
+                PROMPT,  # must end with ' ' to match other tools
+                "   ",
+                80,
+                stream=chatdbg_config.stream,
+            ),
+            _log,
+        ],
     )
 
-    assistant.add_function(llm_debug)
-    assistant.add_function(llm_get_code_surrounding)
+    return assistant
+
+
+def _check_debugger_state(
+    debugger: lldb.SBDebugger,
+    result: lldb.SBCommandReturnObject,
+):
+    if not debugger.GetSelectedTarget():
+        result.SetError("must be attached to a program to use `chat`.")
+        return False
+
+    elif not is_debug_build(debugger):
+        result.SetError(
+            "your program must be compiled with debug information (`-g`) to use `chat`."
+        )
+        return False
+
+    thread = get_thread(debugger)
+    if not thread:
+        result.SetError("must run the code first to use `chat`.")
+        return False
 
     if not clangd_lsp_integration.is_available():
         result.AppendWarning(
             "`clangd` was not found. The `find_definition` function will not be made available."
         )
-    else:
 
-        def llm_find_definition(filename: str, lineno: int, symbol: str) -> str:
-            """
-            {
-                "name": "find_definition",
-                "description": "Returns the definition for the given symbol at the given source line number.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "filename": {
-                            "type": "string",
-                            "description": "The filename the symbol is from."
-                        },
-                        "lineno": {
-                            "type": "integer",
-                            "description": "The line number where the symbol is present."
-                        },
-                        "symbol": {
-                            "type": "string",
-                            "description": "The symbol to lookup."
-                        }
-                    },
-                    "required": [ "filename", "lineno", "symbol" ]
-                }
-            }
-            """
-            return _capture_onecmd(debugger, f"definition {filename}:{lineno} {symbol}")
-
-        assistant.add_function(llm_find_definition)
-
-    return assistant
-
-
-class _ArgumentEntry:
-    def __init__(self, type: str, name: str, value: str):
-        self._type = type
-        self._name = name
-        self._value = value
-
-    def __str__(self):
-        return f"({self._type}) {self._name} = {self._value if self._value else '[unknown]'}"
-
-    def __repr__(self):
-        return f"_ArgumentEntry({repr(self.type)}, {repr(self._name)}, {repr(self._value)})"
-
-
-class _FrameSummaryEntry:
-    def __init__(
-        self,
-        index: int,
-        name: str,
-        arguments: List[_ArgumentEntry],
-        file_path: str,
-        lineno: int,
-    ):
-        self._index = index
-        self._name = name
-        self._arguments = arguments
-        self._file_path = file_path
-        self._lineno = lineno
-
-    def index(self):
-        return self._index
-
-    def file_path(self):
-        return self._file_path
-
-    def lineno(self):
-        return self._lineno
-
-    def __str__(self):
-        return f"{self._index}: {self._name}({', '.join([str(a) for a in self._arguments])}) at {self._file_path}:{self._lineno}"
-
-    def __repr__(self):
-        return f"_FrameSummaryEntry({self._index}, {repr(self._name)}, {repr(self._arguments)}, {repr(self._file_path)}, {self._lineno})"
-
-
-class _SkippedFramesEntry:
-    def __init__(self, count: int):
-        self._count = count
-
-    def count(self):
-        return self._count
-
-    def __str__(self):
-        return f"[{self._count} skipped frame{'s' if self._count > 1 else ''}...]"
-
-    def __repr__(self):
-        return f"_SkippedFramesEntry({self._count})"
-
-
-def get_frame_summaries(
-    debugger: lldb.SBDebugger, max_entries: int = 20
-) -> Optional[List[Union[_FrameSummaryEntry, _SkippedFramesEntry]]]:
-    thread = get_thread(debugger)
-    if not thread:
-        return None
-
-    skipped = 0
-    summaries: List[Union[_FrameSummaryEntry, _SkippedFramesEntry]] = []
-
-    index = -1
-    for frame in thread:
-        index += 1
-        if not frame.GetDisplayFunctionName():
-            skipped += 1
-            continue
-        name = frame.GetDisplayFunctionName().split("(")[0]
-        arguments: List[_ArgumentEntry] = []
-        for j in range(
-            frame.GetFunction().GetType().GetFunctionArgumentTypes().GetSize()
-        ):
-            arg = frame.FindVariable(frame.GetFunction().GetArgumentName(j))
-            if not arg:
-                arguments.append(_ArgumentEntry("[unknown]", "[unknown]", "[unknown]"))
-                continue
-            # TODO: Check if we should simplify / truncate types, e.g. std::unordered_map.
-            arguments.append(
-                _ArgumentEntry(arg.GetTypeName(), arg.GetName(), arg.GetValue())
-            )
-
-        line_entry = frame.GetLineEntry()
-        file_path = line_entry.GetFileSpec().fullpath
-        lineno = line_entry.GetLine()
-
-        # If we are in a subdirectory, use a relative path instead.
-        if file_path.startswith(os.getcwd()):
-            file_path = os.path.relpath(file_path)
-
-        # Skip frames for which we have no source -- likely system frames.
-        if not os.path.exists(file_path):
-            skipped += 1
-            continue
-
-        if skipped > 0:
-            summaries.append(_SkippedFramesEntry(skipped))
-            skipped = 0
-
-        summaries.append(_FrameSummaryEntry(index, name, arguments, file_path, lineno))
-        if len(summaries) >= max_entries:
-            break
-
-    if skipped > 0:
-        summaries.append(_SkippedFramesEntry(skipped))
-        if len(summaries) > max_entries:
-            summaries.pop(-2)
-
-    total_summary_count = sum(
-        [s.count() if isinstance(s, _SkippedFramesEntry) else 1 for s in summaries]
-    )
-
-    if total_summary_count < len(thread):
-        if isinstance(summaries[-1], _SkippedFramesEntry):
-            summaries[-1] = _SkippedFramesEntry(
-                len(thread) - total_summary_count + summaries[-1].count()
-            )
-        else:
-            summaries.append(_SkippedFramesEntry(len(thread) - total_summary_count + 1))
-            if len(summaries) > max_entries:
-                summaries.pop(-2)
-
-    assert sum(
-        [s.count() if isinstance(s, _SkippedFramesEntry) else 1 for s in summaries]
-    ) == len(thread)
-
-    return summaries
-
-
-def get_error_message(debugger: lldb.SBDebugger) -> Optional[str]:
-    thread = get_thread(debugger)
-    return thread.GetStopDescription(1024) if thread else None
-
-
-def get_command_line_invocation(debugger: lldb.SBDebugger) -> Optional[str]:
-    executable = debugger.GetSelectedTarget().GetExecutable()
-    executable_path = os.path.join(executable.GetDirectory(), executable.GetFilename())
-    if executable_path.startswith(os.getcwd()):
-        executable_path = os.path.join(".", os.path.relpath(executable_path))
-
-    command_line_arguments = [
-        debugger.GetSelectedTarget().GetLaunchInfo().GetArgumentAtIndex(i)
-        for i in range(debugger.GetSelectedTarget().GetLaunchInfo().GetNumArguments())
-    ]
-
-    return " ".join([executable_path, *command_line_arguments])
-
-
-def get_input_path(debugger: lldb.SBDebugger) -> Optional[str]:
-    stream = lldb.SBStream()
-    debugger.GetSetting("target.input-path").GetAsJSON(stream)
-    entry = json.loads(stream.GetData())
-    return entry if entry else None
-
-
-_assistant = None
+    return True
 
 
 @lldb.command("chat")
+@lldb.command("why")
 def chat(
     debugger: lldb.SBDebugger,
     command: str,
     result: lldb.SBCommandReturnObject,
     internal_dict: dict,
 ):
-    if not debugger.GetSelectedTarget():
-        result.SetError("must be attached to a program to use `chat`.")
-        return
-    if not is_debug_build(debugger):
-        result.SetError(
-            "your program must be compiled with debug information (`-g`) to use `chat`."
-        )
-        return
-    thread = get_thread(debugger)
-    if not thread:
-        result.SetError("must run the code first to use `chat`.")
-        return
-
-    args, remaining = chatdbg_utils.parse_known_args(command.split())
-
     global _assistant
-    if not _assistant or args.fresh:
-        _assistant = _make_assistant(debugger, args, result)
 
-    parts = []
+    state_result = lldb.SBCommandReturnObject()
+    debuggable = _check_debugger_state(debugger, state_result)
+    print(state_result.GetError())
+    if not debuggable:
+        return
 
-    if _assistant.conversation_size() == 1:
-        error_message = get_error_message(debugger)
-        if not error_message:
-            result.AppendWarning("could not generate an error message.")
-        else:
-            parts.append(
-                "Here is the reason the program stopped execution:\n```\n"
-                + error_message
-                + "\n```"
-            )
-
-        summaries = get_frame_summaries(debugger)
-        if not summaries:
-            result.AppendWarning("could not generate any frame summary.")
-        else:
-            frame_summary = "\n".join([str(s) for s in summaries])
-            parts.append(
-                "Here is a summary of the stack frames, omitting those not associated with user source code:\n```\n"
-                + frame_summary
-                + "\n```"
-            )
-
-            total_frames = sum(
-                [
-                    s.count() if isinstance(s, _SkippedFramesEntry) else 1
-                    for s in summaries
-                ]
-            )
-
-            if total_frames > 1000:
-                parts.append(
-                    "Note that there are over 1000 frames in the stack trace, hinting at a possible stack overflow error."
-                )
-
-        max_initial_locations_to_send = 3
-        source_code_entries = []
-        for summary in summaries:
-            if isinstance(summary, _FrameSummaryEntry):
-                file_path, lineno = summary.file_path(), summary.lineno()
-                lines, first = llm_utils.read_lines(file_path, lineno - 10, lineno + 9)
-                block = llm_utils.number_group_of_lines(lines, first)
-                source_code_entries.append(
-                    f"Frame #{summary.index()} at {file_path}:{lineno}:\n```\n{block}\n```"
-                )
-
-                if len(source_code_entries) == max_initial_locations_to_send:
-                    break
-
-        if source_code_entries:
-            parts.append(
-                f"Here is the source code for the first {len(source_code_entries)} frames:\n\n"
-                + "\n\n".join(source_code_entries)
-            )
-        else:
-            result.AppendWarning("could not retrieve source code for any frames.")
-
-        command_line_invocation = get_command_line_invocation(debugger)
-        if command_line_invocation:
-            parts.append(
-                "Here is the command line invocation that started the program:\n```\n"
-                + command_line_invocation
-                + "\n```"
-            )
-        else:
-            result.AppendWarning("could not retrieve the command line invocation.")
-
-        input_path = get_input_path(debugger)
-        if input_path:
-            try:
-                with open(input_path, "r", errors="ignore") as file:
-                    input_contents = file.read()
-                    if len(input_contents) > 512:
-                        input_contents = input_contents[:512] + "\n\n[...]"
-                    parts.append(
-                        "Here is the input data that was used:\n```\n"
-                        + input_contents
-                        + "\n```"
-                    )
-            except FileNotFoundError:
-                result.AppendWarning("could not retrieve the input data.")
-
-    parts.append(
-        " ".join(remaining)
-        if remaining
-        else "What's the problem? Provide code to fix the issue."
+    user_text = (
+        command if command else "What's the problem? Provide code to fix the issue."
     )
-
-    prompt = "\n\n".join(parts)
-
-    _assistant.run(
-        prompt,
-        result.AppendMessage,
-        result.AppendWarning,
-        result.SetError,
-    )
+    dialog(debugger, user_text)
 
 
-@lldb.command("repl")
-def repl(
+def dialog(debugger, user_text):
+    result = lldb.SBCommandReturnObject()
+    assistant = _make_assistant(debugger, result)
+    initial_prompt = build_initial_prompt(debugger, user_text)
+
+    history = []
+
+    stats = assistant.query(initial_prompt, user_text)
+    print(f"\n[Cost: ~${stats['cost']:.2f} USD]")
+    while True:
+        try:
+            command = input(">>> " + PROMPT).strip()
+            if command == "exit" or command == "quit":
+                break
+            if command == "chat" or command == "why":
+                # Pass in the history as part of the followup prompt, and reset hist
+                followup_prompt = build_followup_prompt(debugger, user_text)
+                stats = assistant.query(followup_prompt, user_text)
+                print(f"\n[Cost: ~${stats['cost']:.2f} USD]")
+            elif command == "test-history":
+                do_hist(history)
+            else:
+                # Send the next input as an LLDB command
+                result = _capture_onecmd(debugger, command)
+                # If result is not a recognized command, pass it as a query
+                if result.find("is not a valid command") != -1:
+                    followup_prompt = build_followup_prompt(debugger, command)
+                    stats = assistant.query(followup_prompt, command)
+                    print(f"\n[Cost: ~${stats['cost']:.2f} USD]")
+                else:
+                    history += [(command, result)]
+                    print(result)
+        except EOFError:
+            # If it causes an error, break
+            break
+
+    assistant.close()
+
+
+def _format_history_entry(entry, indent=""):
+    line, output = entry
+    if output:
+        entry = f"{PROMPT}{line}\n{output}"
+    else:
+        entry = f"{PROMPT}{line}"
+    return textwrap.indent(entry, indent, lambda _: True)
+
+
+def do_hist(history):
+    """hist
+    Print the history of user-issued commands since the last chat.
+    """
+    entry_strs = [_format_history_entry(x) for x in history]
+    history_str = "\n".join(entry_strs)
+    print(history_str)
+
+
+@lldb.command("config")
+def config(
     debugger: lldb.SBDebugger,
     command: str,
     result: lldb.SBCommandReturnObject,
     internal_dict: dict,
 ):
-    if command.strip():
-        result.AppendWarning("`repl` does not take any arguments (arguments ignored).")
+    args = command.split()
+    unknown = chatdbg_config.parse_user_flags(args)
+    if unknown:
+        result.AppendWarning(f"Unknown flag.  Available flags are:\n{chatdbg_config.user_flags_help()}  ")
+    result.AppendMessage(f"Current values:\n{chatdbg_config.user_flags()}")    
+    
+"""
 
-    while True:
-        try:
-            command = input(f"{PROMPT} ").strip()
-        except EOFError:
-            break
+def why() -> just goes to chat
 
-        if command == "exit":
-            break
-        result = _capture_onecmd(debugger, command)
-        print("-----------------------------------")
-        print(result, end="")
-        print("-----------------------------------")
+def chat(line):
+   make assistant
+   run the query
+   while True:
+      line = input()
+      if line is a nother why or chat line:
+          run another query and pass in history as part of prompt and reset history
+      elif line is done:
+          break
+      else:
+          run it as a command
+          match response:
+             case "command not recognized" -> run as query
+             case error -> report error   # check on what result objects look like...
+             case anything else -> print it
+                and record history (input, result output)
+    
+
+
+
+"""

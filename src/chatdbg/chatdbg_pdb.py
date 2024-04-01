@@ -15,6 +15,8 @@ from pprint import pprint
 import IPython
 from traitlets import TraitError
 
+from .util.markdown import ChatDBGMarkdownPrinter
+
 from .assistant.assistant import Assistant
 from .pdb.capture import CaptureInput, CaptureOutput
 from .pdb.locals import print_locals
@@ -594,7 +596,7 @@ class ChatDBG(ChatDBGSuper):
             functions=functions,
             stream=chatdbg_config.stream,
             listeners=[
-                ChatDBGPrinter(
+                ChatDBGMarkdownPrinter(
                     self.stdout,
                     self.prompt,
                     self._chat_prefix,

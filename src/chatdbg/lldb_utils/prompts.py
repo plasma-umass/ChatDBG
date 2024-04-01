@@ -7,6 +7,7 @@ import lldb
 import llm_utils
 
 
+
 class _ArgumentEntry:
     def __init__(self, type: str, name: str, value: str):
         self._type = type
@@ -286,18 +287,17 @@ def _build(*args):
     return "\n".join(args)
 
 
-def build_initial_prompt(debugger, user_text) -> str:
+def build_prompt(debugger, history, user_text, conversing) -> str:
     result = lldb.SBCommandReturnObject()
-    prompt = _build(
-        _initial_prompt_error(debugger, result),
-        _initial_prompt_enriched_stack_trace(debugger, result),
-        _initial_prompt_inputs(debugger, result),
-        user_text,
-    )
-    return prompt
-
-
-def build_followup_prompt(debugger, user_text) -> str:
-    result = lldb.SBCommandReturnObject()
-    prompt = _build(user_text)
+    if not conversing:
+        prompt = _build(
+            _initial_prompt_error(debugger, result),
+            _initial_prompt_enriched_stack_trace(debugger, result),
+            _initial_prompt_inputs(debugger, result),
+            history.get_history(),
+            user_text,
+        )
+    else: 
+        prompt = _build(history.get_history(), user_text)
+        history.clear_history()
     return prompt

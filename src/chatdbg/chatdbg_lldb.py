@@ -1,10 +1,6 @@
-import argparse
-from io import StringIO
-import os
 import json
 import sys
 import textwrap
-from typing import Any, List, Optional, Tuple, Union
 
 from chatdbg.util.log import ChatDBGLog
 from chatdbg.util.printer import ChatDBGPrinter
@@ -13,11 +9,11 @@ import lldb
 import llm_utils
 
 from assistant.assistant import Assistant
-import chatdbg_utils
 import clangd_lsp_integration
 from util.config import chatdbg_config
 
-from lldb_utils.prompts import build_initial_prompt, build_followup_prompt, get_thread
+from lldb_utils.prompts import build_prompt, get_thread
+from lldb_utils.chat_history import History
 
 
 # The file produced by the panic handler if the Rust program is using the chatdbg crate.
@@ -468,9 +464,8 @@ def chat(
 def dialog(debugger, user_text):
     result = lldb.SBCommandReturnObject()
     assistant = _make_assistant(debugger, result)
-    initial_prompt = build_initial_prompt(debugger, user_text)
-
-    history = []
+    history = History()
+    initial_prompt = build_prompt(debugger, history, user_text, False)
 
     stats = assistant.query(initial_prompt, user_text)
     print(f"\n[Cost: ~${stats['cost']:.2f} USD]")
@@ -480,46 +475,28 @@ def dialog(debugger, user_text):
             if command == "exit" or command == "quit":
                 break
             if command == "chat" or command == "why":
-                # Pass in the history as part of the followup prompt, and reset hist
-                followup_prompt = build_followup_prompt(debugger, user_text)
+                # TODO: Pass in the history as part of the followup prompt
+                followup_prompt = build_prompt(debugger, history, user_text, True)
                 stats = assistant.query(followup_prompt, user_text)
                 print(f"\n[Cost: ~${stats['cost']:.2f} USD]")
-            elif command == "test-history":
-                do_hist(history)
+            elif command == "history":
+                print(history.do_history())
             else:
                 # Send the next input as an LLDB command
                 result = _capture_onecmd(debugger, command)
                 # If result is not a recognized command, pass it as a query
+                history.make_entry(command, result)
                 if result.find("is not a valid command") != -1:
-                    followup_prompt = build_followup_prompt(debugger, command)
+                    followup_prompt = build_prompt(debugger, history, command, True)
                     stats = assistant.query(followup_prompt, command)
                     print(f"\n[Cost: ~${stats['cost']:.2f} USD]")
                 else:
-                    history += [(command, result)]
                     print(result)
         except EOFError:
             # If it causes an error, break
             break
 
     assistant.close()
-
-
-def _format_history_entry(entry, indent=""):
-    line, output = entry
-    if output:
-        entry = f"{PROMPT}{line}\n{output}"
-    else:
-        entry = f"{PROMPT}{line}"
-    return textwrap.indent(entry, indent, lambda _: True)
-
-
-def do_hist(history):
-    """hist
-    Print the history of user-issued commands since the last chat.
-    """
-    entry_strs = [_format_history_entry(x) for x in history]
-    history_str = "\n".join(entry_strs)
-    print(history_str)
 
 
 @lldb.command("config")
@@ -535,28 +512,3 @@ def config(
         result.AppendWarning(f"Unknown flag.  Available flags are:\n{chatdbg_config.user_flags_help()}  ")
     result.AppendMessage(f"Current values:\n{chatdbg_config.user_flags()}")    
     
-"""
-
-def why() -> just goes to chat
-
-def chat(line):
-   make assistant
-   run the query
-   while True:
-      line = input()
-      if line is a nother why or chat line:
-          run another query and pass in history as part of prompt and reset history
-      elif line is done:
-          break
-      else:
-          run it as a command
-          match response:
-             case "command not recognized" -> run as query
-             case error -> report error   # check on what result objects look like...
-             case anything else -> print it
-                and record history (input, result output)
-    
-
-
-
-"""

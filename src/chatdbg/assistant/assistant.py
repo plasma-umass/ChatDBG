@@ -201,7 +201,7 @@ class Assistant:
             self._broadcast("on_end_query", stats)
             return stats
         except openai.OpenAIError as e:
-            self._broadcast("on_fail", f"Internal Error: {e.__dict__}")
+            self._broadcast("on_fail", f"{e}")
             sys.exit(1)
 
     def _streamed_query(self, prompt: str, user_text):
@@ -285,7 +285,7 @@ class Assistant:
             self._broadcast("on_end_query", stats)
             return stats
         except openai.OpenAIError as e:
-            self._broadcast("on_fail", f"Internal Error: {e.__dict__}")
+            self._broadcast("on_fail", f"{e}\n")
             sys.exit(1)
 
     def _completion(self, stream=False):

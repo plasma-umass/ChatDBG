@@ -17,7 +17,7 @@ _theme = Theme({
     # "markdown.em": Style(italic=True),
     # "markdown.emph": Style(italic=True),  # For commonmark backwards compatibility
     # "markdown.strong": Style(bold=True),
-    "markdown.code": "bold bright_cyan",
+    "markdown.code": "white",
     "markdown.code_block": Style(color="cyan"),
     # "markdown.block_quote": Style(color="magenta"),
     # "markdown.list": Style(color="cyan"),
@@ -112,6 +112,9 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
             text, end=''
         )
 
+    def _wrap_in_panel(self, rich_element):
+        return Panel(rich_element, box=box.MINIMAL, padding=(0, 0, 0, len(self._chat_prefix)-1))
+
     def on_warn(self, text):
         self._print(textwrap.indent(text, "*** "))
 
@@ -125,7 +128,7 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
 
     def _stream_append(self, text):
         self._streamed += text
-        m = Panel(Markdown(self._streamed), box=box.MINIMAL, padding=(0, 0, 0, len(self._chat_prefix)-1))
+        m = self._wrap_in_panel(Markdown(self._streamed))
         self._live.update(m)
 
     def on_stream_delta(self, text):
@@ -134,12 +137,11 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
         self._stream_append(text)
 
     def on_end_stream(self):
-        # self._stream_append("\n")
         self._live.stop()
 
     def on_response(self, text):
         if not self._stream and text != None:
-            m = Panel(Markdown(text), box=box.MINIMAL, padding=(0, 0, 0, len(self._chat_prefix)-1))
+            m = self._wrap_in_panel(Markdown(text))
             self._console.print(m)
 
     def on_function_call(self, call, result):

@@ -556,7 +556,10 @@ class ChatDBG(ChatDBGSuper):
 
         stats = self._assistant.query(full_prompt, user_text=arg)
 
-        self.message(f"\n[Cost: ~${stats['cost']:.2f} USD]")
+        if stats["completed"]:
+            self.message(f"\n[Cost: ~${stats['cost']:.2f} USD]")
+        else:
+            self.message(f"\n[Interrupted]")
 
     def do_renew(self, arg):
         """renew
@@ -574,14 +577,8 @@ class ChatDBG(ChatDBGSuper):
         Print out the ChatDBG config options.
         """
         args = arg.split()
-        try:
-            unknown = chatdbg_config.parse_user_flags(args)
-            if unknown:
-                self.error(f"Unknown option.  Options are:\n\n{chatdbg_config.user_flags_help()}  ")
-            else:
-                self.message(f"Current values:\n{chatdbg_config.user_flags()}")    
-        except Exception as e:
-            self.error(e)
+        message = chatdbg_config.parse_only_user_flags(args)
+        self.message(message)    
 
     def _make_assistant(self):
         instruction_prompt = self._initial_prompt_instructions()

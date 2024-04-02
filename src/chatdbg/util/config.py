@@ -22,7 +22,7 @@ def _chatdbg_get_env(option_name, default_value):
 
 class DBGParser(argparse.ArgumentParser):
     def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
+        super().__init__(**kwargs, prog="ChatDBG")
 
     def error(self, message):
         args = {'prog': self.prog, 'message': message}
@@ -77,7 +77,7 @@ class ChatDBGConfig(Configurable):
     ).tag(config=True)
 
     format = Unicode(
-        _chatdbg_get_env("format", "text"), help="The output format (text/md:light/md:dark)."
+        _chatdbg_get_env("format", "text"), help="The output format (text or md:light or md:dark)."
     ).tag(config=True)
 
     _user_configurable = [ debug, log, model, format ]
@@ -127,24 +127,37 @@ class ChatDBGConfig(Configurable):
     def user_flags_help(self):
         return "\n".join([ self.class_get_trait_help(x, self).replace('ChatDBGConfig.', '') for x in self._user_configurable  ])
 
-
     def user_flags(self):
         return "\n".join([ f"  --{x.name:10}{self._trait_values[x.name]}" for x in self._user_configurable  ])
 
+    def parse_only_user_flags(self, args):
+        try:
+            unknown = chatdbg_config.parse_user_flags(args)
+            if unknown:
+                return f"Unrecognized arguments: {' '.join(unknown)}\n\n" + f"ChatDBG arguments:\n\n{self.user_flags_help()}"
+            return chatdbg_config.user_flags()
+        except Exception as e:
+            return str(e) + f"\nChatDBG arguments:\n\n{self.user_flags_help()}"
+
     def make_printer(self, stdout, prompt, prefix, width):
         format = chatdbg_config.format
-        if format.startswith('md'):
+        if format.split(":")[0] == 'md':
             format = format.split(":")
-            format = format[1] if len(format) > 0 else 'dark'
-            if format in ChatDBGMarkdownPrinter.themes.keys():
-                return ChatDBGMarkdownPrinter(
-                            stdout,
-                            prompt,
-                            prefix,
-                            width,
-                            stream=self.stream,
-                            theme=format[1]
-                        )
+            theme = format[1] if len(format) > 0 else 'dark'
+            if theme not in ChatDBGMarkdownPrinter.themes.keys():
+                print(f"*** Unknown Markdown theme '{theme}'.  Defaulting to 'dark'", file=stdout)
+                theme = 'dark'
+            return ChatDBGMarkdownPrinter(
+                        stdout,
+                        prompt,
+                        prefix,
+                        width,
+                        stream=self.stream,
+                        theme=theme
+                    )
+
+        if format != 'text':
+            print("*** Unknown format '{format}'.  Defaulting to 'text'", file=stdout)
         return ChatDBGPrinter(
                     stdout,
                     prompt,

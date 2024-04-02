@@ -574,10 +574,14 @@ class ChatDBG(ChatDBGSuper):
         Print out the ChatDBG config options.
         """
         args = arg.split()
-        unknown = chatdbg_config.parse_user_flags(args)
-        if unknown:
-            self.error(f"Unknown flag.  Available flags are:\n{chatdbg_config.user_flags_help()}  ")
-        self.message(f"Current values:\n{chatdbg_config.user_flags()}")    
+        try:
+            unknown = chatdbg_config.parse_user_flags(args)
+            if unknown:
+                self.error(f"Unknown option.  Options are:\n\n{chatdbg_config.user_flags_help()}  ")
+            else:
+                self.message(f"Current values:\n{chatdbg_config.user_flags()}")    
+        except Exception as e:
+            self.error(e)
 
     def _make_assistant(self):
         instruction_prompt = self._initial_prompt_instructions()

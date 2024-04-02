@@ -1,6 +1,7 @@
 import argparse
 import os
 import textwrap
+from gettext import gettext
 
 from traitlets import Bool, Int, Unicode
 from traitlets.config import Configurable, Config
@@ -18,6 +19,15 @@ def _chatdbg_get_env(option_name, default_value):
         return v.lower() == "true"
     else:
         return v
+
+class DBGParser(argparse.ArgumentParser):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+
+    def error(self, message):
+        args = {'prog': self.prog, 'message': message}
+        raise Exception(gettext(('%(prog)s: error: %(message)s\n') % args))
+
 
 
 class ChatDBGConfig(Configurable):
@@ -66,9 +76,26 @@ class ChatDBGConfig(Configurable):
         _chatdbg_get_env("stream", True), help="Stream the response at it arrives"
     ).tag(config=True)
 
-    printer = Unicode(
-        _chatdbg_get_env("printer", "text"), help="The printer to use (text/light/dark)."
+    format = Unicode(
+        _chatdbg_get_env("format", "text"), help="The output format (text/md:light/md:dark)."
     ).tag(config=True)
+
+    _user_configurable = [ debug, log, model, format ]
+
+    def _parser(self):
+        parser = DBGParser(add_help=False)
+
+        for trait in self._user_configurable:
+            name = f'--{trait.name}'
+            value = self._trait_values[trait.name]
+            t = type(value)
+            if t == bool:
+                parser.add_argument(name, default=value, action='store_true')
+            else:
+                parser.add_argument(name, default=value, type=t)
+
+        return parser
+
 
     def to_json(self):
         """Serialize the object to a JSON string."""
@@ -84,62 +111,46 @@ class ChatDBGConfig(Configurable):
             "show_slices": self.show_slices,
             "take_the_wheel": self.take_the_wheel,
             "stream": self.stream,
+            "format": self.format
         }
 
 
     def parse_user_flags(self, argv):
-        parser = argparse.ArgumentParser(add_help=False)
-        parser.add_argument('--debug', help="dump the LLM messages to a chatdbg.log", default=self.debug, action='store_true')
-        parser.add_argument('--log',  help="where to write the log of the debugging session", default=self.log, type=str)
-        parser.add_argument('--model', help="the LLM model to use", default=self.model, type=str)
-        parser.add_argument('--printer', help="The printer to use (text/light/dark)", default=self.printer, type=str)
-        # parser.add_argument('--stream', help="stream responses from the LLM", default=self.stream, action='store_true')
 
-        args, unknown_args = parser.parse_known_args(argv)
-        
-        self.debug = args.debug
-        self.log = args.log
-        self.model = args.model
-        self.printer = args.printer
-        # self.stream = args.stream
+        args, unknown_args = self._parser().parse_known_args(argv)
+
+        for x in self._user_configurable:
+            self.set_trait(x.name, getattr(args, x.name))
 
         return unknown_args
 
     def user_flags_help(self):
-        return textwrap.indent(textwrap.dedent(f"""\
-              --debug           dump the LLM messages to a chatdbg.log
-              --log=file        where to write the log of the debugging session
-              --model=model     the LLM model to use
-              --printer=printer the printer to use (text/light/dark)
-            """), '  ')
+        return "\n".join([ self.class_get_trait_help(x, self).replace('ChatDBGConfig.', '') for x in self._user_configurable  ])
+
 
     def user_flags(self):
-        return textwrap.indent(textwrap.dedent(f"""\
-                debug:    {self.debug}
-                log:      {self.log}
-                model:    {self.model}
-                printer:  {self.printer}
-                """), '  ')
+        return "\n".join([ f"  --{x.name:10}{self._trait_values[x.name]}" for x in self._user_configurable  ])
 
     def make_printer(self, stdout, prompt, prefix, width):
-        printer = chatdbg_config.printer
-        print(printer)
-        if printer in ChatDBGMarkdownPrinter.themes.keys():
-            return ChatDBGMarkdownPrinter(
-                        stdout,
-                        prompt,
-                        prefix,
-                        width,
-                        stream=self.stream,
-                        theme=printer
-                    )
-        else:
-            return ChatDBGPrinter(
-                        stdout,
-                        prompt,
-                        prefix,
-                        width,
-                        stream=self.stream
-                    )
+        format = chatdbg_config.format
+        if format.startswith('md'):
+            format = format.split(":")
+            format = format[1] if len(format) > 0 else 'dark'
+            if format in ChatDBGMarkdownPrinter.themes.keys():
+                return ChatDBGMarkdownPrinter(
+                            stdout,
+                            prompt,
+                            prefix,
+                            width,
+                            stream=self.stream,
+                            theme=format[1]
+                        )
+        return ChatDBGPrinter(
+                    stdout,
+                    prompt,
+                    prefix,
+                    width,
+                    stream=self.stream
+                )
 
 chatdbg_config: ChatDBGConfig = ChatDBGConfig()

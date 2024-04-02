@@ -560,7 +560,7 @@ class ChatDBG(ChatDBGSuper):
         if stats["completed"]:
             self.message(f"\n[Cost: ~${stats['cost']:.2f} USD]")
         else:
-            self.message(f"\n[Interrupted]")
+            self.message(f"\n[Chat Interrupted]")
 
     def do_renew(self, arg):
         """renew

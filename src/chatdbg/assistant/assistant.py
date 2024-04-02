@@ -17,7 +17,7 @@ class Assistant:
         timeout=30,
         listeners=[Printer()],
         functions=[],
-        max_call_response_tokens=8192,
+        max_call_response_tokens=4096,
         debug=False,
         stream=False,
     ):
@@ -56,6 +56,16 @@ class Assistant:
         Send a query to the LLM.
           - prompt is the prompt to send.
           - user_text is what the user typed (which may or not be the same as prompt)
+
+        Returns a dictionary containing:
+            - "completed":          True of the query ran to completion.
+            - "cost":               Cost of query, or 0 if not completed.
+        Other fields only if completed is True
+            - "time":               completion time in seconds
+            - "model":              the model used.
+            - "tokens":             total tokens
+            - "prompt_tokens":      our prompts
+            - "completion_tokens":  the LLM completions part
         """
         start = time.time()
 

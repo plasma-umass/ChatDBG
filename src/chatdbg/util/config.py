@@ -1,7 +1,9 @@
+import argparse
 import os
+import textwrap
 
 from traitlets import Bool, Int, Unicode
-from traitlets.config import Configurable
+from traitlets.config import Configurable, Config
 
 
 def _chatdbg_get_env(option_name, default_value):
@@ -58,7 +60,7 @@ class ChatDBGConfig(Configurable):
     ).tag(config=True)
 
     stream = Bool(
-        _chatdbg_get_env("stream", False), help="Stream the response at it arrives"
+        _chatdbg_get_env("stream", True), help="Stream the response at it arrives"
     ).tag(config=True)
 
     def to_json(self):
@@ -76,6 +78,38 @@ class ChatDBGConfig(Configurable):
             "take_the_wheel": self.take_the_wheel,
             "stream": self.stream,
         }
+
+
+    def parse_user_flags(self, argv):
+        parser = argparse.ArgumentParser(add_help=False)
+        parser.add_argument('--debug', help="dump the LLM messages to a chatdbg.log", default=self.debug, action='store_true')
+        parser.add_argument('--log',  help="where to write the log of the debugging session", default=self.log, type=str)
+        parser.add_argument('--model', help="the LLM model to use", default=self.model, type=str)
+        # parser.add_argument('--stream', help="stream responses from the LLM", default=self.stream, action='store_true')
+
+        args, unknown_args = parser.parse_known_args(argv)
+        
+        self.debug = args.debug
+        self.log = args.log
+        self.model = args.model
+        # self.stream = args.stream
+
+        return unknown_args
+
+    def user_flags_help(self):
+        return textwrap.indent(textwrap.dedent(f"""\
+              --debug         dump the LLM messages to a chatdbg.log
+              --log=file      where to write the log of the debugging session
+              --model=model   the LLM model to use
+            """), '  ')
+
+    def user_flags(self):
+        return textwrap.indent(textwrap.dedent(f"""\
+                debug:  {self.debug}
+                log:    {self.log}
+                model:  {self.model}
+                """), '  ')
+
 
 
 chatdbg_config: ChatDBGConfig = ChatDBGConfig()

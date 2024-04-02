@@ -24,7 +24,7 @@ class StreamingTextWrapper:
             self._pending = text_bits[-1]
             self._buffer += "".join(text_bits[0:-1])
 
-        wrapped = word_wrap_except_code_blocks(self._buffer)
+        wrapped = word_wrap_except_code_blocks(self._buffer, width=self._width)
         wrapped = textwrap.indent(wrapped, self._indent, lambda _: True)
         wrapped_delta = wrapped[len(self._wrapped) :]
         self._wrapped = wrapped

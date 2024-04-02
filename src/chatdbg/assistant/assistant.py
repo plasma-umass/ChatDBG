@@ -21,6 +21,10 @@ class Assistant:
         debug=False,
         stream=False,
     ):
+        
+        # Hide their debugging info -- it messes with our error handling
+        litellm.suppress_debug_info = True
+
         if debug:
             log_file = open(f"chatdbg.log", "w")
             self._logger = lambda model_call_dict: print(
@@ -91,13 +95,24 @@ class Assistant:
                 )
                 sys.exit(1)
 
-        if not litellm.supports_function_calling(self._model):
+        try:
+            if not litellm.supports_function_calling(self._model):
+                self._broadcast(
+                    "on_fail",
+                    textwrap.dedent(
+                        f"""\
+                    The {self._model} model does not support function calls.
+                    You must use a model that does, eg. gpt-4."""
+                    ),
+                )
+                sys.exit(1)
+        except:
             self._broadcast(
                 "on_fail",
                 textwrap.dedent(
                     f"""\
-                The {self._model} model does not support function calls.
-                You must use a model that does, eg. gpt-4."""
+                {self._model} does not appear to be a supported model.
+                See https://docs.litellm.ai/docs/providers"""
                 ),
             )
             sys.exit(1)

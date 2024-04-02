@@ -21,7 +21,7 @@ class Assistant:
         debug=False,
         stream=False,
     ):
-        
+
         # Hide their debugging info -- it messes with our error handling
         litellm.suppress_debug_info = True
 
@@ -71,11 +71,10 @@ class Assistant:
             stats["model"] = self._model
             stats["completed"] = True
         except:
-            stats = { "completed": False, "cost": 0 }
+            stats = {"completed": False, "cost": 0}
 
         self._broadcast("on_end_query", stats)
         return stats
-
 
     def _broadcast(self, method_name, *args):
         for client in self._clients:
@@ -227,10 +226,10 @@ class Assistant:
 
                 stream = self._completion(stream=True)
 
-                # litellm.stream_chunk_builder is broken for new GPT models 
+                # litellm.stream_chunk_builder is broken for new GPT models
                 # that have content before calls, so...
 
-                # stream the response, collecting the tool_call parts separately 
+                # stream the response, collecting the tool_call parts separately
                 # from the content
                 try:
                     self._broadcast("on_begin_stream")
@@ -320,6 +319,6 @@ class Assistant:
                 }
                 self._conversation.append(response)
         except Exception as e:
-            # Warning: potential infinite loop if the LLM keeps sending 
+            # Warning: potential infinite loop if the LLM keeps sending
             # the same bad call.
             self._broadcast("on_warn", f"Error processing tool calls: {e}")

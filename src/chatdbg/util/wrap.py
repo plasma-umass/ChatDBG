@@ -1,4 +1,3 @@
-
 import textwrap
 
 
@@ -18,7 +17,7 @@ def word_wrap_except_code_blocks(text: str, width: int = 80) -> str:
         The wrapped text.
     """
     blocks = text.split("```")
-    for i in range(0,len(blocks),2):
+    for i in range(0, len(blocks), 2):
         paras = blocks[i].split("\n")
         wrapped = [textwrap.fill(para, width=width) for para in paras]
         blocks[i] = "\n".join(wrapped)

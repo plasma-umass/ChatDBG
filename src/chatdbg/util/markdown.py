@@ -1,4 +1,3 @@
-
 import re
 import textwrap
 from ..assistant.listeners import BaseAssistantListener
@@ -12,41 +11,51 @@ from rich.text import Text
 from rich import box
 import os
 
+
 def _make_themes():
-    _dark = (Theme({
-        "markdown.paragraph": 'bright_cyan',
-        "markdown.text": 'bright_cyan',
-        "markdown.code": "white",
-        "markdown.code_block": 'cyan',
-        "markdown.item.bullet": 'bold cyan',
-        "markdown.item.number": 'bold cyan',
-        "markdown.h1": 'bold cyan',
-        "markdown.h2": 'bold cyan',
-        "markdown.h3": 'bold cyan',
-        "markdown.h4": 'bold cyan',
-        "markdown.h5": 'bold cyan',
-        "command": "bold bright_yellow",
-        "result": "yellow"
-    }), 'monokai')
+    _dark = (
+        Theme(
+            {
+                "markdown.paragraph": "bright_cyan",
+                "markdown.text": "bright_cyan",
+                "markdown.code": "white",
+                "markdown.code_block": "cyan",
+                "markdown.item.bullet": "bold cyan",
+                "markdown.item.number": "bold cyan",
+                "markdown.h1": "bold bright_cyan",
+                "markdown.h2": "bold bright_cyan",
+                "markdown.h3": "bold bright_cyan",
+                "markdown.h4": "bold bright_cyan",
+                "markdown.h5": "bold bright_cyan",
+                "command": "bold bright_yellow",
+                "result": "yellow",
+            }
+        ),
+        "monokai",
+    )
 
-    _light = (Theme({
-        "markdown.paragraph": 'bright_blue',
-        "markdown.text": 'bright_blue',
-        "markdown.code": "cyan",
-        "markdown.code_block": 'blue',
-        "markdown.item.bullet": 'bold blue',
-        "markdown.item.number": 'bold blue',
-        "markdown.h1": 'bold blue',
-        "markdown.h2": 'bold blue',
-        "markdown.h3": 'bold blue',
-        "markdown.h4": 'bold blue',
-        "markdown.h5": 'bold blue',
-        "command": "bold yellow",
-        "result": "yellow"
-    }), 'default')
+    _light = (
+        Theme(
+            {
+                "markdown.paragraph": "bright_blue",
+                "markdown.text": "bright_blue",
+                "markdown.code": "cyan",
+                "markdown.code_block": "blue",
+                "markdown.item.bullet": "bold blue",
+                "markdown.item.number": "bold blue",
+                "markdown.h1": "bold blue",
+                "markdown.h2": "bold blue",
+                "markdown.h3": "bold blue",
+                "markdown.h4": "bold blue",
+                "markdown.h5": "bold blue",
+                "command": "bold yellow",
+                "result": "yellow",
+            }
+        ),
+        "default",
+    )
 
-    return { 'light' : _light,
-               'dark' : _dark }
+    return {"light": _light, "dark": _dark}
 
 
 # Don't center headings
@@ -100,11 +109,14 @@ class Heading(TextElement):
 #         )
 #         yield syntax
 
+
 class ChatDBGMarkdownPrinter(BaseAssistantListener):
 
     themes = _make_themes()
 
-    def __init__(self, out, debugger_prompt, chat_prefix, width, stream=False, theme='light'):
+    def __init__(
+        self, out, debugger_prompt, chat_prefix, width, stream=False, theme="light"
+    ):
         self._out = out
         self._debugger_prompt = debugger_prompt
         self._chat_prefix = chat_prefix
@@ -116,7 +128,6 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
         # Markdown.elements['code_block'] = CodeBlock
         Markdown.elements["heading_open"] = Heading
 
-
     # Call backs
 
     def on_begin_query(self, prompt, user_text):
@@ -126,12 +137,12 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
         pass
 
     def _print(self, text, **kwargs):
-        self._console.print(
-            text, end=''
-        )
+        self._console.print(text, end="")
 
     def _wrap_in_panel(self, rich_element):
-        return Panel(rich_element, box=box.MINIMAL, padding=(0, 0, 0, len(self._chat_prefix)-1))
+        return Panel(
+            rich_element, box=box.MINIMAL, padding=(0, 0, 0, len(self._chat_prefix) - 1)
+        )
 
     def on_warn(self, text):
         self._print(textwrap.indent(text, "*** "))
@@ -140,9 +151,9 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
         self._print(textwrap.indent(text, "*** "))
 
     def on_begin_stream(self):
-        self._live = Live(vertical_overflow='visible', console=self._console)
+        self._live = Live(vertical_overflow="visible", console=self._console)
         self._live.start(True)
-        self._streamed = ''
+        self._streamed = ""
 
     def _stream_append(self, text):
         self._streamed += text
@@ -150,8 +161,8 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
         self._live.update(m)
 
     def on_stream_delta(self, text):
-        if self._streamed == '':
-           text = "\n" + text
+        if self._streamed == "":
+            text = "\n" + text
         self._stream_append(text)
 
     def on_end_stream(self):
@@ -166,10 +177,20 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
         entry = f"[command]{self._chat_prefix}{self._debugger_prompt}{call}[/]\n"
         self._print(entry)
         if result and len(result) > 0:
-            with Live(vertical_overflow='visible', console=self._console) as live:
-                lines = ""
-                result_lines = re.split('(\w)',result)
-                for chunk in result_lines[0:200]:
-                    lines += chunk
-                    live.update(f'[result]{textwrap.indent(lines, self._chat_prefix)}[/]')
-                live.update(f'[result]{textwrap.indent(result, self._chat_prefix)}[/]')
+            full_response = f"[result]{textwrap.indent(result, self._chat_prefix)}[/]"
+
+            # This is just to make the output look a little more like a stream, if
+            # streaming is on.  It's tedious with long results, so only animate a 
+            # bit.
+            if self._stream:
+                with Live(vertical_overflow="visible", console=self._console) as live:
+                    lines = ""
+                    result_lines = re.split("(\w)", result)
+                    for chunk in result_lines[0:200]:
+                        lines += chunk
+                        live.update(
+                            f"[result]{textwrap.indent(lines, self._chat_prefix)}[/]"
+                        )
+                    live.update(full_response)
+            else:
+                self._console.print(full_response)

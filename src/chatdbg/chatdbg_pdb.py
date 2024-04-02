@@ -473,7 +473,6 @@ class ChatDBG(ChatDBGSuper):
         except KeyboardInterrupt:
             pass
 
-
     def _stack_prompt(self):
         stdout = self.stdout
         buffer = StringIO()
@@ -537,7 +536,9 @@ class ChatDBG(ChatDBGSuper):
                 arg,
             )
         else:
-            return self.concat_prompt(self._initial_prompt_history(), self._stack_prompt(), arg)
+            return self.concat_prompt(
+                self._initial_prompt_history(), self._stack_prompt(), arg
+            )
 
     def do_chat(self, arg):
         """chat
@@ -578,7 +579,7 @@ class ChatDBG(ChatDBGSuper):
         """
         args = arg.split()
         message = chatdbg_config.parse_only_user_flags(args)
-        self.message(message)    
+        self.message(message)
 
     def _make_assistant(self):
         instruction_prompt = self._initial_prompt_instructions()
@@ -596,12 +597,11 @@ class ChatDBG(ChatDBGSuper):
             debug=chatdbg_config.debug,
             functions=functions,
             stream=chatdbg_config.stream,
+            max_call_response_tokens=8192,
             listeners=[
                 chatdbg_config.make_printer(
-                        self.stdout,
-                        self.prompt,
-                        self._chat_prefix,
-                        self._text_width),
+                    self.stdout, self.prompt, self._chat_prefix, self._text_width
+                ),
                 self._log,
             ],
         )

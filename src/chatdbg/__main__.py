@@ -27,7 +27,7 @@ def main():
 
     args = chatdbg_config.parse_user_flags(sys.argv[1:])
 
-    if "-h" in args or  "--help" in args:
+    if "-h" in args or "--help" in args:
         print(_usage)
         print(chatdbg_config.user_flags_help())
         sys.exit()
@@ -36,6 +36,6 @@ def main():
 
     ipdb.__main__.main()
 
+
 if __name__ == "__main__":
     main()
-    

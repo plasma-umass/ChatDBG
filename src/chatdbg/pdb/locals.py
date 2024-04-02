@@ -59,7 +59,6 @@ def _extract_nb_globals(globals):
     return result
 
 
-
 def _is_iterable(obj):
     try:
         iter(obj)
@@ -148,6 +147,7 @@ def _format_limited(value, limit=10, depth=3):
         return "'" + result + "'"
     else:
         return result
+
 
 def print_locals(file, frame):
     locals = frame.f_locals

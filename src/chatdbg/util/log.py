@@ -37,8 +37,16 @@ class ChatDBGLog(BaseAssistantListener):
             "steps": [],
             "meta": meta,
             "instructions": None,
-            "stdout": None if self._stderr_wrapper == None else self._stdout_wrapper.getvalue(),
-            "stderr": None if self._stderr_wrapper == None else self._stderr_wrapper.getvalue(),
+            "stdout": (
+                None
+                if self._stderr_wrapper == None
+                else self._stdout_wrapper.getvalue()
+            ),
+            "stderr": (
+                None
+                if self._stderr_wrapper == None
+                else self._stderr_wrapper.getvalue()
+            ),
         }
 
     def _dump(self):

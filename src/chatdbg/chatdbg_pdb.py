@@ -15,6 +15,8 @@ from pprint import pprint
 import IPython
 from traitlets import TraitError
 
+from .util.markdown import ChatDBGMarkdownPrinter
+
 from .assistant.assistant import Assistant
 from .pdb.capture import CaptureInput, CaptureOutput
 from .pdb.locals import print_locals
@@ -471,7 +473,6 @@ class ChatDBG(ChatDBGSuper):
         except KeyboardInterrupt:
             pass
 
-
     def _stack_prompt(self):
         stdout = self.stdout
         buffer = StringIO()
@@ -535,7 +536,9 @@ class ChatDBG(ChatDBGSuper):
                 arg,
             )
         else:
-            return self.concat_prompt(self._initial_prompt_history(), self._stack_prompt(), arg)
+            return self.concat_prompt(
+                self._initial_prompt_history(), self._stack_prompt(), arg
+            )
 
     def do_chat(self, arg):
         """chat
@@ -554,7 +557,10 @@ class ChatDBG(ChatDBGSuper):
 
         stats = self._assistant.query(full_prompt, user_text=arg)
 
-        self.message(f"\n[Cost: ~${stats['cost']:.2f} USD]")
+        if stats["completed"]:
+            self.message(f"\n[Cost: ~${stats['cost']:.2f} USD]")
+        else:
+            self.message(f"\n[Interrupted]")
 
     def do_renew(self, arg):
         """renew
@@ -572,10 +578,8 @@ class ChatDBG(ChatDBGSuper):
         Print out the ChatDBG config options.
         """
         args = arg.split()
-        unknown = chatdbg_config.parse_user_flags(args)
-        if unknown:
-            self.error(f"Unknown flag.  Available flags are:\n{chatdbg_config.user_flags_help()}  ")
-        self.message(f"Current values:\n{chatdbg_config.user_flags()}")    
+        message = chatdbg_config.parse_only_user_flags(args)
+        self.message(message)
 
     def _make_assistant(self):
         instruction_prompt = self._initial_prompt_instructions()
@@ -593,13 +597,10 @@ class ChatDBG(ChatDBGSuper):
             debug=chatdbg_config.debug,
             functions=functions,
             stream=chatdbg_config.stream,
+            max_call_response_tokens=8192,
             listeners=[
-                ChatDBGPrinter(
-                    self.stdout,
-                    self.prompt,
-                    self._chat_prefix,
-                    self._text_width,
-                    stream=chatdbg_config.stream,
+                chatdbg_config.make_printer(
+                    self.stdout, self.prompt, self._chat_prefix, self._text_width
                 ),
                 self._log,
             ],

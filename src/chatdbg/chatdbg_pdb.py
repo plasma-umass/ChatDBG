@@ -47,22 +47,23 @@ try:
             from IPython.terminal.debugger import TerminalPdb
 
             ChatDBGSuper = TerminalPdb
-            _user_file_prefixes = [os.getcwd(), "<ipython"]
+            # _user_file_prefixes = [ "<ipython" ]
         else:
             # inside jupyter
             from IPython.core.debugger import InterruptiblePdb
 
             ChatDBGSuper = InterruptiblePdb
-            _user_file_prefixes = [os.getcwd(), IPython.paths.tempfile.gettempdir()]
+            # _user_file_prefixes = [ IPython.paths.tempfile.gettempdir() ]
     else:
         # ichatpdb on command line
         from IPython.terminal.debugger import TerminalPdb
 
         ChatDBGSuper = TerminalPdb
-        _user_file_prefixes = [os.getcwd()]
+        # _user_file_prefixes = [ ]
 except NameError as e:
     print(f"Error {e}:IPython not found. Defaulting to pdb plugin.")
     ChatDBGSuper = pdb.Pdb
+    # _user_file_prefixes = [ ]
 
 
 class ChatDBG(ChatDBGSuper):
@@ -87,6 +88,12 @@ class ChatDBG(ChatDBGSuper):
 
         # set this to True ONLY AFTER we have had access to stack frames
         self._show_locals = False
+
+        self._library_paths = [os.path.dirname(os.__file__)] + [
+            path
+            for path in sys.path
+            if "site-packages" in path or "dist-packages" in path
+        ]
 
         self._log = ChatDBGLog(
             log_filename=chatdbg_config.log,
@@ -127,11 +134,11 @@ class ChatDBG(ChatDBGSuper):
         elif file_name == "<string>":
             return False
 
-        for prefix in _user_file_prefixes:
-            if file_name.startswith(prefix):
-                return True
+        for path in self._library_paths:
+            if os.path.commonpath([file_name, path]) == path:
+                return False
 
-        return False
+        return True
 
     def enriched_stack_trace(self, context=None):
         old_stdout = self.stdout

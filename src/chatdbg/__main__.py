@@ -22,7 +22,7 @@ ChatDBG-specific options may appear anywhere before pyfile:
 """
 
 
-def main():
+def main() -> None:
     ipdb.__main__._get_debugger_cls = lambda: ChatDBG
 
     args = chatdbg_config.parse_user_flags(sys.argv[1:])

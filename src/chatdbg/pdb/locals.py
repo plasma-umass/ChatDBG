@@ -6,6 +6,9 @@ import textwrap
 
 import numpy as np
 
+from io import StringIO
+from types import *
+from typing import *
 
 class SymbolFinder(ast.NodeVisitor):
     def __init__(self):
@@ -27,8 +30,7 @@ class SymbolFinder(ast.NodeVisitor):
             self.defined_symbols.add(node.target.id)
         self.generic_visit(node)
 
-
-def _extract_locals(frame):
+def _extract_locals(frame: FrameType) -> Set[str]:
     try:
         source = textwrap.dedent(inspect.getsource(frame))
         tree = ast.parse(source)
@@ -59,7 +61,7 @@ def _extract_nb_globals(globals):
     return result
 
 
-def _is_iterable(obj):
+def _is_iterable(obj: Union[Any, List[str], List[Any]]) -> bool: # FIXME
     try:
         iter(obj)
         return True
@@ -67,7 +69,7 @@ def _is_iterable(obj):
         return False
 
 
-def _repr_if_defined(obj):
+def _repr_if_defined(obj: Union[Any, List[str], List[Any]]) -> bool: # FIXME
     if obj.__class__ in [np.ndarray, dict, list, tuple]:
         # handle these at iterables to truncate reasonably
         return False
@@ -78,7 +80,7 @@ def _repr_if_defined(obj):
     return result
 
 
-def _format_limited(value, limit=10, depth=3):
+def _format_limited(value: Union[List[str], str], limit: int=10, depth: int=3) -> str:
     def format_tuple(t, depth):
         return tuple([helper(x, depth) for x in t])
 
@@ -149,7 +151,7 @@ def _format_limited(value, limit=10, depth=3):
         return result
 
 
-def print_locals(file, frame):
+def print_locals(file: StringIO, frame: FrameType) -> None:
     locals = frame.f_locals
     in_global_scope = locals is frame.f_globals
     defined_locals = _extract_locals(frame)
@@ -165,15 +167,15 @@ def print_locals(file, frame):
             value = locals[name]
             t = type(value).__name__
             prefix = f"      {name}: {t} = "
-            rep = _format_limited(value, limit=20).split("\n")
-            if len(rep) > 1:
+            rep_list = _format_limited(value, limit=20).split("\n")
+            if len(rep_list) > 1:
                 rep = (
                     prefix
-                    + rep[0]
+                    + rep_list[0]
                     + "\n"
-                    + textwrap.indent("\n".join(rep[1:]), prefix=" " * len(prefix))
+                    + textwrap.indent("\n".join(rep_list[1:]), prefix=" " * len(prefix))
                 )
             else:
-                rep = prefix + rep[0]
+                rep = prefix + rep_list[0]
             print(rep, file=file)
         print(file=file)

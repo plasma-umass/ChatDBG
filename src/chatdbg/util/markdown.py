@@ -11,8 +11,11 @@ from rich.text import Text
 from rich import box
 import os
 
+from io import StringIO
+from types import *
+from typing import *
 
-def _make_themes():
+def _make_themes() -> Dict[str, Tuple[Theme, str]]:
     _dark = (
         Theme(
             {

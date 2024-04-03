@@ -303,8 +303,8 @@ class DBGDialog:
             ])
         else: 
             prompt = "\n".join(
-            self._get_history(),
-            user_text
+            [self._get_history(),
+            user_text]
             )
             self._history = []
         return prompt

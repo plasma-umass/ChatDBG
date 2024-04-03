@@ -2,6 +2,7 @@ import json
 import sys
 import textwrap
 import time
+import pprint
 
 import litellm
 import openai
@@ -21,14 +22,14 @@ class Assistant:
         debug=False,
         stream=False,
     ):
-        
+
         # Hide their debugging info -- it messes with our error handling
         litellm.suppress_debug_info = True
 
         if debug:
             log_file = open(f"chatdbg.log", "w")
             self._logger = lambda model_call_dict: print(
-                model_call_dict, file=log_file, flush=True
+                pprint.pformat(model_call_dict, width=160), file=log_file, flush=True
             )
         else:
             self._logger = None
@@ -48,6 +49,10 @@ class Assistant:
         self._check_model()
         self._broadcast("on_begin_dialog", instructions)
 
+    def _log(self, dict):
+        if self._logger != None:
+            self._logger(dict)
+
     def close(self):
         self._broadcast("on_end_dialog")
 
@@ -56,11 +61,38 @@ class Assistant:
         Send a query to the LLM.
           - prompt is the prompt to send.
           - user_text is what the user typed (which may or not be the same as prompt)
+
+        Returns a dictionary containing:
+            - "completed":          True of the query ran to completion.
+            - "cost":               Cost of query, or 0 if not completed.
+        Other fields only if completed is True
+            - "time":               completion time in seconds
+            - "model":              the model used.
+            - "tokens":             total tokens
+            - "prompt_tokens":      our prompts
+            - "completion_tokens":  the LLM completions part
         """
-        if self._stream:
-            return self._streamed_query(prompt, user_text)
-        else:
-            return self._batch_query(prompt, user_text)
+        start = time.time()
+
+        self._broadcast("on_begin_query", prompt, user_text)
+        try:
+            if self._stream:
+                stats = self._streamed_query(prompt, user_text)
+            else:
+                stats = self._batch_query(prompt, user_text)
+            elapsed = time.time() - start
+
+            stats["time"] = elapsed
+            stats["model"] = self._model
+            stats["completed"] = True
+        except KeyboardInterrupt:
+            stats = {"completed": False, "cost": 0}
+        except Exception as e:
+            self._broadcast('on_warn', str(e))
+            stats = {"completed": False, "cost": 0}
+
+        self._broadcast("on_end_query", stats)
+        return stats
 
     def _broadcast(self, method_name, *args):
         for client in self._clients:
@@ -160,11 +192,9 @@ class Assistant:
         return result
 
     def _batch_query(self, prompt: str, user_text):
-        start = time.time()
         cost = 0
 
         try:
-            self._broadcast("on_begin_query", prompt, user_text)
             self._conversation.append({"role": "user", "content": prompt})
 
             while True:
@@ -189,27 +219,21 @@ class Assistant:
                 else:
                     break
 
-            elapsed = time.time() - start
             stats = {
                 "cost": cost,
-                "time": elapsed,
-                "model": self._model,
                 "tokens": completion.usage.total_tokens,
                 "prompt_tokens": completion.usage.prompt_tokens,
                 "completion_tokens": completion.usage.completion_tokens,
             }
-            self._broadcast("on_end_query", stats)
             return stats
         except openai.OpenAIError as e:
-            self._broadcast("on_fail", f"Internal Error: {e.__dict__}")
+            self._broadcast("on_fail", f"{e}")
             sys.exit(1)
 
     def _streamed_query(self, prompt: str, user_text):
-        start = time.time()
         cost = 0
 
         try:
-            self._broadcast("on_begin_query", prompt, user_text)
             self._conversation.append({"role": "user", "content": prompt})
 
             while True:
@@ -220,23 +244,26 @@ class Assistant:
 
                 stream = self._completion(stream=True)
 
-                # litellm.stream_chunk_builder is broken for new GPT models 
+                # litellm.stream_chunk_builder is broken for new GPT models
                 # that have content before calls, so...
 
-                # stream the response, collecting the tool_call parts separately 
+                # stream the response, collecting the tool_call parts separately
                 # from the content
-                self._broadcast("on_begin_stream")
-                chunks = []
-                tool_chunks = []
-                for chunk in stream:
-                    chunks.append(chunk)
-                    if chunk.choices[0].delta.content != None:
-                        self._broadcast(
-                            "on_stream_delta", chunk.choices[0].delta.content
-                        )
-                    else:
-                        tool_chunks.append(chunk)
-                self._broadcast("on_end_stream")
+                try:
+                    self._broadcast("on_begin_stream")
+                    chunks = []
+                    tool_chunks = []
+                    for chunk in stream:
+                        self._log({"chunk":chunk})
+                        chunks.append(chunk)
+                        if chunk.choices[0].delta.content != None:
+                            self._broadcast(
+                                "on_stream_delta", chunk.choices[0].delta.content
+                            )
+                        else:
+                            tool_chunks.append(chunk)
+                finally:
+                    self._broadcast("on_end_stream")
 
                 # then compute for the part that litellm gives back.
                 completion = litellm.stream_chunk_builder(
@@ -265,25 +292,20 @@ class Assistant:
                     cost += litellm.completion_cost(tool_completion)
 
                     tool_message = tool_completion.choices[0].message
-                    cost += litellm.completion_cost(tool_completion)
                     self._conversation.append(tool_message)
                     self._add_function_results_to_conversation(tool_message)
                 else:
                     break
 
-            elapsed = time.time() - start
             stats = {
                 "cost": cost,
-                "time": elapsed,
-                "model": self._model,
                 "tokens": completion.usage.total_tokens,
                 "prompt_tokens": completion.usage.prompt_tokens,
                 "completion_tokens": completion.usage.completion_tokens,
             }
-            self._broadcast("on_end_query", stats)
             return stats
         except openai.OpenAIError as e:
-            self._broadcast("on_fail", f"Internal Error: {e.__dict__}")
+            self._broadcast("on_fail", f"{e}\n")
             sys.exit(1)
 
     def _completion(self, stream=False):
@@ -316,6 +338,6 @@ class Assistant:
                 }
                 self._conversation.append(response)
         except Exception as e:
-            # Warning: potential infinite loop if the LLM keeps sending 
+            # Warning: potential infinite loop if the LLM keeps sending
             # the same bad call.
             self._broadcast("on_warn", f"Error processing tool calls: {e}")

@@ -1,9 +1,9 @@
-
 import textwrap
 from ..assistant.listeners import BaseAssistantListener
 from .stream import StreamingTextWrapper
 from .wrap import word_wrap_except_code_blocks
 import os
+
 
 class ChatDBGPrinter(BaseAssistantListener):
     def __init__(self, out, debugger_prompt, chat_prefix, width, stream=False):
@@ -35,7 +35,9 @@ class ChatDBGPrinter(BaseAssistantListener):
         print(textwrap.indent(text, "*** "), file=self._out)
 
     def on_begin_stream(self):
-        self._stream_wrapper = StreamingTextWrapper(self._chat_prefix, width=self._width)
+        self._stream_wrapper = StreamingTextWrapper(
+            self._chat_prefix, width=self._width
+        )
         self._at_start = True
 
     def on_stream_delta(self, text):

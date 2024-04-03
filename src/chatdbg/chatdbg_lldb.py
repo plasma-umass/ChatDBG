@@ -153,6 +153,7 @@ def config(
     args = command.split()
     unknown = chatdbg_config.parse_user_flags(args)
     if unknown:
-        result.AppendWarning(f"Unknown flag.  Available flags are:\n{chatdbg_config.user_flags_help()}  ")
-    result.AppendMessage(f"Current values:\n{chatdbg_config.user_flags()}")    
-    
+        result.AppendWarning(
+            f"Unknown flag.  Available flags are:\n{chatdbg_config.user_flags_help()}  "
+        )
+    result.AppendMessage(f"Current values:\n{chatdbg_config.user_flags()}")

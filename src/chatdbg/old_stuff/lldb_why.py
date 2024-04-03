@@ -1,4 +1,3 @@
-
 # def truncate_string(string, n):
 #     if len(string) <= n:
 #         return string

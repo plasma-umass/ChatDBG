@@ -7,8 +7,11 @@ from traitlets.config import Configurable
 from chatdbg.util.markdown import ChatDBGMarkdownPrinter
 from chatdbg.util.printer import ChatDBGPrinter
 
+from io import StringIO
+from types import *
+from typing import *
 
-def _chatdbg_get_env(option_name, default_value):
+def _chatdbg_get_env(option_name: str, default_value: Union[int, str, bool]) -> Union[int, str, bool]:
     env_name = "CHATDBG_" + option_name.upper()
     v = os.getenv(env_name, str(default_value))
     if type(default_value) == int:

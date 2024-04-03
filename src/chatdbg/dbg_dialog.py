@@ -118,7 +118,7 @@ class DBGDialog:
                     result = self.run_one_command(command)
                     # If result is not a recognized command, pass it as a query
                     self._history += [(command, result)]
-                    if result == None:
+                    if result.find("is not a valid command") != -1:
                         followup_prompt = self.build_prompt(command, True)
                         stats = assistant.query(followup_prompt, command)
                         print(f"\n[Cost: ~${stats['cost']:.2f} USD]")

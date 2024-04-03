@@ -13,7 +13,7 @@ import llm_utils
 from assistant.assistant import Assistant
 import clangd_lsp_integration
 from util.config import chatdbg_config
-
+import readline
 
 class DBGError(Exception):
 
@@ -92,37 +92,42 @@ class DBGDialog:
         self.prompt = prompt
         self._history = []
 
+    def _report(self, stats):
+        if stats["completed"]:
+            print(f"\n[Cost: ~${stats['cost']:.2f} USD]")
+        else:
+            print(f"\n[Chat Interrupted]")
+
     def dialog(self, command):
         assistant = self._make_assistant()
-        debuggable = self.check_debugger_state()
+        self.check_debugger_state()
 
         user_text = (
             command if command else "What's the problem? Provide code to fix the issue."
         )
 
-        stats = assistant.query(self.build_prompt(user_text, False), user_text)
-        print(f"\n[Cost: ~${stats['cost']:.2f} USD]")
+        initial_prompt = self.build_prompt(user_text, False)
+        self._report(assistant.query(initial_prompt, user_text))
         while True:
             try:
                 command = input(">>> " + self.prompt).strip()
-                if command == "exit" or command == "quit":
+                
+                if command in [ "exit", "quit" ]:
                     break
-                if command == "chat" or command == "why":
+                if command in [ "chat", "why" ]:
                     followup_prompt = self.build_prompt(user_text, True)
-                    stats = assistant.query(followup_prompt, user_text)
-                    print(f"\n[Cost: ~${stats['cost']:.2f} USD]")
+                    self._report(assistant.query(followup_prompt, user_text))
                 elif command == "history":
                     print(self._do_history())
                 else:
                     # Send the next input as an LLDB command
-                    result = self.run_one_command(command)
-                    # If result is not a recognized command, pass it as a query
-                    self._history += [(command, result)]
-                    if result.find("is not a valid command") != -1:
+                    result = self._run_one_command(command)
+                    if self._message_is_a_bad_command_error(result):
+                        # If result is not a recognized command, pass it as a query
                         followup_prompt = self.build_prompt(command, True)
-                        stats = assistant.query(followup_prompt, command)
-                        print(f"\n[Cost: ~${stats['cost']:.2f} USD]")
+                        self._report(assistant.query(followup_prompt, user_text))
                     else:
+                        self._history += [(command, result)]
                         print(result)
             except EOFError:
                 # If it causes an error, break
@@ -155,16 +160,66 @@ class DBGDialog:
             else:
                 return ""
 
-    def run_one_command(self, command):
+    def _build_enriched_stacktrace(self):
+        parts = []
+        summaries = self._get_frame_summaries()
+        if not summaries:
+            self.warn("could not generate any frame summary.")
+        else:
+            frame_summary = "\n".join([str(s) for s in summaries])
+            parts.append(
+                "Here is a summary of the stack frames, omitting those not associated with user source code:\n```\n"
+                + frame_summary
+                + "\n```"
+            )
+
+            total_frames = sum(
+                [s.count() if isinstance(s, _SkippedFramesEntry) else 1 for s in summaries]
+            )
+
+            if total_frames > 1000:
+                parts.append(
+                    "Note that there are over 1000 frames in the stack trace, hinting at a possible stack overflow error."
+                )
+
+        max_initial_locations_to_send = 3
+        source_code_entries = []
+        for summary in summaries:
+            if isinstance(summary, _FrameSummaryEntry):
+                file_path, lineno = summary.file_path(), summary.lineno()
+                lines, first = llm_utils.read_lines(file_path, lineno - 10, lineno + 9)
+                block = llm_utils.number_group_of_lines(lines, first)
+                source_code_entries.append(
+                    f"Frame #{summary.index()} at {file_path}:{lineno}:\n```\n{block}\n```"
+                )
+
+                if len(source_code_entries) == max_initial_locations_to_send:
+                    break
+
+        if source_code_entries:
+            parts.append(
+                f"Here is the source code for the first {len(source_code_entries)} frames:\n\n"
+                + "\n\n".join(source_code_entries)
+            )
+        else:
+            self.warn("could not retrieve source code for any frames.")
+
+        return "\n\n".join(parts)
+
+    # Return string for valid command.  None if the command is not valid.
+    def _run_one_command(self, command):
+        pass
+
+    def _message_is_a_bad_command_error(self, message):        
         pass
 
     def check_debugger_state(self):
         pass
 
-    def build_enriched_stacktrace(self):
+    def _get_frame_summaries(self, max_entries: int = 20):
         pass
 
-    def build_error(self):
+    def _build_error(self):
         pass
 
     def build_inputs(self):
@@ -210,7 +265,7 @@ class DBGDialog:
                 }
             }
             """
-            return command, self.run_one_command(command)
+            return command, self._run_one_command(command)
 
         def llm_get_code_surrounding(filename: str, lineno: int) -> str:
             """
@@ -233,7 +288,7 @@ class DBGDialog:
                 }
             }
             """
-            return f"code {filename}:{lineno}", self.run_one_command(
+            return f"code {filename}:{lineno}", self._run_one_command(
                 f"code {filename}:{lineno}"
             )
 
@@ -262,7 +317,7 @@ class DBGDialog:
                 }
             }
             """
-            return f"definition {filename}:{lineno} {symbol}", self.run_one_command(
+            return f"definition {filename}:{lineno} {symbol}", self._run_one_command(
                 f"definition {filename}:{lineno} {symbol}"
             )
 
@@ -295,8 +350,8 @@ class DBGDialog:
     def build_prompt(self, user_text, conversing) -> str:
         if not conversing:
             prompt = "\n".join([
-            self.build_error(),
-            self.build_enriched_stacktrace(),
+            self._build_error(),
+            self._build_enriched_stacktrace(),
             self.build_inputs(),
             self._get_history(),
             user_text
@@ -323,7 +378,10 @@ class LLDBDialog(DBGDialog):
         super().__init__(prompt)
         self._debugger = debugger
 
-    def run_one_command(self, command):
+    def _message_is_a_bad_command_error(self, message):
+        return message.strip().endswith("is not a valid command.")
+
+    def _run_one_command(self, command):
         interpreter = self._debugger.GetCommandInterpreter()
         result = lldb.SBCommandReturnObject()
         interpreter.HandleCommand(command, result)
@@ -331,7 +389,7 @@ class LLDBDialog(DBGDialog):
         if result.Succeeded():
             return result.GetOutput()
         else:
-            return "Error: " + result.GetError()
+            return result.GetError()
 
     def _is_debug_build(self) -> bool:
         """Returns False if not compiled with debug information."""
@@ -344,7 +402,6 @@ class LLDBDialog(DBGDialog):
                     if line_entry.GetLine() > 0:
                         return True
         return False
-
 
     def get_thread(self, debugger: lldb.SBDebugger) -> Optional[lldb.SBThread]:
         """
@@ -380,10 +437,9 @@ class LLDBDialog(DBGDialog):
             )
 
         
-    def _get_frame_summaries(self,
-        debugger: lldb.SBDebugger, max_entries: int = 20
+    def _get_frame_summaries(self, max_entries: int = 20
     ) -> Optional[List[Union[_FrameSummaryEntry, _SkippedFramesEntry]]]:
-        thread = self.get_thread(debugger)
+        thread = self.get_thread(self._debugger)
         if not thread:
             return None
 
@@ -466,54 +522,9 @@ class LLDBDialog(DBGDialog):
         return target.process if target else None
 
 
-    def build_enriched_stacktrace(self):
-        parts = []
-        summaries = self._get_frame_summaries(self._debugger)
-        if not summaries:
-            self.warn("could not generate any frame summary.")
-        else:
-            frame_summary = "\n".join([str(s) for s in summaries])
-            parts.append(
-                "Here is a summary of the stack frames, omitting those not associated with user source code:\n```\n"
-                + frame_summary
-                + "\n```"
-            )
-
-            total_frames = sum(
-                [s.count() if isinstance(s, _SkippedFramesEntry) else 1 for s in summaries]
-            )
-
-            if total_frames > 1000:
-                parts.append(
-                    "Note that there are over 1000 frames in the stack trace, hinting at a possible stack overflow error."
-                )
-
-        max_initial_locations_to_send = 3
-        source_code_entries = []
-        for summary in summaries:
-            if isinstance(summary, _FrameSummaryEntry):
-                file_path, lineno = summary.file_path(), summary.lineno()
-                lines, first = llm_utils.read_lines(file_path, lineno - 10, lineno + 9)
-                block = llm_utils.number_group_of_lines(lines, first)
-                source_code_entries.append(
-                    f"Frame #{summary.index()} at {file_path}:{lineno}:\n```\n{block}\n```"
-                )
-
-                if len(source_code_entries) == max_initial_locations_to_send:
-                    break
-
-        if source_code_entries:
-            parts.append(
-                f"Here is the source code for the first {len(source_code_entries)} frames:\n\n"
-                + "\n\n".join(source_code_entries)
-            )
-        else:
-            self.warn("could not retrieve source code for any frames.")
-
-        return "\n\n".join(parts)
 
 
-    def build_error(self):
+    def _build_error(self):
         thread = self.get_thread(self._debugger)
 
         error_message = (thread.GetStopDescription(1024) if thread else None)

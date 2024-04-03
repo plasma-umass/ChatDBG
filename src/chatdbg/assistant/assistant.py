@@ -72,6 +72,7 @@ class Assistant:
             - "prompt_tokens":      our prompts
             - "completion_tokens":  the LLM completions part
         """
+        stats = {"completed": False, "cost": 0}
         start = time.time()
 
         self._broadcast("on_begin_query", prompt, user_text)
@@ -85,12 +86,17 @@ class Assistant:
             stats["time"] = elapsed
             stats["model"] = self._model
             stats["completed"] = True
+        except openai.OpenAIError as e:
+            import traceback
+            tb_lines = traceback.format_exception(type(e), e, e.__traceback__)
+            tb_string = ''.join(tb_lines)
+            self._broadcast("on_fail", f"Unexpected OpenAI Error.  Retry the query.  Error details are below:\n\n{e}\n{tb_string}")
         except KeyboardInterrupt:
-            stats = {"completed": False, "cost": 0}
+            # user action -- just ignore
+            pass
         except Exception as e:
             self._broadcast('on_warn', str(e))
-            stats = {"completed": False, "cost": 0}
-
+        
         self._broadcast("on_end_query", stats)
         return stats
 
@@ -187,6 +193,8 @@ class Assistant:
         except OSError as e:
             # function produced some error -- move this to client???
             result = f"Error: {e}"
+        except KeyboardInterrupt as e:
+            raise e
         except Exception as e:
             result = f"Ill-formed function call: {e}"
         return result
@@ -194,119 +202,111 @@ class Assistant:
     def _batch_query(self, prompt: str, user_text):
         cost = 0
 
-        try:
-            self._conversation.append({"role": "user", "content": prompt})
+        self._conversation.append({"role": "user", "content": prompt})
 
-            while True:
-                self._conversation = litellm.utils.trim_messages(
-                    self._conversation, self._model
+        while True:
+            self._conversation = litellm.utils.trim_messages(
+                self._conversation, self._model
+            )
+
+            completion = self._completion()
+
+            cost += litellm.completion_cost(completion)
+
+            response_message = completion.choices[0].message
+            self._conversation.append(response_message)
+
+            if response_message.content:
+                self._broadcast(
+                    "on_response", "(Message) " + response_message.content
                 )
 
-                completion = self._completion()
+            if completion.choices[0].finish_reason == "tool_calls":
+                self._add_function_results_to_conversation(response_message)
+            else:
+                break
 
-                cost += litellm.completion_cost(completion)
-
-                response_message = completion.choices[0].message
-                self._conversation.append(response_message)
-
-                if response_message.content:
-                    self._broadcast(
-                        "on_response", "(Message) " + response_message.content
-                    )
-
-                if completion.choices[0].finish_reason == "tool_calls":
-                    self._add_function_results_to_conversation(response_message)
-                else:
-                    break
-
-            stats = {
-                "cost": cost,
-                "tokens": completion.usage.total_tokens,
-                "prompt_tokens": completion.usage.prompt_tokens,
-                "completion_tokens": completion.usage.completion_tokens,
-            }
-            return stats
-        except openai.OpenAIError as e:
-            self._broadcast("on_fail", f"{e}")
-            sys.exit(1)
+        stats = {
+            "cost": cost,
+            "tokens": completion.usage.total_tokens,
+            "prompt_tokens": completion.usage.prompt_tokens,
+            "completion_tokens": completion.usage.completion_tokens,
+        }
+        return stats
 
     def _streamed_query(self, prompt: str, user_text):
         cost = 0
 
-        try:
-            self._conversation.append({"role": "user", "content": prompt})
+        self._conversation.append({"role": "user", "content": prompt})
 
-            while True:
-                self._conversation = litellm.utils.trim_messages(
-                    self._conversation, self._model
+        while True:
+            self._conversation = litellm.utils.trim_messages(
+                self._conversation, self._model
+            )
+            # print("\n".join([str(x) for x in self._conversation]))
+
+            stream = self._completion(stream=True)
+
+            # litellm.stream_chunk_builder is broken for new GPT models
+            # that have content before calls, so...
+
+            # stream the response, collecting the tool_call parts separately
+            # from the content
+            try:
+                self._broadcast("on_begin_stream")
+                chunks = []
+                tool_chunks = []
+                for chunk in stream:
+                    self._log({"chunk":chunk})
+                    chunks.append(chunk)
+                    if chunk.choices[0].delta.content != None:
+                        self._broadcast(
+                            "on_stream_delta", chunk.choices[0].delta.content
+                        )
+                    else:
+                        tool_chunks.append(chunk)
+            finally:
+                self._broadcast("on_end_stream")
+
+            # then compute for the part that litellm gives back.
+            completion = litellm.stream_chunk_builder(
+                chunks, messages=self._conversation
+            )
+            cost += litellm.completion_cost(completion)
+
+            # add content to conversation, but if there is no content, then the message
+            # has only tool calls, and skip this step
+            response_message = completion.choices[0].message
+            if response_message.content != None:
+                self._conversation.append(response_message)
+
+            if response_message.content != None:
+                self._broadcast(
+                    "on_response", "(Message) " + response_message.content
                 )
-                # print("\n".join([str(x) for x in self._conversation]))
 
-                stream = self._completion(stream=True)
-
-                # litellm.stream_chunk_builder is broken for new GPT models
-                # that have content before calls, so...
-
-                # stream the response, collecting the tool_call parts separately
-                # from the content
-                try:
-                    self._broadcast("on_begin_stream")
-                    chunks = []
-                    tool_chunks = []
-                    for chunk in stream:
-                        self._log({"chunk":chunk})
-                        chunks.append(chunk)
-                        if chunk.choices[0].delta.content != None:
-                            self._broadcast(
-                                "on_stream_delta", chunk.choices[0].delta.content
-                            )
-                        else:
-                            tool_chunks.append(chunk)
-                finally:
-                    self._broadcast("on_end_stream")
-
-                # then compute for the part that litellm gives back.
-                completion = litellm.stream_chunk_builder(
-                    chunks, messages=self._conversation
+            if completion.choices[0].finish_reason == "tool_calls":
+                # create a message with just the tool calls, append that to the conversation, and generate the responses.
+                tool_completion = litellm.stream_chunk_builder(
+                    tool_chunks, self._conversation
                 )
-                cost += litellm.completion_cost(completion)
 
-                # add content to conversation, but if there is no content, then the message
-                # has only tool calls, and skip this step
-                response_message = completion.choices[0].message
-                if response_message.content != None:
-                    self._conversation.append(response_message)
+                # this part wasn't counted above...
+                cost += litellm.completion_cost(tool_completion)
 
-                if response_message.content != None:
-                    self._broadcast(
-                        "on_response", "(Message) " + response_message.content
-                    )
+                tool_message = tool_completion.choices[0].message
+                self._conversation.append(tool_message)
+                self._add_function_results_to_conversation(tool_message)
+            else:
+                break
 
-                if completion.choices[0].finish_reason == "tool_calls":
-                    # create a message with just the tool calls, append that to the conversation, and generate the responses.
-                    tool_completion = litellm.stream_chunk_builder(
-                        tool_chunks, self._conversation
-                    )
-
-                    # this part wasn't counted above...
-                    cost += litellm.completion_cost(tool_completion)
-
-                    tool_message = tool_completion.choices[0].message
-                    self._conversation.append(tool_message)
-                    self._add_function_results_to_conversation(tool_message)
-                else:
-                    break
-
-            stats = {
-                "cost": cost,
-                "tokens": completion.usage.total_tokens,
-                "prompt_tokens": completion.usage.prompt_tokens,
-                "completion_tokens": completion.usage.completion_tokens,
-            }
-            return stats
-        except openai.OpenAIError as e:
-            self._broadcast("on_fail", f"{e}\n")
-            sys.exit(1)
+        stats = {
+            "cost": cost,
+            "tokens": completion.usage.total_tokens,
+            "prompt_tokens": completion.usage.prompt_tokens,
+            "completion_tokens": completion.usage.completion_tokens,
+        }
+        return stats
 
     def _completion(self, stream=False):
         return litellm.completion(

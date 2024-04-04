@@ -10,7 +10,11 @@ class ChatDBGPrinter(BaseAssistantListener):
         self._out = out
         self._debugger_prompt = debugger_prompt
         self._chat_prefix = chat_prefix
-        self._width = min(width, os.get_terminal_size().columns - len(chat_prefix))
+        try:
+            self._width = min(width, os.get_terminal_size().columns - len(chat_prefix))
+        except:
+            # get_terminal_size() may file in notebooks
+            self._width = width
         self._stream = stream
 
     # Call backs

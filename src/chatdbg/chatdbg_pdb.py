@@ -20,7 +20,7 @@ from .util.markdown import ChatDBGMarkdownPrinter
 from .assistant.assistant import Assistant
 from .pdb.capture import CaptureInput, CaptureOutput
 from .pdb.locals import print_locals
-from .pdb.prompts import pdb_instructions
+from .pdb.prompts import *
 from .pdb.text import strip_color, truncate_proportionally
 from .util.config import chatdbg_config
 from .util.log import ChatDBGLog
@@ -76,7 +76,8 @@ class ChatDBG(ChatDBGSuper):
         atexit.register(lambda: self._close_assistant())
 
         self._history = []
-        self._error_specific_prompt = ""
+        self._error_message = ""
+        self._error_details = ""
 
         sys.stdin = CaptureInput(sys.stdin)
 
@@ -155,9 +156,7 @@ class ChatDBG(ChatDBGSuper):
             details = "".join(
                 traceback.format_exception_only(type(exception), exception)
             ).rstrip()
-            self._error_specific_prompt = (
-                f"The program encountered the following error:\n```\n{details}\n```\n"
-            )
+            self._error_message = details
 
         super().interaction(frame, tb_or_exc)
 
@@ -184,13 +183,12 @@ class ChatDBG(ChatDBGSuper):
                 self.curframe.f_code.co_filename, self.curframe.f_lineno
             )
             if current_line.strip().startswith("assert"):
-                self._error_specific_prompt += f"The code `{current_line.strip()}` is correct and MUST remain unchanged in your fix.\n"
+                self._error_details = f"The code `{current_line.strip()}` is correct and MUST remain unchanged in your fix."
 
     def execRcLines(self):
         # do before running rclines -- our stack should be set up by now.
         if not chatdbg_config.show_libs:
             self._hide_lib_frames()
-        self._error_stack_trace = f"The program has the following stack trace:\n```\n{self.enriched_stack_trace()}\n```\n"
 
         # finally safe to enable this.
         self._show_locals = chatdbg_config.show_locals and not chatdbg_config.show_libs
@@ -473,7 +471,7 @@ class ChatDBG(ChatDBGSuper):
         except KeyboardInterrupt:
             pass
 
-    def _stack_prompt(self):
+    def _prompt_stack(self):
         stdout = self.stdout
         buffer = StringIO()
         self.stdout = buffer
@@ -500,45 +498,40 @@ class ChatDBG(ChatDBGSuper):
         return pdb_instructions(self._supports_flow, chatdbg_config.take_the_wheel)
 
     def _initial_prompt_enchriched_stack_trace(self):
-        return f"The program has this stack trace:\n```\n{self.enriched_stack_trace()}\n```\n"
+        return self.enriched_stack_trace()
 
-    def _initial_prompt_error(self):
-        return self._error_specific_prompt
+    def _initial_prompt_error_message(self):
+        return self._error_message
 
-    def _initial_prompt_inputs(self):
-        inputs = ""
-        if len(sys.argv) > 1:
-            inputs += f"\nThese were the command line options:\n```\n{' '.join(sys.argv)}\n```\n"
-        input = sys.stdin.get_captured_input()
-        if len(input) > 0:
-            inputs += f"\nThis was the program's input :\n```\n{input}```\n"
-        return inputs
+    def _initial_prompt_error_details(self):
+        return self._error_details
 
-    def _initial_prompt_history(self):
+    def _initial_prompt_command_line(self):
+        return ' '.join(sys.argv)
+
+    def _initial_prompt_input(self):
+        return sys.stdin.get_captured_input()
+
+    def _prompt_history(self):
         if len(self._history) > 0:
-            hist = textwrap.indent(self._capture_onecmd("hist"), "")
-            hist = f"\nThis is the history of some pdb commands I ran and the results.\n```\n{hist}\n```\n"
-            return hist
+            return textwrap.indent(self._capture_onecmd("hist"), "")
         else:
             return ""
 
-    def concat_prompt(self, *args):
-        args = [a for a in args if len(a) > 0]
-        return "\n".join(args)
-
     def _build_prompt(self, arg, conversing):
         if not conversing:
-            return self.concat_prompt(
-                self._initial_prompt_enchriched_stack_trace(),
-                self._initial_prompt_inputs(),
-                self._initial_prompt_error(),
-                self._initial_prompt_history(),
-                arg,
-            )
+            return build_initial_prompt(self._initial_prompt_enchriched_stack_trace(),
+                                 self._initial_prompt_error_message(),
+                                 self._initial_prompt_error_details(),
+                                 self._initial_prompt_command_line(),
+                                 self._initial_prompt_input(),
+                                 self._prompt_history(),
+                                 None,
+                                 arg)
         else:
-            return self.concat_prompt(
-                self._initial_prompt_history(), self._stack_prompt(), arg
-            )
+            return build_followup_prompt(self._prompt_history(), 
+                                         self._prompt_stack(), 
+                                         arg)
 
     def do_chat(self, arg):
         """chat

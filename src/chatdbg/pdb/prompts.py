@@ -81,3 +81,36 @@ def pdb_instructions(supports_flow, take_the_wheel):
             return _wheel_no_slice
     else:
         return _no_wheel
+
+####
+
+def wrap_it(before, x, after = ""):
+    if before:
+        before += ':\n'
+    if after:
+        after += '\n'
+    if x:
+        return f"{before}```\n{x}\n```\n{after}"
+    else:
+        return ''
+
+def concat_prompt(*args):
+    args = [a for a in args if a]
+    return "\n".join(args)
+
+def build_initial_prompt(stack, error, details, command_line, inputs, history, extra='', user_text=''):
+    return concat_prompt(
+        wrap_it("The program has this stack trace", stack),
+        wrap_it("The program encountered the following error", error, details),
+        wrap_it("These were the command line options", command_line),
+        wrap_it("This was the program's input", inputs),
+        wrap_it("This is the history of some debugger commands I ran", history),
+        extra,
+        user_text
+    )
+def build_followup_prompt(history, extra, user_text):
+    return concat_prompt(
+        wrap_it("This is the history of some debugger commands I ran", history),
+        extra,
+        wrap_it(user_text)
+    )

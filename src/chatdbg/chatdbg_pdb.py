@@ -10,21 +10,16 @@ import textwrap
 import traceback
 from io import StringIO
 from pathlib import Path
-from pprint import pprint
 
 import IPython
-from traitlets import TraitError
-
-from .util.markdown import ChatDBGMarkdownPrinter
 
 from .assistant.assistant import Assistant
 from .pdb.capture import CaptureInput, CaptureOutput
 from .pdb.locals import print_locals
-from .pdb.prompts import pdb_instructions
+from .util.instructions import initial_instructions
 from .pdb.text import strip_color, truncate_proportionally
 from .util.config import chatdbg_config
 from .util.log import ChatDBGLog
-from .util.printer import ChatDBGPrinter
 
 
 def load_ipython_extension(ipython):
@@ -404,7 +399,7 @@ class ChatDBG(ChatDBGSuper):
         """
         self.message("Instructions:")
         self.message(
-            pdb_instructions(self._supports_flow, chatdbg_config.take_the_wheel)
+            self._initial_prompt_instructions()
         )
         self.message("-" * 80)
         self.message("Prompt:")
@@ -504,7 +499,8 @@ class ChatDBG(ChatDBGSuper):
             self.stdout = stdout
 
     def _initial_prompt_instructions(self):
-        return pdb_instructions(self._supports_flow, chatdbg_config.take_the_wheel)
+        functions = self._supported_functions()
+        return initial_instructions(functions)
 
     def _initial_prompt_enchriched_stack_trace(self):
         return f"The program has this stack trace:\n```\n{self.enriched_stack_trace()}\n```\n"
@@ -524,7 +520,7 @@ class ChatDBG(ChatDBGSuper):
     def _initial_prompt_history(self):
         if len(self._history) > 0:
             hist = textwrap.indent(self._capture_onecmd("hist"), "")
-            hist = f"\nThis is the history of some pdb commands I ran and the results.\n```\n{hist}\n```\n"
+            hist = f"\nThis is the history of some pdb commands I ran and the results:\n```\n{hist}\n```\n"
             return hist
         else:
             return ""
@@ -588,9 +584,7 @@ class ChatDBG(ChatDBGSuper):
         message = chatdbg_config.parse_only_user_flags(args)
         self.message(message)
 
-    def _make_assistant(self):
-        instruction_prompt = self._initial_prompt_instructions()
-
+    def _supported_functions(self):
         if chatdbg_config.take_the_wheel:
             functions = [self.debug, self.info]
             if self._supports_flow:
@@ -598,12 +592,18 @@ class ChatDBG(ChatDBGSuper):
         else:
             functions = []
 
+        return functions
+
+    def _make_assistant(self):
+        instruction_prompt = self._initial_prompt_instructions()
+        functions = self._supported_functions()
+
         self._assistant = Assistant(
             instruction_prompt,
             model=chatdbg_config.model,
             debug=chatdbg_config.debug,
             functions=functions,
-            stream=chatdbg_config.stream,
+            stream=not chatdbg_config.no_stream,
             max_call_response_tokens=8192,
             listeners=[
                 chatdbg_config.make_printer(
@@ -619,7 +619,7 @@ class ChatDBG(ChatDBGSuper):
         """
         {
             "name": "info",
-            "description": "Get the documentation and source code for a reference, which may be a variable, function, method reference, field reference, or dotted reference visible in the current frame.  Examples include n, e.n where e is an expression, and t.n where t is a type.",
+            "description": "Call the `info` function to get the documentation and source code for any variable, function, package, class, method reference, field reference, or dotted reference visible in the current frame.  Examples include: n, e.n where e is an expression, and t.n where t is a type. Unless it is from a common, widely-used library, you MUST call `info` exactly once on any symbol that is referenced in code leading up to the error.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -640,7 +640,7 @@ class ChatDBG(ChatDBGSuper):
         """
         {
             "name": "debug",
-            "description": "Run a pdb command and get the response.",
+            "description": "Call the `debug` function to run Pdb debugger commands on the stopped program. You may call the `pdb` function to run the following commands: `bt`, `up`, `down`, `p expression`, `list`.  Call `debug` to print any variable value or expression that you believe may contribute to the error.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -667,7 +667,7 @@ class ChatDBG(ChatDBGSuper):
         """
         {
             "name": "slice",
-            "description": "Return the code to compute a global variable used in the current frame",
+            "description": "Call the `slice` function to get the code used to produce the value currently stored a variable.  You MUST call `slice` exactly once on any variable used but not defined in the current frame's code.",
             "parameters": {
                 "type": "object",
                 "properties": {

@@ -72,8 +72,8 @@ class ChatDBGConfig(Configurable):
         _chatdbg_get_env("take_the_wheel", True), help="Let LLM take the wheel"
     ).tag(config=True)
 
-    stream = Bool(
-        _chatdbg_get_env("stream", True), help="Stream the response at it arrives"
+    no_stream = Bool(
+        _chatdbg_get_env("batch", False), help="Do not stream the LLM responses"
     ).tag(config=True)
 
     format = Unicode(
@@ -81,7 +81,12 @@ class ChatDBGConfig(Configurable):
         help="The output format (text or md:light or md:dark).",
     ).tag(config=True)
 
-    _user_configurable = [debug, log, model, format]
+    instructions = Unicode(
+        _chatdbg_get_env("instructions", ""),
+        help="the File for the instructions, or '' for the default version.",
+    ).tag(config=True)
+
+    _user_configurable = [debug, log, model, no_stream, format]
 
     def _parser(self):
         parser = DBGParser(add_help=False)
@@ -110,8 +115,9 @@ class ChatDBGConfig(Configurable):
             "show_libs": self.show_libs,
             "show_slices": self.show_slices,
             "take_the_wheel": self.take_the_wheel,
-            "stream": self.stream,
+            "no_stream": self.no_stream,
             "format": self.format,
+            "instructions": self.instructions
         }
 
     def parse_user_flags(self, argv):
@@ -163,12 +169,12 @@ class ChatDBGConfig(Configurable):
                 )
                 theme = "dark"
             return ChatDBGMarkdownPrinter(
-                stdout, prompt, prefix, width, stream=self.stream, theme=theme
+                stdout, prompt, prefix, width, stream=not self.no_stream, theme=theme
             )
 
         if format != "text":
             print("*** Unknown format '{format}'.  Defaulting to 'text'", file=stdout)
-        return ChatDBGPrinter(stdout, prompt, prefix, width, stream=self.stream)
+        return ChatDBGPrinter(stdout, prompt, prefix, width, stream=not self.no_stream)
 
 
 chatdbg_config: ChatDBGConfig = ChatDBGConfig()

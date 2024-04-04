@@ -396,14 +396,14 @@ def _make_assistant(
         model=chatdbg_config.model,
         debug=chatdbg_config.debug,
         functions=functions,
-        stream=chatdbg_config.stream,
+        stream=not chatdbg_config.no_stream,
         listeners=[
             ChatDBGPrinter(
                 sys.stdout,
                 PROMPT,  # must end with ' ' to match other tools
                 "   ",
                 80,
-                stream=chatdbg_config.stream,
+                stream=not chatdbg_config.no_stream,
             ),
             _log,
         ],

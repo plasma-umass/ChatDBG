@@ -3,7 +3,7 @@ import textwrap
 from ..assistant.listeners import BaseAssistantListener
 from rich.console import Console
 from rich.live import Live
-from rich.markdown import *
+from rich.markdown import TextElement,Markdown,Token,MarkdownContext,ConsoleOptions,RenderResult
 from rich.panel import Panel
 from rich.theme import Theme
 from rich.style import Style
@@ -12,8 +12,7 @@ from rich import box
 import os
 
 from io import StringIO
-from types import *
-from typing import *
+from typing import Dict, Tuple
 
 def _make_themes() -> Dict[str, Tuple[Theme, str]]:
     _dark = (

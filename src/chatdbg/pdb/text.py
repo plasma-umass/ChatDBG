@@ -1,5 +1,5 @@
 import re
-
+from typing import Union
 
 def make_arrow(pad):
     """generate the leading arrow in front of traceback or debugger"""
@@ -15,7 +15,7 @@ def strip_color(s: str) -> str:
     return ansi_escape.sub("", s)
 
 
-def truncate_proportionally(text, maxlen=32000, top_proportion=0.5):
+def truncate_proportionally(text: str, maxlen: int=32000, top_proportion: Union[float, int]=0.5) -> str:
     """Omit part of a string if needed to make it fit in a maximum length."""
     if len(text) > maxlen:
         pre = max(0, int((maxlen - 3) * top_proportion))

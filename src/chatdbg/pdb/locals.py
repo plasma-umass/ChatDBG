@@ -80,7 +80,7 @@ def _repr_if_defined(obj: Union[Any, List[str], List[Any]]) -> bool: # FIXME
     return result
 
 
-def _format_limited(value: Union[List[str], str], limit: int=10, depth: int=3) -> str:
+def _format_limited(value: Union[np.ndarray, int], limit: int=10, depth: int=3) -> str:
     def format_tuple(t, depth):
         return tuple([helper(x, depth) for x in t])
 

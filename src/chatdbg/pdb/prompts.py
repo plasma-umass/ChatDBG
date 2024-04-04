@@ -73,7 +73,7 @@ _no_wheel = f"""\
 """
 
 
-def pdb_instructions(supports_flow, take_the_wheel):
+def pdb_instructions(supports_flow: bool, take_the_wheel: bool) -> str:
     if take_the_wheel:
         if supports_flow:
             return _wheel_and_slice

@@ -139,7 +139,7 @@ def chat(
     try:
         dialog = LLDBDialog(PROMPT, debugger)
         dialog.dialog(command)
-    except DBGError as e:
+    except Exception as e:
         result.setError(e.message)
 
 

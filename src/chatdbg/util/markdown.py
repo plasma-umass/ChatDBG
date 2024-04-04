@@ -150,9 +150,6 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
     def on_warn(self, text):
         self._print(textwrap.indent(text, "*** "))
 
-    def on_fail(self, text):
-        self._print(textwrap.indent(text, "*** "))
-
     def on_begin_stream(self):
         self._live = Live(vertical_overflow="visible", console=self._console)
         self._live.start(True)

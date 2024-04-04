@@ -125,9 +125,6 @@ class ChatDBGLog(BaseAssistantListener):
     def on_warn(self, text):
         self._post(text, "Warning")
 
-    def on_fail(self, text):
-        self._post(text, "Failure")
-
     def on_response(self, text):
         log = self._log
         assert log != None

@@ -17,7 +17,7 @@ from traitlets import TraitError
 
 from .util.markdown import ChatDBGMarkdownPrinter
 
-from .assistant.assistant import Assistant
+from .assistant.assistant import Assistant, AssistantError
 from .pdb.capture import CaptureInput, CaptureOutput
 from .pdb.locals import print_locals
 from .pdb.prompts import pdb_instructions
@@ -559,15 +559,19 @@ class ChatDBG(ChatDBGSuper):
 
         self._clear_history()
 
-        if self._assistant == None:
-            self._make_assistant()
+        try:
+            if self._assistant == None:
+                self._make_assistant()
 
-        stats = self._assistant.query(full_prompt, user_text=arg)
+            stats = self._assistant.query(full_prompt, user_text=arg)
 
-        if stats["completed"]:
-            self.message(f"\n[Cost: ~${stats['cost']:.2f} USD]")
-        else:
-            self.message(f"\n[Chat Interrupted]")
+            if stats["completed"]:
+                self.message(f"\n[Cost: ~${stats['cost']:.2f} USD]")
+            else:
+                self.message(f"\n[Chat Interrupted]")
+        except AssistantError as e:
+            for line in str(e).split('\n'):
+                self.error(line)
 
     def do_renew(self, arg):
         """renew

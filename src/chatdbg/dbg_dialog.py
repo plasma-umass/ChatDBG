@@ -10,10 +10,10 @@ import lldb
 
 import llm_utils
 
-from assistant.assistant import Assistant
+from assistant.assistant import Assistant, AssistantError
 import clangd_lsp_integration
 from util.config import chatdbg_config
-import readline
+
 
 class DBGError(Exception):
 
@@ -99,41 +99,44 @@ class DBGDialog:
             print(f"\n[Chat Interrupted]")
 
     def dialog(self, command):
-        assistant = self._make_assistant()
-        self.check_debugger_state()
+        try:
+            assistant = self._make_assistant()
+            self.check_debugger_state()
 
-        user_text = (
-            command if command else "What's the problem? Provide code to fix the issue."
-        )
+            user_text = (
+                command if command else "What's the problem? Provide code to fix the issue."
+            )
 
-        initial_prompt = self.build_prompt(user_text, False)
-        self._report(assistant.query(initial_prompt, user_text))
-        while True:
-            try:
-                command = input(">>> " + self.prompt).strip()
-                
-                if command in [ "exit", "quit" ]:
-                    break
-                if command in [ "chat", "why" ]:
-                    followup_prompt = self.build_prompt(user_text, True)
-                    self._report(assistant.query(followup_prompt, user_text))
-                elif command == "history":
-                    print(self._do_history())
-                else:
-                    # Send the next input as an LLDB command
-                    result = self._run_one_command(command)
-                    if self._message_is_a_bad_command_error(result):
-                        # If result is not a recognized command, pass it as a query
-                        followup_prompt = self.build_prompt(command, True)
+            initial_prompt = self.build_prompt(user_text, False)
+            self._report(assistant.query(initial_prompt, user_text))
+            while True:
+                try:
+                    command = input(">>> " + self.prompt).strip()
+                    
+                    if command in [ "exit", "quit" ]:
+                        break
+                    if command in [ "chat", "why" ]:
+                        followup_prompt = self.build_prompt(user_text, True)
                         self._report(assistant.query(followup_prompt, user_text))
+                    elif command == "history":
+                        print(self._do_history())
                     else:
-                        self._history += [(command, result)]
-                        print(result)
-            except EOFError:
-                # If it causes an error, break
-                break
+                        # Send the next input as an LLDB command
+                        result = self._run_one_command(command)
+                        if self._message_is_a_bad_command_error(result):
+                            # If result is not a recognized command, pass it as a query
+                            followup_prompt = self.build_prompt(command, True)
+                            self._report(assistant.query(followup_prompt, user_text))
+                        else:
+                            self._history += [(command, result)]
+                            print(result)
+                except EOFError:
+                    # If it causes an error, break
+                    break
 
-        assistant.close()
+            assistant.close()
+        except AssistantError as e:
+
 
     def _format_history_entry(self, entry, indent=""):
         line, output = entry

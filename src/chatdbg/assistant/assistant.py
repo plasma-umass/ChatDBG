@@ -9,6 +9,9 @@ import openai
 
 from .listeners import Printer
 
+class AssistantError(Exception):
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)
 
 class Assistant:
     def __init__(
@@ -90,7 +93,7 @@ class Assistant:
             import traceback
             tb_lines = traceback.format_exception(type(e), e, e.__traceback__)
             tb_string = ''.join(tb_lines)
-            self._broadcast("on_fail", f"Unexpected OpenAI Error.  Retry the query.  Error details are below:\n\n{e}\n{tb_string}")
+            self._broadcast("on_warn", f"Unexpected OpenAI Error.  Retry the query.  Error details are below:\n\n{e}\n{tb_string}")
         except KeyboardInterrupt:
             # user action -- just ignore
             pass
@@ -112,48 +115,40 @@ class Assistant:
         if missing_keys != []:
             _, provider, _, _ = litellm.get_llm_provider(self._model)
             if provider == "openai":
-                self._broadcast(
-                    "on_fail",
+                raise AssistantError(
                     textwrap.dedent(
                         f"""\
                     You need an OpenAI key to use the {self._model} model.
                     You can get a key here: https://platform.openai.com/api-keys.
                     Set the environment variable OPENAI_API_KEY to your key value."""
-                    ),
+                    )
                 )
-                sys.exit(1)
             else:
-                self._broadcast(
-                    "on_fail",
+                raise AssistantError(
                     textwrap.dedent(
                         f"""\
                     You need to set the following environment variables
-                    to use the {self._model} model: {', '.join(missing_keys)}"""
-                    ),
+                    to use the {self._model} model: {', '.join(missing_keys)}."""
+                    )
                 )
-                sys.exit(1)
 
         try:
             if not litellm.supports_function_calling(self._model):
-                self._broadcast(
-                    "on_fail",
+                raise AssistantError(
                     textwrap.dedent(
                         f"""\
                     The {self._model} model does not support function calls.
                     You must use a model that does, eg. gpt-4."""
-                    ),
+                    )
                 )
-                sys.exit(1)
         except:
-            self._broadcast(
-                "on_fail",
+            raise AssistantError(
                 textwrap.dedent(
                     f"""\
                 {self._model} does not appear to be a supported model.
-                See https://docs.litellm.ai/docs/providers"""
-                ),
+                See https://docs.litellm.ai/docs/providers."""
+                )
             )
-            sys.exit(1)
 
     def _sandwich_tokens(
         self, text: str, max_tokens: int, top_proportion: float
@@ -340,4 +335,4 @@ class Assistant:
         except Exception as e:
             # Warning: potential infinite loop if the LLM keeps sending
             # the same bad call.
-            self._broadcast("on_warn", f"Error processing tool calls: {e}")
+            self._broadcast("on_warn", f"An exception occured while processing tool calls: {e}")

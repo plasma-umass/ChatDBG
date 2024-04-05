@@ -64,7 +64,7 @@ class ChatDBG(ChatDBGSuper):
         self._assistant = None
         atexit.register(lambda: self._close_assistant())
 
-        self._history = CommandHistory()
+        self._history = CommandHistory(self.prompt)
         self._error_message = ""
         self._error_details = ""
 

@@ -148,19 +148,21 @@ def chat(
     except Exception as e:
         result.SetError(str(e))
 
-@lldb.command("test_prompt")
-def test_prompt(
-    debugger: lldb.SBDebugger,
-    command: str,
-    result: lldb.SBCommandReturnObject,
-    internal_dict: dict,
-):
-    try:
-        dialog = LLDBDialog(PROMPT, debugger)
-        prompt = dialog.build_prompt(command, True)
-        result.SetMessage(prompt)
-    except Exception as e:
-        result.SetError(str(e))
+# @lldb.command("test_prompt")
+# def test_prompt(
+#     debugger: lldb.SBDebugger,
+#     command: str,
+#     result: lldb.SBCommandReturnObject,
+#     internal_dict: dict,
+# ):
+#     try:
+#         # new dialog object, so no history...
+#         dialog = LLDBDialog(PROMPT, debugger)
+#         result.AppendMessage(dialog.initial_prompt_instructions())
+#         result.AppendMessage("-" * 80)
+#         result.AppendMessage(dialog.build_prompt(command, False))
+#     except Exception as e:
+#         result.SetError(str(e))
 
 
 @lldb.command("config")

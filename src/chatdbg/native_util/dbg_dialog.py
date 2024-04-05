@@ -1,4 +1,5 @@
 import sys
+import textwrap
 
 import llm_utils
 
@@ -30,11 +31,12 @@ class DBGDialog:
     )
 
     def __init__(self, prompt) -> None:
-        self.prompt = prompt
-        self._history = CommandHistory()
+        self._prompt = prompt
+        self._history = CommandHistory(self._prompt)
 
     def query_and_print(self, assistant, user_text, is_followup):
         prompt = self.build_prompt(user_text, is_followup)
+        self._history.clear()
         print(assistant.query(prompt, user_text)["message"])
 
     def dialog(self, user_text):
@@ -44,7 +46,7 @@ class DBGDialog:
         self.query_and_print(assistant, user_text, False)
         while True:
             try:
-                command = input(">>> " + self.prompt).strip()
+                command = input(">>> " + self._prompt).strip()
                 
                 if command in [ "exit", "quit" ]:
                     break
@@ -59,7 +61,8 @@ class DBGDialog:
                         # If result is not a recognized command, pass it as a query
                         self.query_and_print(assistant, command, True)
                     else:
-                        self._history.append(command, result)
+                        if command != "test_prompt":
+                            self._history.append(command, result)
                         print(result)
             except EOFError:
                 # If it causes an error, break
@@ -74,11 +77,7 @@ class DBGDialog:
             self.warn("could not generate any frame summary.")
         else:
             frame_summary = "\n".join([str(s) for s in summaries])
-            parts.append(
-                "Here is a summary of the stack frames, omitting those not associated with user source code:\n```\n"
-                + frame_summary
-                + "\n```"
-            )
+            parts.append(frame_summary)
 
             total_frames = sum(
                 [s.count() if isinstance(s, _SkippedFramesEntry) else 1 for s in summaries]
@@ -96,8 +95,9 @@ class DBGDialog:
                 file_path, lineno = summary.file_path(), summary.lineno()
                 lines, first = llm_utils.read_lines(file_path, lineno - 10, lineno + 9)
                 block = llm_utils.number_group_of_lines(lines, first)
+                block = textwrap.indent(block, '  ')
                 source_code_entries.append(
-                    f"Frame #{summary.index()} at {file_path}:{lineno}:\n```\n{block}\n```"
+                    f"Frame #{summary.index()} at {file_path}:{lineno}:\n{block}\n"
                 )
 
                 if len(source_code_entries) == max_initial_locations_to_send:
@@ -126,7 +126,7 @@ class DBGDialog:
     def _get_frame_summaries(self, max_entries: int = 20):
         pass
 
-    def _initial_prompt_instructions(self):
+    def initial_prompt_instructions(self):
         functions = self._supported_functions()
         return initial_instructions(functions)
 
@@ -255,7 +255,7 @@ class DBGDialog:
     def _make_assistant(self) -> Assistant:
 
         functions = self._supported_functions()
-        instruction_prompt = self._initial_prompt_instructions()
+        instruction_prompt = self.initial_prompt_instructions()
 
         assistant = Assistant(
             instruction_prompt,
@@ -266,7 +266,7 @@ class DBGDialog:
             listeners=[
                 ChatDBGPrinter(
                     sys.stdout,
-                    self.prompt,  # must end with ' ' to match other tools
+                    self._prompt,  # must end with ' ' to match other tools
                     "   ",
                     80,
                     stream=not chatdbg_config.no_stream,

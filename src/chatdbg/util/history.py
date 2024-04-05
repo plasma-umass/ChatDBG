@@ -1,7 +1,8 @@
 class CommandHistory:
 
-    def __init__(self):
+    def __init__(self, prompt):
         self._history = [ ]
+        self._prompt = prompt
 
     def append(self, command, result):
         self._history += [ (command, result) ]
@@ -12,10 +13,9 @@ class CommandHistory:
     def _format_history_entry(self, entry):
         line, output = entry
         if output:
-            entry = f"{self.prompt}{line}\n{output}"
+            return f"{self._prompt}{line}\n{output}"
         else:
-            entry = f"{self.prompt}{line}"
-        return entry
+            return f"{self._prompt}{line}"
 
     def __str__(self):
         entry_strs = [self._format_history_entry(x) for x in self._history]

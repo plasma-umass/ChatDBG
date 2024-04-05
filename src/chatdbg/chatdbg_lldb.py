@@ -1,8 +1,6 @@
 import sys
 import os
 
-print(sys.path)
-
 import json
 import os
 from typing import List, Optional, Union

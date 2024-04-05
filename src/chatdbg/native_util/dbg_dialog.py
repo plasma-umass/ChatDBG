@@ -1,8 +1,9 @@
 import sys
 
 import llm_utils
-import native_util.clangd_lsp_integration as clangd_lsp_integration
-from util.prompts import (build_followup_prompt, build_initial_prompt,
+
+from .clangd_lsp_integration import clangd_lsp_integration
+from ..util.prompts import (build_followup_prompt, build_initial_prompt,
                           initial_instructions)
 
 from ..assistant.assistant import Assistant

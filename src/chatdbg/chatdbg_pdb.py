@@ -60,7 +60,7 @@ class ChatDBG(ChatDBGSuper):
 
         self.prompt = "(ChatDBG) "
         self._chat_prefix = "   "
-        self._text_width = 80
+        self._text_width = 120
         self._assistant = None
         atexit.register(lambda: self._close_assistant())
 

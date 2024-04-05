@@ -1,4 +1,5 @@
 import re
+import textwrap
 
 
 def make_arrow(pad):
@@ -22,3 +23,14 @@ def truncate_proportionally(text, maxlen=32000, top_proportion=0.5):
         post = max(0, maxlen - 5 - pre)
         return text[:pre] + "[...]" + text[len(text) - post :]
     return text
+
+
+def wrap_long_lines(text, width=80):
+    wrapped_lines = []
+    for line in text.split('\n'):
+        if len(line) > width:
+            wrapped_lines.extend(textwrap.wrap(line, width, subsequent_indent = '      '))
+        else:
+            wrapped_lines.append(line)
+    return '\n'.join(wrapped_lines)
+

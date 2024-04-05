@@ -1,5 +1,7 @@
 import re
 import textwrap
+
+from chatdbg.util.text import wrap_long_lines
 from ..assistant.listeners import BaseAssistantListener
 from rich.console import Console
 from rich.live import Live
@@ -16,7 +18,8 @@ from types import *
 from typing import *
 
 def _make_themes() -> Dict[str, Tuple[Theme, str]]:
-    _dark = Theme(
+    _dark = (
+        Theme(
             {
                 "markdown.paragraph": "bright_cyan",
                 "markdown.text": "bright_cyan",
@@ -31,11 +34,15 @@ def _make_themes() -> Dict[str, Tuple[Theme, str]]:
                 "markdown.h5": "bold bright_cyan",
                 "command": "bold bright_yellow",
                 "result": "yellow",
-                "highlighter":"monokai"
-            })
+            }
+        ),
+        "monokai",
+    )
 
-    _light = Theme(
+    _light = (
+        Theme(
             {
+                "markdown.block": "bright_blue",
                 "markdown.paragraph": "bright_blue",
                 "markdown.text": "bright_blue",
                 "markdown.code": "cyan",
@@ -49,11 +56,35 @@ def _make_themes() -> Dict[str, Tuple[Theme, str]]:
                 "markdown.h5": "bold blue",
                 "command": "bold yellow",
                 "result": "yellow",
-                "highlighter": "default",
             }
-        )
+        ),
+        "default",
+    )
 
-    return {"light": _light, "dark": _dark}
+    _paper = (
+        Theme(
+            {
+                "none": "black on light_steel_blue1",
+                "markdown.block": "black on light_steel_blue1",
+                "markdown.paragraph": "black on light_steel_blue1",
+                "markdown.text": "black on light_steel_blue1",
+                "markdown.code": "blue",
+                "markdown.code_block": "blue",
+                "markdown.item.bullet": "bold blue",
+                "markdown.item.number": "bold blue",
+                "markdown.h1": "bold black",
+                "markdown.h2": "bold black",
+                "markdown.h3": "bold black",
+                "markdown.h4": "bold black",
+                "markdown.h5": "bold black",
+                "command": "bold black on wheat1",
+                "result": "black on wheat1",
+            }
+        ),
+        "default",
+    )
+
+    return {"light": _light, "dark": _dark, "paper": _paper}
 
 
 
@@ -120,10 +151,10 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
         self._out = out
         self._debugger_prompt = debugger_prompt
         self._chat_prefix = chat_prefix
-        self._width = min(width, os.get_terminal_size().columns - len(chat_prefix))
+        self._width = min(width, os.get_terminal_size().columns)
         self._stream = stream
         self._theme, self._code_theme = ChatDBGMarkdownPrinter.themes[theme]
-        self._console = Console(soft_wrap=False, file=out, theme=self._theme)
+        self._console = Console(soft_wrap=False, file=out, theme=self._theme, width=self._width)
         # Markdown.elements['fence'] = CodeBlock
         # Markdown.elements['code_block'] = CodeBlock
         # Markdown.elements["heading_open"] = LeftHeading  # Causes a Crash now...
@@ -137,19 +168,18 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
         pass
 
     def _print(self, text, **kwargs):
-        self._console.print(text, end="")
+        if text.strip():
+            self._console.print(text, end="")
 
     def _wrap_in_panel(self, rich_element):
         return Panel(
-            rich_element, box=box.MINIMAL, padding=(0, 0, 0, len(self._chat_prefix) - 1)
+            rich_element, box=box.MINIMAL, padding=(0, 0, 0, len(self._chat_prefix) - 1), style="on black"
         )
 
     def on_warn(self, text):
         self._print(textwrap.indent(text + "\n\n", "*** "))
 
     def on_begin_stream(self):
-        self._live = Live(vertical_overflow="visible", console=self._console)
-        self._live.start(True)
         self._streamed = ""
 
     def _stream_append(self, text):
@@ -159,11 +189,13 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
 
     def on_stream_delta(self, text):
         if self._streamed == "":
-            text = "\n" + text
+            self._live = Live(vertical_overflow="visible", console=self._console)
+            self._live.start(True)
         self._stream_append(text)
 
     def on_end_stream(self):
-        self._live.stop()
+        if self._streamed != "":
+            self._live.stop()
 
     def on_response(self, text):
         if not self._stream and text != None:
@@ -171,23 +203,28 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
             self._console.print(m)
 
     def on_function_call(self, call, result):
-        entry = f"[command]{self._chat_prefix}{self._debugger_prompt}{call}[/]\n"
+        prefix=f"[none]{self._chat_prefix}[/]"
+        line = f"{self._debugger_prompt}{call}".ljust(self._width)
+        entry = f"[command]{prefix}{line}[/]\n"
         self._print(entry)
         if result and len(result) > 0:
-            full_response = f"[result]{textwrap.indent(result, self._chat_prefix)}[/]"
+            result = wrap_long_lines(result, self._width - len(self._chat_prefix))
+            result = "\n".join([line.ljust(self._width) for line in result.split("\n")]) + "\n"
+
+            full_response = f"[result]{textwrap.indent(result, prefix, lambda _: True)}[/]"
 
             # This is just to make the output look a little more like a stream, if
             # streaming is on.  It's tedious with long results, so only animate a 
             # bit.
-            if self._stream:
-                with Live(vertical_overflow="visible", console=self._console) as live:
-                    lines = ""
-                    result_lines = re.split("(\w)", result)
-                    for chunk in result_lines[0:200]:
-                        lines += chunk
-                        live.update(
-                            f"[result]{textwrap.indent(lines, self._chat_prefix)}[/]"
-                        )
-                    live.update(full_response)
-            else:
-                self._console.print(full_response)
+            # if self._stream:
+            #     with Live(vertical_overflow="visible", console=self._console) as live:
+            #         lines = ""
+            #         result_lines = re.split("(\w)", result)
+            #         for chunk in result_lines[0:200]:
+            #             lines += chunk
+            #             live.update(
+            #                 f"[result]{textwrap.indent(lines, prefix)}[/]"
+            #             )
+            #         live.update(full_response)
+            # else:
+            self._print(full_response)

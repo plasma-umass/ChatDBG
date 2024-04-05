@@ -8,7 +8,7 @@ import lldb
 
 import llm_utils
 
-import chatdbg.native_util.clangd_lsp_integration as clangd_lsp_integration
+from chatdbg.native_util import clangd_lsp_integration
 from chatdbg.native_util.stacks import _ArgumentEntry, _FrameSummaryEntry, _SkippedFramesEntry
 from chatdbg.util.config import chatdbg_config
 
@@ -145,6 +145,20 @@ def chat(
     try:
         dialog = LLDBDialog(PROMPT, debugger)
         dialog.dialog(command)
+    except Exception as e:
+        result.SetError(str(e))
+
+@lldb.command("test_prompt")
+def test_prompt(
+    debugger: lldb.SBDebugger,
+    command: str,
+    result: lldb.SBCommandReturnObject,
+    internal_dict: dict,
+):
+    try:
+        dialog = LLDBDialog(PROMPT, debugger)
+        prompt = dialog.build_prompt(command, True)
+        result.SetMessage(prompt)
     except Exception as e:
         result.SetError(str(e))
 

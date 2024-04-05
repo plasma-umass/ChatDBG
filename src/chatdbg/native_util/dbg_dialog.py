@@ -2,7 +2,7 @@ import sys
 
 import llm_utils
 
-from .clangd_lsp_integration import clangd_lsp_integration
+from . import clangd_lsp_integration
 from ..util.prompts import (build_followup_prompt, build_initial_prompt,
                           initial_instructions)
 
@@ -34,7 +34,7 @@ class DBGDialog:
         self._history = CommandHistory()
 
     def query_and_print(self, assistant, user_text, is_followup):
-        prompt = self._build_prompt(user_text, is_followup)
+        prompt = self.build_prompt(user_text, is_followup)
         print(assistant.query(prompt, user_text)["message"])
 
     def dialog(self, user_text):
@@ -156,7 +156,7 @@ class DBGDialog:
     def _prompt_history(self):
         return str(self._history)
 
-    def _build_prompt(self, arg, conversing):
+    def build_prompt(self, arg, conversing):
         if not conversing:
             return build_initial_prompt(self._initial_prompt_enchriched_stack_trace(),
                                  self._initial_prompt_error_message(),

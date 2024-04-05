@@ -89,19 +89,31 @@ class Assistant:
             stats["time"] = elapsed
             stats["model"] = self._model
             stats["completed"] = True
+            stats["message"] = f"\n[Cost: ~${stats['cost']:.2f} USD]"
         except openai.OpenAIError as e:
             import traceback
             tb_lines = traceback.format_exception(type(e), e, e.__traceback__)
             tb_string = ''.join(tb_lines)
             self._broadcast("on_warn", f"Unexpected OpenAI Error.  Retry the query.  Error details are below:\n\n{e}\n{tb_string}")
+            stats["message"] = f"[Exception: {e}]"
         except KeyboardInterrupt:
             # user action -- just ignore
-            pass
+            stats["message"] = "[Chat Interrupted]"
         except Exception as e:
             self._broadcast('on_warn', str(e))
+            stats["message"] = f"[Exception: {e}]"
         
         self._broadcast("on_end_query", stats)
         return stats
+
+
+    def _report(self, stats):
+        if stats["completed"]:
+            print()
+        else:
+            print("[Chat Interrupted]")
+
+
 
     def _broadcast(self, method_name, *args):
         for client in self._clients:

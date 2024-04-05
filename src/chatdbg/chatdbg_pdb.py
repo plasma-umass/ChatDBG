@@ -10,22 +10,18 @@ import textwrap
 import traceback
 from io import StringIO
 from pathlib import Path
-from pprint import pprint
 
 import IPython
-from traitlets import TraitError
 
-from .util.markdown import ChatDBGMarkdownPrinter
+from .util.prompts import build_followup_prompt, build_initial_prompt, initial_instructions
 
 from .assistant.assistant import Assistant, AssistantError
 from .pdb.capture import CaptureInput, CaptureOutput
 from .pdb.locals import print_locals
-from .pdb.prompts import pdb_instructions
 from .pdb.text import strip_color, truncate_proportionally
 from .util.config import chatdbg_config
 from .util.log import ChatDBGLog
-from .util.printer import ChatDBGPrinter
-
+from .util.history import CommandHistory
 
 def load_ipython_extension(ipython):
     global chatdbg_config
@@ -76,8 +72,9 @@ class ChatDBG(ChatDBGSuper):
         self._assistant = None
         atexit.register(lambda: self._close_assistant())
 
-        self._history = []
-        self._error_specific_prompt = ""
+        self._history = CommandHistory()
+        self._error_message = ""
+        self._error_details = ""
 
         sys.stdin = CaptureInput(sys.stdin)
 
@@ -162,9 +159,7 @@ class ChatDBG(ChatDBGSuper):
             details = "".join(
                 traceback.format_exception_only(type(exception), exception)
             ).rstrip()
-            self._error_specific_prompt = (
-                f"The program encountered the following error:\n```\n{details}\n```\n"
-            )
+            self._error_message = details
 
         super().interaction(frame, tb_or_exc)
 
@@ -191,13 +186,12 @@ class ChatDBG(ChatDBGSuper):
                 self.curframe.f_code.co_filename, self.curframe.f_lineno
             )
             if current_line.strip().startswith("assert"):
-                self._error_specific_prompt += f"The code `{current_line.strip()}` is correct and MUST remain unchanged in your fix.\n"
+                self._error_details = f"The code `{current_line.strip()}` is correct and MUST remain unchanged in your fix."
 
     def execRcLines(self):
         # do before running rclines -- our stack should be set up by now.
         if not chatdbg_config.show_libs:
             self._hide_lib_frames()
-        self._error_stack_trace = f"The program has the following stack trace:\n```\n{self.enriched_stack_trace()}\n```\n"
 
         # finally safe to enable this.
         self._show_locals = chatdbg_config.show_locals and not chatdbg_config.show_libs
@@ -230,7 +224,7 @@ class ChatDBG(ChatDBGSuper):
                         "continue",
                         "config",
                     ]:
-                        self._history += [(line, output)]
+                        self._history.append(line, output)
 
     def message(self, msg) -> None:
         """
@@ -260,17 +254,6 @@ class ChatDBG(ChatDBGSuper):
             self.stdout = stdout
             self.lastcmd = lastcmd
 
-    def _format_history_entry(self, entry, indent=""):
-        line, output = entry
-        if output:
-            entry = f"{self.prompt}{line}\n{output}"
-        else:
-            entry = f"{self.prompt}{line}"
-        return textwrap.indent(entry, indent, lambda _: True)
-
-    def _clear_history(self):
-        self._history = []
-
     def default(self, line):
         if line[:1] == "!":
             super().default(line)
@@ -289,9 +272,7 @@ class ChatDBG(ChatDBGSuper):
         """hist
         Print the history of user-issued commands since the last chat.
         """
-        entry_strs = [self._format_history_entry(x) for x in self._history]
-        history_str = "\n".join(entry_strs)
-        self.message(history_str)
+        self.message(self._history)
 
     def do_pydoc(self, arg):
         """pydoc name
@@ -404,7 +385,7 @@ class ChatDBG(ChatDBGSuper):
         """
         self.message("Instructions:")
         self.message(
-            pdb_instructions(self._supports_flow, chatdbg_config.take_the_wheel)
+            self._initial_prompt_instructions()
         )
         self.message("-" * 80)
         self.message("Prompt:")
@@ -480,7 +461,7 @@ class ChatDBG(ChatDBGSuper):
         except KeyboardInterrupt:
             pass
 
-    def _stack_prompt(self):
+    def _prompt_stack(self):
         stdout = self.stdout
         buffer = StringIO()
         self.stdout = buffer
@@ -504,48 +485,41 @@ class ChatDBG(ChatDBGSuper):
             self.stdout = stdout
 
     def _initial_prompt_instructions(self):
-        return pdb_instructions(self._supports_flow, chatdbg_config.take_the_wheel)
+        functions = self._supported_functions()
+        return initial_instructions(functions)
 
     def _initial_prompt_enchriched_stack_trace(self):
-        return f"The program has this stack trace:\n```\n{self.enriched_stack_trace()}\n```\n"
+        return self.enriched_stack_trace()
 
-    def _initial_prompt_error(self):
-        return self._error_specific_prompt
+    def _initial_prompt_error_message(self):
+        return self._error_message
 
-    def _initial_prompt_inputs(self):
-        inputs = ""
-        if len(sys.argv) > 1:
-            inputs += f"\nThese were the command line options:\n```\n{' '.join(sys.argv)}\n```\n"
-        input = sys.stdin.get_captured_input()
-        if len(input) > 0:
-            inputs += f"\nThis was the program's input :\n```\n{input}```\n"
-        return inputs
+    def _initial_prompt_error_details(self):
+        return self._error_details
 
-    def _initial_prompt_history(self):
-        if len(self._history) > 0:
-            hist = textwrap.indent(self._capture_onecmd("hist"), "")
-            hist = f"\nThis is the history of some pdb commands I ran and the results.\n```\n{hist}\n```\n"
-            return hist
-        else:
-            return ""
+    def _initial_prompt_command_line(self):
+        return ' '.join(sys.argv)
 
-    def concat_prompt(self, *args):
-        args = [a for a in args if len(a) > 0]
-        return "\n".join(args)
+    def _initial_prompt_input(self):
+        return sys.stdin.get_captured_input()
+
+    def _prompt_history(self):
+        return str(self._history())
 
     def _build_prompt(self, arg, conversing):
         if not conversing:
-            return self.concat_prompt(
-                self._initial_prompt_enchriched_stack_trace(),
-                self._initial_prompt_inputs(),
-                self._initial_prompt_error(),
-                self._initial_prompt_history(),
-                arg,
-            )
+            return build_initial_prompt(self._initial_prompt_enchriched_stack_trace(),
+                                 self._initial_prompt_error_message(),
+                                 self._initial_prompt_error_details(),
+                                 self._initial_prompt_command_line(),
+                                 self._initial_prompt_input(),
+                                 self._prompt_history(),
+                                 None,
+                                 arg)
         else:
-            return self.concat_prompt(
-                self._initial_prompt_history(), self._stack_prompt(), arg
-            )
+            return build_followup_prompt(self._prompt_history(), 
+                                         self._prompt_stack(), 
+                                         arg)
 
     def do_chat(self, arg):
         """chat
@@ -557,18 +531,14 @@ class ChatDBG(ChatDBGSuper):
         full_prompt = strip_color(full_prompt)
         full_prompt = truncate_proportionally(full_prompt)
 
-        self._clear_history()
+        self._history.clear()
 
         try:
             if self._assistant == None:
                 self._make_assistant()
 
             stats = self._assistant.query(full_prompt, user_text=arg)
-
-            if stats["completed"]:
-                self.message(f"\n[Cost: ~${stats['cost']:.2f} USD]")
-            else:
-                self.message(f"\n[Chat Interrupted]")
+            self.message(stats["message"])
         except AssistantError as e:
             for line in str(e).split('\n'):
                 self.error(line)
@@ -592,9 +562,7 @@ class ChatDBG(ChatDBGSuper):
         message = chatdbg_config.parse_only_user_flags(args)
         self.message(message)
 
-    def _make_assistant(self):
-        instruction_prompt = self._initial_prompt_instructions()
-
+    def _supported_functions(self):
         if chatdbg_config.take_the_wheel:
             functions = [self.debug, self.info]
             if self._supports_flow:
@@ -602,12 +570,18 @@ class ChatDBG(ChatDBGSuper):
         else:
             functions = []
 
+        return functions
+
+    def _make_assistant(self):
+        instruction_prompt = self._initial_prompt_instructions()
+        functions = self._supported_functions()
+
         self._assistant = Assistant(
             instruction_prompt,
             model=chatdbg_config.model,
             debug=chatdbg_config.debug,
             functions=functions,
-            stream=chatdbg_config.stream,
+            stream=not chatdbg_config.no_stream,
             max_call_response_tokens=8192,
             listeners=[
                 chatdbg_config.make_printer(
@@ -623,7 +597,7 @@ class ChatDBG(ChatDBGSuper):
         """
         {
             "name": "info",
-            "description": "Get the documentation and source code for a reference, which may be a variable, function, method reference, field reference, or dotted reference visible in the current frame.  Examples include n, e.n where e is an expression, and t.n where t is a type.",
+            "description": "Call the `info` function to get the documentation and source code for any variable, function, package, class, method reference, field reference, or dotted reference visible in the current frame.  Examples include: n, e.n where e is an expression, and t.n where t is a type. Unless it is from a common, widely-used library, you MUST call `info` exactly once on any symbol that is referenced in code leading up to the error.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -644,7 +618,7 @@ class ChatDBG(ChatDBGSuper):
         """
         {
             "name": "debug",
-            "description": "Run a pdb command and get the response.",
+            "description": "Call the `debug` function to run Pdb debugger commands on the stopped program. You may call the `pdb` function to run the following commands: `bt`, `up`, `down`, `p expression`, `list`.  Call `debug` to print any variable value or expression that you believe may contribute to the error.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -671,7 +645,7 @@ class ChatDBG(ChatDBGSuper):
         """
         {
             "name": "slice",
-            "description": "Return the code to compute a global variable used in the current frame",
+            "description": "Call the `slice` function to get the code used to produce the value currently stored a variable.  You MUST call `slice` exactly once on any variable used but not defined in the current frame's code.",
             "parameters": {
                 "type": "object",
                 "properties": {

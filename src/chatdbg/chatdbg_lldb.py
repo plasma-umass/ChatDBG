@@ -127,7 +127,6 @@ def _function_definition(
     )
     result.AppendMessage(f"""File '{path}' at {line_string}:\n```\n{content}\n```""")
 
-
 @lldb.command("chat")
 @lldb.command("why")
 def chat(

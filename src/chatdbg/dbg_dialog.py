@@ -4,16 +4,16 @@ import sys
 import textwrap
 from typing import List, Optional, Union
 
-from chatdbg.util.log import ChatDBGLog
-from chatdbg.util.printer import ChatDBGPrinter
+from .util.log import ChatDBGLog
+from .util.printer import ChatDBGPrinter
 import lldb
 
 import llm_utils
 
-from assistant.assistant import Assistant, AssistantError
+from .assistant.assistant import Assistant
 import clangd_lsp_integration
-from util.config import chatdbg_config
-
+from .util.config import chatdbg_config
+from .util.history import CommandHistory
 
 class DBGError(Exception):
 
@@ -90,75 +90,45 @@ class DBGDialog:
 
     def __init__(self, prompt) -> None:
         self.prompt = prompt
-        self._history = []
+        self._history = CommandHistory()
 
-    def _report(self, stats):
-        if stats["completed"]:
-            print(f"\n[Cost: ~${stats['cost']:.2f} USD]")
-        else:
-            print(f"\n[Chat Interrupted]")
+    def query_and_print(self, assistant, user_text, is_followup):
+        prompt = self.build_prompt(user_text, is_followup)
+        print(assistant.query(prompt, user_text)["message"])
 
-    def dialog(self, command):
-        try:
-            assistant = self._make_assistant()
-            self.check_debugger_state()
+    def dialog(self, user_text):
+        assistant = self._make_assistant()
+        self.check_debugger_state()
 
-            user_text = (
-                command if command else "What's the problem? Provide code to fix the issue."
-            )
-
-            initial_prompt = self.build_prompt(user_text, False)
-            self._report(assistant.query(initial_prompt, user_text))
-            while True:
-                try:
-                    command = input(">>> " + self.prompt).strip()
-                    
-                    if command in [ "exit", "quit" ]:
-                        break
-                    if command in [ "chat", "why" ]:
-                        followup_prompt = self.build_prompt(user_text, True)
-                        self._report(assistant.query(followup_prompt, user_text))
-                    elif command == "history":
-                        print(self._do_history())
-                    else:
-                        # Send the next input as an LLDB command
-                        result = self._run_one_command(command)
-                        if self._message_is_a_bad_command_error(result):
-                            # If result is not a recognized command, pass it as a query
-                            followup_prompt = self.build_prompt(command, True)
-                            self._report(assistant.query(followup_prompt, user_text))
-                        else:
-                            self._history += [(command, result)]
-                            print(result)
-                except EOFError:
-                    # If it causes an error, break
+        self.query_and_print(assistant, user_text, False)
+        while True:
+            try:
+                command = input(">>> " + self.prompt).strip()
+                
+                if command in [ "exit", "quit" ]:
                     break
+                if command in [ "chat", "why" ]:
+                    self.query_and_print(assistant, command, True)
+                elif command == "history":
+                    print(self._history)
+                else:
+                    # Send the next input as an LLDB command
+                    result = self._run_one_command(command)
+                    if self._message_is_a_bad_command_error(result):
+                        # If result is not a recognized command, pass it as a query
+                        self.query_and_print(assistant, command, True)
+                    else:
+                        self._history.append(command, result)
+                        print(result)
+            except EOFError:
+                # If it causes an error, break
+                break
 
-            assistant.close()
-        except AssistantError as e:
+        assistant.close()
 
-
-    def _format_history_entry(self, entry, indent=""):
-        line, output = entry
-        if output:
-            entry = f"{self.prompt}{line}\n{output}"
-        else:
-            entry = f"{self.prompt}{line}"
-        return textwrap.indent(entry, indent, lambda _: True)
-    
-    def _do_history(self):
-        """
-        Returns the formatted history of user-issued commands since the last chat.
-        """
-        entry_strs = [self._format_history_entry(x) for x in self._history]
-        history_str = "\n".join(entry_strs)
-        return history_str
-
-
-    def _get_history(self):
+    def _build_history(self):
             if len(self._history) > 0:
-                hist = textwrap.indent(self._do_history(), "")
-                hist = f"\nThis is the history of some commands I ran and the results.\n```\n{hist}\n```\n"
+                hist = f"\nThis is the history of some commands I ran and the results.\n```\n{self._history}\n```\n"
                 return hist
             else:
                 return ""
@@ -225,10 +195,7 @@ class DBGDialog:
     def _build_error(self):
         pass
 
-    def build_inputs(self):
-        pass
-
-    def _build_history(self):
+    def _build_inputs(self):
         pass
 
     def build_instructions(self):
@@ -355,16 +322,16 @@ class DBGDialog:
             prompt = "\n".join([
             self._build_error(),
             self._build_enriched_stacktrace(),
-            self.build_inputs(),
-            self._get_history(),
+            self._build_inputs(),
+            self._build_history(),
             user_text
             ])
         else: 
             prompt = "\n".join(
-            [self._get_history(),
+            [self._build_history(),
             user_text]
             )
-            self._history = []
+            self._history.clear()
         return prompt
     
     def warn(self, message):
@@ -542,7 +509,7 @@ class LLDBDialog(DBGDialog):
             return ""
 
 
-    def build_inputs(self):
+    def _build_inputs(self):
         parts = []
 
         executable = self._debugger.GetSelectedTarget().GetExecutable()

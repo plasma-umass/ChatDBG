@@ -1,0 +1,22 @@
+class CommandHistory:
+
+    def __init__(self):
+        self._history = [ ]
+
+    def append(self, command, result):
+        self._history += [ (command, result) ]
+
+    def clear(self):
+        self._history = [ ]
+
+    def _format_history_entry(self, entry):
+        line, output = entry
+        if output:
+            entry = f"{self.prompt}{line}\n{output}"
+        else:
+            entry = f"{self.prompt}{line}"
+        return entry
+
+    def __str__(self):
+        entry_strs = [self._format_history_entry(x) for x in self._history]
+        return "\n".join(entry_strs)

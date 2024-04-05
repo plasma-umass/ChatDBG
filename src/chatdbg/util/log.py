@@ -5,7 +5,7 @@ from datetime import datetime
 import yaml
 
 from ..assistant.listeners import BaseAssistantListener
-from ..pdb.capture import CaptureOutput
+from ..pdb_util.capture import CaptureOutput
 from .wrap import word_wrap_except_code_blocks
 
 

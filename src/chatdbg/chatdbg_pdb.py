@@ -37,29 +37,21 @@ try:
     ipython = IPython.get_ipython()
     if ipython != None:
         from IPython.terminal.interactiveshell import TerminalInteractiveShell
-
         if isinstance(ipython, TerminalInteractiveShell):
             # ipython --pdb
             from IPython.terminal.debugger import TerminalPdb
-
             ChatDBGSuper = TerminalPdb
-            # _user_file_prefixes = [ "<ipython" ]
         else:
             # inside jupyter
             from IPython.core.debugger import InterruptiblePdb
-
             ChatDBGSuper = InterruptiblePdb
-            # _user_file_prefixes = [ IPython.paths.tempfile.gettempdir() ]
     else:
         # ichatpdb on command line
         from IPython.terminal.debugger import TerminalPdb
-
         ChatDBGSuper = TerminalPdb
-        # _user_file_prefixes = [ ]
 except NameError as e:
-    print(f"Error {e}:IPython not found. Defaulting to pdb plugin.")
+    print(f"Error {e}: IPython not found. Defaulting to pdb plugin.")
     ChatDBGSuper = pdb.Pdb
-    # _user_file_prefixes = [ ]
 
 
 class ChatDBG(ChatDBGSuper):
@@ -216,7 +208,7 @@ class ChatDBG(ChatDBGSuper):
                 output = strip_color(hist_file.getvalue())
                 if not self.was_chat_or_renew:
                     self._log.on_function_call(line, output)
-                    if line.split(" ")[0] not in [
+                    if line.split()[0] not in [
                         "hist",
                         "test_prompt",
                         "c",

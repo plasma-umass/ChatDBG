@@ -100,7 +100,8 @@ class Assistant:
             # user action -- just ignore
             stats["message"] = "[Chat Interrupted]"
         except Exception as e:
-            self._broadcast('on_warn', str(e))
+            import traceback
+            self._broadcast('on_warn', str(e) + traceback.format_exception(e))
             stats["message"] = f"[Exception: {e}]"
         
         self._broadcast("on_end_query", stats)

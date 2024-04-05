@@ -142,11 +142,11 @@ def chat(
     result: lldb.SBCommandReturnObject,
     internal_dict: dict,
 ):
-    try:
-        dialog = LLDBDialog(PROMPT, debugger)
-        dialog.dialog(command)
-    except Exception as e:
-        result.SetError(str(e))
+    # try:
+    dialog = LLDBDialog(PROMPT, debugger)
+    dialog.dialog(command)
+    # except Exception as e:
+    #     result.SetError(str(e))
 
 # @lldb.command("test_prompt")
 # def test_prompt(

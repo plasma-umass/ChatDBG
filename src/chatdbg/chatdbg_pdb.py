@@ -13,15 +13,15 @@ from pathlib import Path
 
 import IPython
 
-from .util.prompts import build_followup_prompt, build_initial_prompt, initial_instructions
+from chatdbg.util.prompts import build_followup_prompt, build_initial_prompt, initial_instructions
 
-from .assistant.assistant import Assistant, AssistantError
-from .pdb.capture import CaptureInput, CaptureOutput
-from .pdb.locals import print_locals
-from .pdb.text import strip_color, truncate_proportionally
-from .util.config import chatdbg_config
-from .util.log import ChatDBGLog
-from .util.history import CommandHistory
+from chatdbg.assistant.assistant import Assistant, AssistantError
+from chatdbg.pdb_util.capture import CaptureInput, CaptureOutput
+from chatdbg.pdb_util.locals import print_locals
+from chatdbg.util.text import strip_color, truncate_proportionally
+from chatdbg.util.config import chatdbg_config
+from chatdbg.util.log import ChatDBGLog
+from chatdbg.util.history import CommandHistory
 
 def load_ipython_extension(ipython):
     global chatdbg_config
@@ -496,7 +496,7 @@ class ChatDBG(ChatDBGSuper):
         return sys.stdin.get_captured_input()
 
     def _prompt_history(self):
-        return str(self._history())
+        return str(self._history)
 
     def _build_prompt(self, arg, conversing):
         if not conversing:

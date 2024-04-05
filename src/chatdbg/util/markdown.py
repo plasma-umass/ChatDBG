@@ -16,8 +16,7 @@ from types import *
 from typing import *
 
 def _make_themes() -> Dict[str, Tuple[Theme, str]]:
-    _dark = (
-        Theme(
+    _dark = Theme(
             {
                 "markdown.paragraph": "bright_cyan",
                 "markdown.text": "bright_cyan",
@@ -32,13 +31,10 @@ def _make_themes() -> Dict[str, Tuple[Theme, str]]:
                 "markdown.h5": "bold bright_cyan",
                 "command": "bold bright_yellow",
                 "result": "yellow",
-            }
-        ),
-        "monokai",
-    )
+                "highlighter":"monokai"
+            })
 
-    _light = (
-        Theme(
+    _light = Theme(
             {
                 "markdown.paragraph": "bright_blue",
                 "markdown.text": "bright_blue",
@@ -53,20 +49,21 @@ def _make_themes() -> Dict[str, Tuple[Theme, str]]:
                 "markdown.h5": "bold blue",
                 "command": "bold yellow",
                 "result": "yellow",
+                "highlighter": "default",
             }
-        ),
-        "default",
-    )
+        )
 
     return {"light": _light, "dark": _dark}
 
 
+
+
 # Don't center headings
-class Heading(TextElement):
+class LeftHeading(TextElement):
     """A heading."""
 
     @classmethod
-    def create(cls, markdown: "Markdown", token: Token) -> "Heading":
+    def create(cls, markdown: "Markdown", token: Token) -> "LeftHeading":
         return cls(token.tag)
 
     def on_enter(self, context: "MarkdownContext") -> None:
@@ -129,7 +126,7 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
         self._console = Console(soft_wrap=False, file=out, theme=self._theme)
         # Markdown.elements['fence'] = CodeBlock
         # Markdown.elements['code_block'] = CodeBlock
-        Markdown.elements["heading_open"] = Heading
+        # Markdown.elements["heading_open"] = LeftHeading  # Causes a Crash now...
 
     # Call backs
 
@@ -148,7 +145,7 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
         )
 
     def on_warn(self, text):
-        self._print(textwrap.indent(text, "*** "))
+        self._print(textwrap.indent(text + "\n\n", "*** "))
 
     def on_begin_stream(self):
         self._live = Live(vertical_overflow="visible", console=self._console)

@@ -574,7 +574,7 @@ class ChatDBG(ChatDBGSuper):
             debug=chatdbg_config.debug,
             functions=functions,
             stream=not chatdbg_config.no_stream,
-            max_call_response_tokens=8192,
+            max_call_response_tokens= 8192 // 8,
             listeners=[
                 chatdbg_config.make_printer(
                     self.stdout, self.prompt, self._chat_prefix, self._text_width

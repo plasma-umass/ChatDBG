@@ -1,11 +1,12 @@
 import json
-import sys
 import textwrap
 import time
 import pprint
 
 import litellm
 import openai
+
+from ..util.trim import sandwich_tokens, trim_messages
 
 from .listeners import Printer
 
@@ -21,14 +22,14 @@ class Assistant:
         timeout=30,
         listeners=[Printer()],
         functions=[],
-        max_call_response_tokens=4096,
+        max_call_response_tokens=2048,
         debug=False,
         stream=False,
     ):
 
         # Hide their debugging info -- it messes with our error handling
         litellm.suppress_debug_info = True
-
+        
         if debug:
             log_file = open(f"chatdbg.log", "w")
             self._logger = lambda model_call_dict: print(
@@ -58,6 +59,13 @@ class Assistant:
 
     def close(self):
         self._broadcast("on_end_dialog")
+
+    def _warn_about_exception(self, e, message="Unexpected Exception"):
+        import traceback
+        tb_lines = traceback.format_exception(type(e), e, e.__traceback__)
+        tb_string = ''.join(tb_lines)
+        self._broadcast("on_warn", f"{message}:\n\n{e}\n{tb_string}")
+        
 
     def query(self, prompt: str, user_text):
         """
@@ -91,17 +99,13 @@ class Assistant:
             stats["completed"] = True
             stats["message"] = f"\n[Cost: ~${stats['cost']:.2f} USD]"
         except openai.OpenAIError as e:
-            import traceback
-            tb_lines = traceback.format_exception(type(e), e, e.__traceback__)
-            tb_string = ''.join(tb_lines)
-            self._broadcast("on_warn", f"Unexpected OpenAI Error.  Retry the query.  Error details are below:\n\n{e}\n{tb_string}")
+            self._warn_about_exception(e, f"Unexpected OpenAI Error.  Retry the query.")
             stats["message"] = f"[Exception: {e}]"
         except KeyboardInterrupt:
             # user action -- just ignore
             stats["message"] = "[Chat Interrupted]"
         except Exception as e:
-            import traceback
-            self._broadcast('on_warn', str(e) + traceback.format_exception(e))
+            self._warn_about_exception(e, f"Unexpected Exception.")
             stats["message"] = f"[Exception: {e}]"
         
         self._broadcast("on_end_query", stats)
@@ -163,25 +167,6 @@ class Assistant:
                 )
             )
 
-    def _sandwich_tokens(
-        self, text: str, max_tokens: int, top_proportion: float
-    ) -> str:
-        model = self._model
-        if max_tokens == None:
-            return text
-        tokens = litellm.encode(model, text)
-        if len(tokens) <= max_tokens:
-            return text
-        else:
-            total_len = max_tokens - 5  # some slop for the ...
-            top_len = int(top_proportion * total_len)
-            bot_len = int((1 - top_proportion) * total_len)
-            return (
-                litellm.decode(model, tokens[0:top_len])
-                + " [...] "
-                + litellm.decode(model, tokens[-bot_len:])
-            )
-
     def _add_function(self, function):
         """
         Add a new function to the list of function tools.
@@ -200,10 +185,13 @@ class Assistant:
             self._broadcast("on_function_call", call, result)
         except OSError as e:
             # function produced some error -- move this to client???
+            # likely to be an exception from the code we ran, not a bug...
             result = f"Error: {e}"
         except KeyboardInterrupt as e:
             raise e
         except Exception as e:
+            # likely to be a bug...
+            self._warn_about_exception(e, f"Unexpected exception during call.")
             result = f"Ill-formed function call: {e}"
         return result
 
@@ -213,10 +201,6 @@ class Assistant:
         self._conversation.append({"role": "user", "content": prompt})
 
         while True:
-            self._conversation = litellm.utils.trim_messages(
-                self._conversation, self._model
-            )
-
             completion = self._completion()
 
             cost += litellm.completion_cost(completion)
@@ -248,11 +232,6 @@ class Assistant:
         self._conversation.append({"role": "user", "content": prompt})
 
         while True:
-            self._conversation = litellm.utils.trim_messages(
-                self._conversation, self._model
-            )
-            # print("\n".join([str(x) for x in self._conversation]))
-
             stream = self._completion(stream=True)
 
             # litellm.stream_chunk_builder is broken for new GPT models
@@ -286,7 +265,7 @@ class Assistant:
             # has only tool calls, and skip this step
             response_message = completion.choices[0].message
             if response_message.content != None:
-                self._conversation.append(response_message)
+                self._conversation.append(response_message.json())
 
             if response_message.content != None:
                 self._broadcast(
@@ -303,7 +282,9 @@ class Assistant:
                 cost += litellm.completion_cost(tool_completion)
 
                 tool_message = tool_completion.choices[0].message
-                self._conversation.append(tool_message)
+                tool_json = tool_message.json()
+                tool_json['role'] = 'assistant'
+                self._conversation.append(tool_json)
                 self._add_function_results_to_conversation(tool_message)
             else:
                 break
@@ -317,6 +298,12 @@ class Assistant:
         return stats
 
     def _completion(self, stream=False):
+
+        messages = trim_messages(self._conversation, self._model)
+        if len(messages) < len(self._conversation): 
+            self._broadcast("on_warn", f"Trimming conversation.")
+        self._conversation = messages
+
         return litellm.completion(
             model=self._model,
             messages=self._conversation,
@@ -335,8 +322,8 @@ class Assistant:
         try:
             for tool_call in tool_calls:
                 function_response = self._make_call(tool_call)
-                function_response = self._sandwich_tokens(
-                    function_response, self._max_call_response_tokens, 0.5
+                function_response = sandwich_tokens(
+                    function_response, self._model, self._max_call_response_tokens, 0.5
                 )
                 response = {
                     "tool_call_id": tool_call.id,

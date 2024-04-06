@@ -35,6 +35,4 @@ def wrap_long_lines(text, width=80, subsequent_indent='    '):
 
 def fill_to_width(text, width = 80):
     filled = "\n".join([ line.ljust(width) for line in text.split("\n")])
-    for line in filled.split('\n'):
-        assert len(filled) == width
     return filled

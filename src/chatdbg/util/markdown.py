@@ -1,4 +1,5 @@
 import os
+import shutil
 import textwrap
 
 from rich import box
@@ -6,12 +7,13 @@ from rich.console import Console
 from rich.live import Live
 from rich.markdown import Markdown
 from rich.panel import Panel
-from rich.table import Table
 from rich.theme import Theme
+from rich.table import Table
 
 from chatdbg.util.text import fill_to_width, wrap_long_lines
 
 from ..assistant.listeners import BaseAssistantListener
+
 
 _theme = Theme(
         {
@@ -41,7 +43,7 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
         self._debugger_prompt = debugger_prompt
         self._chat_prefix = chat_prefix
         self._left_indent = 4
-        self._width = min(width, os.get_terminal_size().columns)
+        self._width = shutil.get_terminal_size(fallback=(width, 24)).columns
         self._stream = stream
         self._theme = _theme
         self._code_theme = "default"
@@ -62,7 +64,7 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
     def _wrap_in_panel(self, rich_element):
 
         left_panel = Panel("", box=box.MINIMAL, style="on default")
-        right_panel = Panel(rich_element, box=box.MINIMAL, style=_theme['markdown.block'])
+        right_panel = Panel(rich_element, box=box.MINIMAL, style="black on light_steel_blue1")
 
         # Create a table to hold the panels side by side
         table = Table.grid(padding=0)

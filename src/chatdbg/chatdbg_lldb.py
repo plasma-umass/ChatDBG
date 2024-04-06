@@ -22,6 +22,7 @@ PROMPT = "(ChatDBG lldb) "
 
 def __lldb_init_module(debugger: lldb.SBDebugger, internal_dict: dict) -> None:
     debugger.HandleCommand(f"settings set prompt '{PROMPT}'")
+    chatdbg_config.format = "text"
 
 
 @lldb.command("code")
@@ -143,6 +144,8 @@ def chat(
     internal_dict: dict,
 ):
     try:
+        print(type(sys.stdout))
+        print(type(sys.__stdout__))
         dialog = LLDBDialog(PROMPT, debugger)
         dialog.dialog(command)
     except Exception as e:

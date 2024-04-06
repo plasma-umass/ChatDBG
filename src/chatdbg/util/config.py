@@ -77,7 +77,7 @@ class ChatDBGConfig(Configurable):
     ).tag(config=True)
 
     format = Unicode(
-        _chatdbg_get_env("format", "text"),
+        _chatdbg_get_env("format", "md"),
         help="The output format (text or md:light or md:dark).",
     ).tag(config=True)
 
@@ -159,22 +159,15 @@ class ChatDBGConfig(Configurable):
 
     def make_printer(self, stdout, prompt, prefix, width):
         format = chatdbg_config.format
-        if format.split(":")[0] == "md":
-            format = format.split(":")
-            theme = format[1] if len(format) > 1 else "dark"
-            if theme not in ChatDBGMarkdownPrinter.themes.keys():
-                print(
-                    f"*** Unknown Markdown theme '{theme}'.  Defaulting to 'dark'",
-                    file=stdout,
-                )
-                theme = "dark"
+        if format == "md":
             return ChatDBGMarkdownPrinter(
-                stdout, prompt, prefix, width, stream=not self.no_stream, theme=theme
+                stdout, prompt, prefix, width, stream=not self.no_stream
             )
-
-        if format != "text":
+        elif format == 'text':
+            return ChatDBGPrinter(stdout, prompt, prefix, width, stream=not self.no_stream)
+        else:
             print("*** Unknown format '{format}'.  Defaulting to 'text'", file=stdout)
-        return ChatDBGPrinter(stdout, prompt, prefix, width, stream=not self.no_stream)
+            return ChatDBGPrinter(stdout, prompt, prefix, width, stream=not self.no_stream)
 
 
 chatdbg_config: ChatDBGConfig = ChatDBGConfig()

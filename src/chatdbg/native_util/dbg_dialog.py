@@ -11,7 +11,6 @@ from ..assistant.assistant import Assistant
 from ..util.config import chatdbg_config
 from ..util.history import CommandHistory
 from ..util.log import ChatDBGLog
-from ..util.printer import ChatDBGPrinter
 from .stacks import _FrameSummaryEntry, _SkippedFramesEntry
 
 

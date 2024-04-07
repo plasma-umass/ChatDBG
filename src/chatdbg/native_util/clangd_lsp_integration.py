@@ -3,6 +3,8 @@ import os
 import subprocess
 import urllib.parse
 
+import llm_utils
+
 
 def _to_lsp_request(id, method, params):
     request = {"jsonrpc": "2.0", "id": id, "method": method}
@@ -144,3 +146,78 @@ class clangd:
         self.process.stdin.write(request)
         self.process.stdin.flush()
         return _parse_lsp_response(self.id, self.process.stdout)
+
+
+def lldb_definition(command):
+    if not is_available():
+        return (
+            "`clangd` was not found. The `definition` function will not be made available."
+        )
+    last_space_index = command.rfind(" ")
+    if last_space_index == -1:
+        return (
+            "`clangd` was not found. The `definition` function will not be made available."
+        )
+    filename_lineno = command[:last_space_index]
+    symbol = command[last_space_index + 1 :]
+    parts = filename_lineno.split(":")
+    if len(parts) != 2:
+        return ("usage: definition <filename>:<lineno> <symbol>")
+    filename, lineno = parts[0], int(parts[1])
+
+    try:
+        with open(filename, "r") as file:
+            lines = file.readlines()
+    except FileNotFoundError:
+        return (f"file '{filename}' not found.")
+
+    if lineno - 1 >= len(lines):
+        return ("symbol not found at that location.")
+
+    # We just return the first match here. Maybe we should find all definitions.
+    character = lines[lineno - 1].find(symbol)
+
+    # Now, some heuristics to make up for GPT's terrible math skills.
+    if character == -1:
+        symbol = symbol.lstrip("*")
+        character = lines[lineno - 1].find(symbol)
+
+    if character == -1:
+        symbol = symbol.split("::")[-1]
+        character = lines[lineno - 1].find(symbol)
+
+    # Check five lines above and below.
+    if character == -1:
+        for i in range(-5, 6, 1):
+            if lineno - 1 + i < 0 or lineno - 1 + i >= len(lines):
+                continue
+            character = lines[lineno - 1 + i].find(symbol)
+            if character != -1:
+                lineno += i
+                break
+
+    if character == -1:
+        return ("symbol not found at that location.")
+
+    _clangd = None
+    if is_available():
+        _clangd = clangd()
+        
+    _clangd.didOpen(filename, "c" if filename.endswith(".c") else "cpp")
+    definition = _clangd.definition(filename, lineno, character + 1)
+    _clangd.didClose(filename)
+
+    if "result" not in definition or not definition["result"]:
+        return ("No definition found.")
+
+    path = uri_to_path(definition["result"][0]["uri"])
+    start_lineno = definition["result"][0]["range"]["start"]["line"] + 1
+    end_lineno = definition["result"][0]["range"]["end"]["line"] + 1
+    lines, first = llm_utils.read_lines(path, start_lineno - 5, end_lineno + 5)
+    content = llm_utils.number_group_of_lines(lines, first)
+    line_string = (
+        f"line {start_lineno}"
+        if start_lineno == end_lineno
+        else f"lines {start_lineno}-{end_lineno}"
+    )
+    return (f"""File '{path}' at {line_string}:\n```\n{content}\n```""")

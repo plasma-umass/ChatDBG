@@ -11,7 +11,6 @@ from ..assistant.assistant import Assistant
 from ..util.config import chatdbg_config
 from ..util.history import CommandHistory
 from ..util.log import ChatDBGLog
-from ..util.printer import ChatDBGPrinter
 from .stacks import _FrameSummaryEntry, _SkippedFramesEntry
 
 
@@ -20,6 +19,48 @@ class DBGError(Exception):
     def __init__(self, message):
         self.message = message
         super().__init__(self.message)
+
+def build_enriched_stacktrace(summaries):
+        parts = []
+        if not summaries:
+            print("could not generate any frame summary.")
+        else:
+            frame_summary = "\n".join([str(s) for s in summaries])
+            parts.append(frame_summary)
+
+            total_frames = sum(
+                [s.count() if isinstance(s, _SkippedFramesEntry) else 1 for s in summaries]
+            )
+
+            if total_frames > 1000:
+                parts.append(
+                    "Note that there are over 1000 frames in the stack trace, hinting at a possible stack overflow error."
+                )
+
+        max_initial_locations_to_send = 3
+        source_code_entries = []
+        for summary in summaries:
+            if isinstance(summary, _FrameSummaryEntry):
+                file_path, lineno = summary.file_path(), summary.lineno()
+                lines, first = llm_utils.read_lines(file_path, lineno - 10, lineno + 9)
+                block = llm_utils.number_group_of_lines(lines, first)
+                block = textwrap.indent(block, '  ')
+                source_code_entries.append(
+                    f"Frame #{summary.index()} at {file_path}:{lineno}:\n{block}\n"
+                )
+
+                if len(source_code_entries) == max_initial_locations_to_send:
+                    break
+
+        if source_code_entries:
+            parts.append(
+                f"Here is the source code for the first {len(source_code_entries)} frames:\n\n"
+                + "\n\n".join(source_code_entries)
+            )
+        else:
+            print("could not retrieve source code for any frames.")
+
+        return "\n\n".join(parts)
 
 
 class DBGDialog:
@@ -69,49 +110,7 @@ class DBGDialog:
                 break
 
         assistant.close()
-
-    def _build_enriched_stacktrace(self):
-        parts = []
-        summaries = self._get_frame_summaries()
-        if not summaries:
-            self.warn("could not generate any frame summary.")
-        else:
-            frame_summary = "\n".join([str(s) for s in summaries])
-            parts.append(frame_summary)
-
-            total_frames = sum(
-                [s.count() if isinstance(s, _SkippedFramesEntry) else 1 for s in summaries]
-            )
-
-            if total_frames > 1000:
-                parts.append(
-                    "Note that there are over 1000 frames in the stack trace, hinting at a possible stack overflow error."
-                )
-
-        max_initial_locations_to_send = 3
-        source_code_entries = []
-        for summary in summaries:
-            if isinstance(summary, _FrameSummaryEntry):
-                file_path, lineno = summary.file_path(), summary.lineno()
-                lines, first = llm_utils.read_lines(file_path, lineno - 10, lineno + 9)
-                block = llm_utils.number_group_of_lines(lines, first)
-                block = textwrap.indent(block, '  ')
-                source_code_entries.append(
-                    f"Frame #{summary.index()} at {file_path}:{lineno}:\n{block}\n"
-                )
-
-                if len(source_code_entries) == max_initial_locations_to_send:
-                    break
-
-        if source_code_entries:
-            parts.append(
-                f"Here is the source code for the first {len(source_code_entries)} frames:\n\n"
-                + "\n\n".join(source_code_entries)
-            )
-        else:
-            self.warn("could not retrieve source code for any frames.")
-
-        return "\n\n".join(parts)
+    
 
     # Return string for valid command.  None if the command is not valid.
     def _run_one_command(self, command):
@@ -131,7 +130,7 @@ class DBGDialog:
         return initial_instructions(functions)
 
     def _initial_prompt_enchriched_stack_trace(self):
-        return self._build_enriched_stacktrace()
+        return build_enriched_stacktrace(self._get_frame_summaries())
 
     def _initial_prompt_error_message(self):
         return None

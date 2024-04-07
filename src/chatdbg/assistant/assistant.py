@@ -1,13 +1,18 @@
 import json
-import sys
 import textwrap
 import time
+import pprint
 
 import litellm
 import openai
 
+from ..util.trim import sandwich_tokens, trim_messages
+
 from .listeners import Printer
 
+class AssistantError(Exception):
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)
 
 class Assistant:
     def __init__(
@@ -17,18 +22,18 @@ class Assistant:
         timeout=30,
         listeners=[Printer()],
         functions=[],
-        max_call_response_tokens=4096,
+        max_call_response_tokens=2048,
         debug=False,
         stream=False,
     ):
 
         # Hide their debugging info -- it messes with our error handling
         litellm.suppress_debug_info = True
-
+        
         if debug:
             log_file = open(f"chatdbg.log", "w")
             self._logger = lambda model_call_dict: print(
-                model_call_dict, file=log_file, flush=True
+                pprint.pformat(model_call_dict, width=160), file=log_file, flush=True
             )
         else:
             self._logger = None
@@ -48,8 +53,19 @@ class Assistant:
         self._check_model()
         self._broadcast("on_begin_dialog", instructions)
 
+    def _log(self, dict):
+        if self._logger != None:
+            self._logger(dict)
+
     def close(self):
         self._broadcast("on_end_dialog")
+
+    def _warn_about_exception(self, e, message="Unexpected Exception"):
+        import traceback
+        tb_lines = traceback.format_exception(type(e), e, e.__traceback__)
+        tb_string = ''.join(tb_lines)
+        self._broadcast("on_warn", f"{message}:\n\n{e}\n{tb_string}")
+        
 
     def query(self, prompt: str, user_text):
         """
@@ -67,6 +83,7 @@ class Assistant:
             - "prompt_tokens":      our prompts
             - "completion_tokens":  the LLM completions part
         """
+        stats = {"completed": False, "cost": 0}
         start = time.time()
 
         self._broadcast("on_begin_query", prompt, user_text)
@@ -80,11 +97,28 @@ class Assistant:
             stats["time"] = elapsed
             stats["model"] = self._model
             stats["completed"] = True
-        except:
-            stats = {"completed": False, "cost": 0}
-
+            stats["message"] = f"\n[Cost: ~${stats['cost']:.2f} USD]"
+        except openai.OpenAIError as e:
+            self._warn_about_exception(e, f"Unexpected OpenAI Error.  Retry the query.")
+            stats["message"] = f"[Exception: {e}]"
+        except KeyboardInterrupt:
+            # user action -- just ignore
+            stats["message"] = "[Chat Interrupted]"
+        except Exception as e:
+            self._warn_about_exception(e, f"Unexpected Exception.")
+            stats["message"] = f"[Exception: {e}]"
+        
         self._broadcast("on_end_query", stats)
         return stats
+
+
+    def _report(self, stats):
+        if stats["completed"]:
+            print()
+        else:
+            print("[Chat Interrupted]")
+
+
 
     def _broadcast(self, method_name, *args):
         for client in self._clients:
@@ -98,66 +132,39 @@ class Assistant:
         if missing_keys != []:
             _, provider, _, _ = litellm.get_llm_provider(self._model)
             if provider == "openai":
-                self._broadcast(
-                    "on_fail",
+                raise AssistantError(
                     textwrap.dedent(
                         f"""\
                     You need an OpenAI key to use the {self._model} model.
                     You can get a key here: https://platform.openai.com/api-keys.
                     Set the environment variable OPENAI_API_KEY to your key value."""
-                    ),
+                    )
                 )
-                sys.exit(1)
             else:
-                self._broadcast(
-                    "on_fail",
+                raise AssistantError(
                     textwrap.dedent(
                         f"""\
                     You need to set the following environment variables
-                    to use the {self._model} model: {', '.join(missing_keys)}"""
-                    ),
+                    to use the {self._model} model: {', '.join(missing_keys)}."""
+                    )
                 )
-                sys.exit(1)
 
         try:
             if not litellm.supports_function_calling(self._model):
-                self._broadcast(
-                    "on_fail",
+                raise AssistantError(
                     textwrap.dedent(
                         f"""\
                     The {self._model} model does not support function calls.
                     You must use a model that does, eg. gpt-4."""
-                    ),
+                    )
                 )
-                sys.exit(1)
         except:
-            self._broadcast(
-                "on_fail",
+            raise AssistantError(
                 textwrap.dedent(
                     f"""\
                 {self._model} does not appear to be a supported model.
-                See https://docs.litellm.ai/docs/providers"""
-                ),
-            )
-            sys.exit(1)
-
-    def _sandwhich_tokens(
-        self, text: str, max_tokens: int, top_proportion: float
-    ) -> str:
-        model = self._model
-        if max_tokens == None:
-            return text
-        tokens = litellm.encode(model, text)
-        if len(tokens) <= max_tokens:
-            return text
-        else:
-            total_len = max_tokens - 5  # some slop for the ...
-            top_len = int(top_proportion * total_len)
-            bot_len = int((1 - top_proportion) * total_len)
-            return (
-                litellm.decode(model, tokens[0:top_len])
-                + " [...] "
-                + litellm.decode(model, tokens[-bot_len:])
+                See https://docs.litellm.ai/docs/providers."""
+                )
             )
 
     def _add_function(self, function):
@@ -178,128 +185,121 @@ class Assistant:
             self._broadcast("on_function_call", call, result)
         except OSError as e:
             # function produced some error -- move this to client???
+            # likely to be an exception from the code we ran, not a bug...
             result = f"Error: {e}"
+        except KeyboardInterrupt as e:
+            raise e
         except Exception as e:
+            # likely to be an exception from the code we ran, not a bug...
             result = f"Ill-formed function call: {e}"
         return result
 
     def _batch_query(self, prompt: str, user_text):
         cost = 0
 
-        try:
-            self._conversation.append({"role": "user", "content": prompt})
+        self._conversation.append({"role": "user", "content": prompt})
 
-            while True:
-                self._conversation = litellm.utils.trim_messages(
-                    self._conversation, self._model
+        while True:
+            completion = self._completion()
+
+            cost += litellm.completion_cost(completion)
+
+            response_message = completion.choices[0].message
+            self._conversation.append(response_message.json())
+
+            if response_message.content:
+                self._broadcast(
+                    "on_response", "(Message) " + response_message.content
                 )
 
-                completion = self._completion()
+            if completion.choices[0].finish_reason == "tool_calls":
+                self._add_function_results_to_conversation(response_message)
+            else:
+                break
 
-                cost += litellm.completion_cost(completion)
-
-                response_message = completion.choices[0].message
-                self._conversation.append(response_message)
-
-                if response_message.content:
-                    self._broadcast(
-                        "on_response", "(Message) " + response_message.content
-                    )
-
-                if completion.choices[0].finish_reason == "tool_calls":
-                    self._add_function_results_to_conversation(response_message)
-                else:
-                    break
-
-            stats = {
-                "cost": cost,
-                "tokens": completion.usage.total_tokens,
-                "prompt_tokens": completion.usage.prompt_tokens,
-                "completion_tokens": completion.usage.completion_tokens,
-            }
-            return stats
-        except openai.OpenAIError as e:
-            self._broadcast("on_fail", f"{e}")
-            sys.exit(1)
+        stats = {
+            "cost": cost,
+            "tokens": completion.usage.total_tokens,
+            "prompt_tokens": completion.usage.prompt_tokens,
+            "completion_tokens": completion.usage.completion_tokens,
+        }
+        return stats
 
     def _streamed_query(self, prompt: str, user_text):
         cost = 0
 
-        try:
-            self._conversation.append({"role": "user", "content": prompt})
+        self._conversation.append({"role": "user", "content": prompt})
 
-            while True:
-                self._conversation = litellm.utils.trim_messages(
-                    self._conversation, self._model
+        while True:
+            stream = self._completion(stream=True)
+
+            # litellm.stream_chunk_builder is broken for new GPT models
+            # that have content before calls, so...
+
+            # stream the response, collecting the tool_call parts separately
+            # from the content
+            try:
+                self._broadcast("on_begin_stream")
+                chunks = []
+                tool_chunks = []
+                for chunk in stream:
+                    self._log({"chunk":chunk})
+                    chunks.append(chunk)
+                    if chunk.choices[0].delta.content != None:
+                        self._broadcast(
+                            "on_stream_delta", chunk.choices[0].delta.content
+                        )
+                    else:
+                        tool_chunks.append(chunk)
+            finally:
+                self._broadcast("on_end_stream")
+
+            # then compute for the part that litellm gives back.
+            completion = litellm.stream_chunk_builder(
+                chunks, messages=self._conversation
+            )
+            cost += litellm.completion_cost(completion)
+
+            # add content to conversation, but if there is no content, then the message
+            # has only tool calls, and skip this step
+            response_message = completion.choices[0].message
+            if response_message.content != None:
+                self._conversation.append(response_message.json())
+
+            if response_message.content != None:
+                self._broadcast(
+                    "on_response", "(Message) " + response_message.content
                 )
-                # print("\n".join([str(x) for x in self._conversation]))
 
-                stream = self._completion(stream=True)
-
-                # litellm.stream_chunk_builder is broken for new GPT models
-                # that have content before calls, so...
-
-                # stream the response, collecting the tool_call parts separately
-                # from the content
-                try:
-                    self._broadcast("on_begin_stream")
-                    chunks = []
-                    tool_chunks = []
-                    for chunk in stream:
-                        chunks.append(chunk)
-                        if chunk.choices[0].delta.content != None:
-                            self._broadcast(
-                                "on_stream_delta", chunk.choices[0].delta.content
-                            )
-                        else:
-                            tool_chunks.append(chunk)
-                finally:
-                    self._broadcast("on_end_stream")
-
-                # then compute for the part that litellm gives back.
-                completion = litellm.stream_chunk_builder(
-                    chunks, messages=self._conversation
+            if completion.choices[0].finish_reason == "tool_calls":
+                # create a message with just the tool calls, append that to the conversation, and generate the responses.
+                tool_completion = litellm.stream_chunk_builder(
+                    tool_chunks, self._conversation
                 )
-                cost += litellm.completion_cost(completion)
 
-                # add content to conversation, but if there is no content, then the message
-                # has only tool calls, and skip this step
-                response_message = completion.choices[0].message
-                if response_message.content != None:
-                    self._conversation.append(response_message)
+                # this part wasn't counted above...
+                cost += litellm.completion_cost(tool_completion)
 
-                if response_message.content != None:
-                    self._broadcast(
-                        "on_response", "(Message) " + response_message.content
-                    )
+                tool_message = tool_completion.choices[0].message
+                tool_json = tool_message.json()
+                tool_json['role'] = 'assistant'
+                self._conversation.append(tool_json)
+                self._add_function_results_to_conversation(tool_message)
+            else:
+                break
 
-                if completion.choices[0].finish_reason == "tool_calls":
-                    # create a message with just the tool calls, append that to the conversation, and generate the responses.
-                    tool_completion = litellm.stream_chunk_builder(
-                        tool_chunks, self._conversation
-                    )
-
-                    # this part wasn't counted above...
-                    cost += litellm.completion_cost(tool_completion)
-
-                    tool_message = tool_completion.choices[0].message
-                    self._conversation.append(tool_message)
-                    self._add_function_results_to_conversation(tool_message)
-                else:
-                    break
-
-            stats = {
-                "cost": cost,
-                "tokens": completion.usage.total_tokens,
-                "prompt_tokens": completion.usage.prompt_tokens,
-                "completion_tokens": completion.usage.completion_tokens,
-            }
-            return stats
-        except openai.OpenAIError as e:
-            self._broadcast("on_fail", f"{e}\n")
-            sys.exit(1)
+        stats = {
+            "cost": cost,
+            "tokens": completion.usage.total_tokens,
+            "prompt_tokens": completion.usage.prompt_tokens,
+            "completion_tokens": completion.usage.completion_tokens,
+        }
+        return stats
 
     def _completion(self, stream=False):
+
+        self._trim_conversation()
+
         return litellm.completion(
             model=self._model,
             messages=self._conversation,
@@ -312,14 +312,22 @@ class Assistant:
             stream=stream,
         )
 
+    def _trim_conversation(self):
+        messages = trim_messages(self._conversation, self._model)
+        if self._debug and len(messages) < len(self._conversation): 
+            old_len = litellm.token_counter(self._model, messages = self._conversation)
+            new_len = litellm.token_counter(self._model, messages = messages)
+            self._broadcast("on_warn", f"Trimming conversation from {old_len} to {new_len} tokens.")
+        self._conversation = messages
+
     def _add_function_results_to_conversation(self, response_message):
         response_message["role"] = "assistant"
         tool_calls = response_message.tool_calls
         try:
             for tool_call in tool_calls:
                 function_response = self._make_call(tool_call)
-                function_response = self._sandwhich_tokens(
-                    function_response, self._max_call_response_tokens, 0.5
+                function_response = sandwich_tokens(
+                    function_response, self._model, self._max_call_response_tokens, 0.5
                 )
                 response = {
                     "tool_call_id": tool_call.id,
@@ -331,4 +339,4 @@ class Assistant:
         except Exception as e:
             # Warning: potential infinite loop if the LLM keeps sending
             # the same bad call.
-            self._broadcast("on_warn", f"Error processing tool calls: {e}")
+            self._broadcast("on_warn", f"An exception occured while processing tool calls: {e}")

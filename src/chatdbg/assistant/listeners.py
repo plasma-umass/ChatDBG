@@ -45,9 +45,6 @@ class BaseAssistantListener:
     def on_warn(self, text):
         pass
 
-    def on_fail(self, text):
-        pass
-
 
 class Printer(BaseAssistantListener):
     def __init__(self, out=sys.stdout):
@@ -55,10 +52,6 @@ class Printer(BaseAssistantListener):
 
     def on_warn(self, text):
         print(textwrap.indent(text, "*** "), file=self.out)
-
-    def on_fail(self, text):
-        print(textwrap.indent(text, "*** "), file=self.out)
-        sys.exit(1)
 
     def on_begin_stream(self):
         pass

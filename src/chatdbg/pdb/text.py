@@ -22,3 +22,4 @@ def truncate_proportionally(text: str, maxlen: int=32000, top_proportion: Union[
         post = max(0, maxlen - 3 - pre)
         return text[:pre] + "..." + text[len(text) - post :]
     return text
+

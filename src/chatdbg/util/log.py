@@ -5,7 +5,7 @@ from datetime import datetime
 import yaml
 
 from ..assistant.listeners import BaseAssistantListener
-from ..pdb.capture import CaptureOutput
+from ..pdb_util.capture import CaptureOutput
 from .wrap import word_wrap_except_code_blocks
 
 
@@ -124,9 +124,6 @@ class ChatDBGLog(BaseAssistantListener):
 
     def on_warn(self, text):
         self._post(text, "Warning")
-
-    def on_fail(self, text):
-        self._post(text, "Failure")
 
     def on_response(self, text):
         log = self._log

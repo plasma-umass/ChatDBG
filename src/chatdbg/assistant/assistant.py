@@ -190,8 +190,7 @@ class Assistant:
         except KeyboardInterrupt as e:
             raise e
         except Exception as e:
-            # likely to be a bug...
-            self._warn_about_exception(e, f"Unexpected exception during call.")
+            # likely to be an exception from the code we ran, not a bug...
             result = f"Ill-formed function call: {e}"
         return result
 
@@ -206,7 +205,7 @@ class Assistant:
             cost += litellm.completion_cost(completion)
 
             response_message = completion.choices[0].message
-            self._conversation.append(response_message)
+            self._conversation.append(response_message.json())
 
             if response_message.content:
                 self._broadcast(

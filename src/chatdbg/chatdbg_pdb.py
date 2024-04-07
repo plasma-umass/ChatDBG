@@ -84,6 +84,9 @@ class ChatDBG(ChatDBGSuper):
             if "site-packages" in path or "dist-packages" in path
         ]
 
+        if ChatDBGSuper == InterruptiblePdb:
+            chatdbg_config.no_stream = True
+
         self._log = ChatDBGLog(
             log_filename=chatdbg_config.log,
             config=chatdbg_config.to_json(),
@@ -577,7 +580,7 @@ class ChatDBG(ChatDBGSuper):
             max_call_response_tokens= 8192 // 8,
             listeners=[
                 chatdbg_config.make_printer(
-                    self.stdout, self.prompt, self._chat_prefix, self._text_width
+                    self.stdout, self.prompt, self._chat_prefix, self._text_width,not chatdbg_config.no_stream
                 ),
                 self._log,
             ],

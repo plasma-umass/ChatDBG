@@ -157,17 +157,17 @@ class ChatDBGConfig(Configurable):
         except Exception as e:
             return str(e) + f"\nChatDBG arguments:\n\n{self.user_flags_help()}"
 
-    def make_printer(self, stdout, prompt, prefix, width, stream):
+    def make_printer(self, stdout, prompt, prefix, width):
         format = chatdbg_config.format
         if format == "md":
             return ChatDBGMarkdownPrinter(
-                stdout, prompt, prefix, width, stream=stream
+                stdout, prompt, prefix, width
             )
         elif format == 'text':
-            return ChatDBGPrinter(stdout, prompt, prefix, width, stream=stream)
+            return ChatDBGPrinter(stdout, prompt, prefix, width)
         else:
             print("*** Unknown format '{format}'.  Defaulting to 'text'", file=stdout)
-            return ChatDBGPrinter(stdout, prompt, prefix, width, stream=stream)
+            return ChatDBGPrinter(stdout, prompt, prefix, width)
 
 
 chatdbg_config: ChatDBGConfig = ChatDBGConfig()

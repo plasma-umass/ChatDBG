@@ -84,7 +84,7 @@ class ChatDBG(ChatDBGSuper):
             if "site-packages" in path or "dist-packages" in path
         ]
 
-        if ChatDBGSuper == InterruptiblePdb:
+        if ChatDBGSuper == IPython.core.debugger.InterruptiblePdb:
             chatdbg_config.no_stream = True
 
         self._log = ChatDBGLog(
@@ -577,10 +577,10 @@ class ChatDBG(ChatDBGSuper):
             debug=chatdbg_config.debug,
             functions=functions,
             stream=not chatdbg_config.no_stream,
-            max_call_response_tokens= 8192 // 8,
+            max_call_response_tokens= 8192,
             listeners=[
                 chatdbg_config.make_printer(
-                    self.stdout, self.prompt, self._chat_prefix, self._text_width,not chatdbg_config.no_stream
+                    self.stdout, self.prompt, self._chat_prefix, self._text_width
                 ),
                 self._log,
             ],

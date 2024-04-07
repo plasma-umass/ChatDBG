@@ -6,16 +6,18 @@ import os
 
 
 class ChatDBGPrinter(BaseAssistantListener):
-    def __init__(self, out, debugger_prompt, chat_prefix, width, stream=False):
+    def __init__(self, out, debugger_prompt, chat_prefix, width):
         self._out = out
         self._debugger_prompt = debugger_prompt
         self._chat_prefix = chat_prefix
         try:
             self._width = min(width, os.get_terminal_size().columns - len(chat_prefix))
         except:
-            # get_terminal_size() may file in notebooks
+            # get_terminal_size() may fail in notebooks
             self._width = width
-        self._stream = stream
+
+        # used to keep track of streaming
+        self._at_start = True
 
     # Call backs
 
@@ -56,9 +58,10 @@ class ChatDBGPrinter(BaseAssistantListener):
 
     def on_end_stream(self):
         print(self._stream_wrapper.flush(), end="", flush=True, file=self._out)
+        self._at_start = True
 
     def on_response(self, text):
-        if not self._stream and text != None:
+        if self._at_start and text != None:
             text = word_wrap_except_code_blocks(
                 text, self._width - len(self._chat_prefix)
             )

@@ -263,7 +263,7 @@ class DBGDialog:
             functions=functions,
             stream=not chatdbg_config.no_stream,
             listeners=[
-                chatdbg_config.make_printer(sys.stdout, self._prompt, "   ", 80,not chatdbg_config.no_stream),
+                chatdbg_config.make_printer(sys.stdout, self._prompt, "   ", 80),
                 self._log
             ],
         )

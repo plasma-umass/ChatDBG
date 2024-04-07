@@ -13,11 +13,11 @@ def sandwich_tokens(
     else:
         total_len = max_tokens - 5  # some slop for the ...
         top_len = int(top_proportion * total_len)
-        bot_len = int((1 - top_proportion) * total_len)
+        bot_start = len(tokens) - (total_len - top_len)
         return (
             litellm.decode(model, tokens[0:top_len])
             + " [...] "
-            + litellm.decode(model, tokens[-bot_len:])
+            + litellm.decode(model, tokens[bot_start:])
         )
 
 def sum_messages(messages, model):
@@ -34,7 +34,9 @@ def extract(messages, model, tool_call_ids):
     other = [ ]
     for m in messages:
         if m.get('tool_call_id', -1) in tool_call_ids:
-            m['content'] = sandwich_tokens(m['content'], model, 512, 1.0)
+            content = sandwich_tokens(m['content'], model, 512, 1.0)
+            # print(len(litellm.encode(model, m['content'])), '->', len(litellm.encode(model, content)))
+            m['content'] = content
             tools += [ m ]
         else:
             other += [ m ] 
@@ -43,13 +45,14 @@ def extract(messages, model, tool_call_ids):
 def chunkify(messages, model):
     if not messages:
         return [ ]
-    message = messages[0]
-    if 'tool_calls' not in message:
-        return [ ([message], False) ] + chunkify(messages[1:], model)
+    m = messages[0]
+    if 'tool_calls' not in m:
+        m['content'] = sandwich_tokens(m['content'], model, 512, 0)
+        return [ ([m], False) ] + chunkify(messages[1:], model)
     else:
-        ids = [ tool_call['id'] for tool_call in message['tool_calls']]
+        ids = [ tool_call['id'] for tool_call in m['tool_calls']]
         tools, other = extract(messages[1:], model, ids)
-        return [ ([message] + tools, False) ] + chunkify(other, model)
+        return [ ([m] + tools, False) ] + chunkify(other, model)
 
 
 def trim_messages(
@@ -78,30 +81,33 @@ def trim_messages(
         return messages
 
     chunks = chunkify(messages=messages, model=model)
-    # print("0", sum_all_chunks(chunks, model))
-
+    #print("0", sum_all_chunks(chunks, model), max_tokens)
+ 
     # 1. System messages
     chunks = [ (m, b or m[0]['role'] == 'system') for (m,b) in chunks]
-    # print("1", sum_kept_chunks(chunks, model))
+    #print("1", sum_kept_chunks(chunks, model))
 
     # 2. First User Message
     for i in range(len(chunks)):
         messages, kept = chunks[i]
         if messages[0]['role'] == 'user':
             chunks[i] = (messages, True)
-    # print("2", sum_kept_chunks(chunks, model))
+    #print("2", sum_kept_chunks(chunks, model))
     
     # 3. Fill it up
     for i in range(len(chunks))[::-1]:
         messages, kept = chunks[i]
         if kept:
+            #print('+')
             continue
         elif sum_kept_chunks(chunks, model) + sum_messages(messages, model) < max_tokens:
+            #print('-', len(messages))
             chunks[i] = (messages, True)
         else:
+            #print("N", sum_kept_chunks(chunks, model), sum_messages(messages, model))
             break
 
-    # print("3", sum_kept_chunks(chunks, model))
+    #print("3", sum_kept_chunks(chunks, model))
 
     assert sum_kept_chunks(chunks, model) < max_tokens, f"New conversation too big {sum_kept_chunks(chunks, model)} vs {max_tokens}!"
 

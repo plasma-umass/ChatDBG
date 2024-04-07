@@ -37,18 +37,21 @@ _theme = Theme(
 class ChatDBGMarkdownPrinter(BaseAssistantListener):
 
     def __init__(
-        self, out, debugger_prompt, chat_prefix, width, stream=False
+        self, out, debugger_prompt, chat_prefix, width
     ):
         self._out = out
         self._debugger_prompt = debugger_prompt
         self._chat_prefix = chat_prefix
         self._left_indent = 4
         self._width = shutil.get_terminal_size(fallback=(width, 24)).columns
-        self._stream = stream
         self._theme = _theme
         self._code_theme = "default"
         self._console = Console(soft_wrap=False, file=out, theme=self._theme, width=self._width)
 
+        # used to keep track of streaming
+        self._streamed = ""
+
+        
     # Call backs
 
     def on_begin_query(self, prompt, user_text):
@@ -95,9 +98,10 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
             self._live.stop()
 
     def on_response(self, text):
-        if not self._stream and text != None:
+        if self._streamed == "" and text != None:
             m = self._wrap_in_panel(Markdown(text, code_theme=self._code_theme))
             self._console.print(m)
+        self._streamed = ""
 
     def on_function_call(self, call, result):
         

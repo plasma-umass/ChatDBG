@@ -314,10 +314,10 @@ class Assistant:
 
     def _trim_conversation(self):
         messages = trim_messages(self._conversation, self._model)
-        if self._debug and len(messages) < len(self._conversation): 
-            old_len = litellm.token_counter(self._model, messages = self._conversation)
-            new_len = litellm.token_counter(self._model, messages = messages)
-            self._broadcast("on_warn", f"Trimming conversation from {old_len} to {new_len} tokens.")
+        # if self._debug and len(messages) < len(self._conversation): 
+        #     old_len = litellm.token_counter(self._model, messages = self._conversation)
+        #     new_len = litellm.token_counter(self._model, messages = messages)
+        #     self._broadcast("on_warn", f"Trimming conversation from {old_len} to {new_len} tokens.")
         self._conversation = messages
 
     def _add_function_results_to_conversation(self, response_message):

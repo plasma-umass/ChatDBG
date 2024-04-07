@@ -46,10 +46,6 @@ def _function_code(
     result.AppendMessage(formatted)
 
 
-_clangd = None
-if clangd_lsp_integration.is_available():
-    _clangd = clangd_lsp_integration.clangd()
-
 
 @lldb.command("definition")
 def _function_definition(
@@ -114,7 +110,10 @@ def _function_definition(
         result.SetError("symbol not found at that location.")
         return
 
-    global _clangd
+    _clangd = None
+    if clangd_lsp_integration.is_available():
+        _clangd = clangd_lsp_integration.clangd()
+        
     _clangd.didOpen(filename, "c" if filename.endswith(".c") else "cpp")
     definition = _clangd.definition(filename, lineno, character + 1)
     _clangd.didClose(filename)

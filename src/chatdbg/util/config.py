@@ -1,13 +1,15 @@
 import argparse
 import os
+from textwrap import TextWrapper
 
 from traitlets import Bool, Int, Unicode
 from traitlets.config import Configurable
 
+from assistant.listeners import BaseAssistantListener
 from chatdbg.util.markdown import ChatDBGMarkdownPrinter
 from chatdbg.util.printer import ChatDBGPrinter
 
-from io import StringIO
+from io import StringIO, TextIOWrapper
 from types import *
 from typing import *
 
@@ -107,7 +109,7 @@ class ChatDBGConfig(Configurable):
 
         return parser
 
-    def to_json(self):
+    def to_json(self) -> Dict[str, Union[int, str, bool]]:
         """Serialize the object to a JSON string."""
         return {
             "model": self.model,
@@ -125,7 +127,7 @@ class ChatDBGConfig(Configurable):
             "instructions": self.instructions,
         }
 
-    def parse_user_flags(self, argv):
+    def parse_user_flags(self, argv: List[str]) -> None:
 
         args, unknown_args = self._parser().parse_known_args(argv)
 
@@ -134,7 +136,7 @@ class ChatDBGConfig(Configurable):
 
         return unknown_args
 
-    def user_flags_help(self):
+    def user_flags_help(self) -> str:
         return "\n".join(
             [
                 self.class_get_trait_help(x, self).replace("ChatDBGConfig.", "")
@@ -142,7 +144,7 @@ class ChatDBGConfig(Configurable):
             ]
         )
 
-    def user_flags(self):
+    def user_flags(self) -> str:
         return "\n".join(
             [
                 f"  --{x.name:10}{self._trait_values[x.name]}"
@@ -150,7 +152,7 @@ class ChatDBGConfig(Configurable):
             ]
         )
 
-    def parse_only_user_flags(self, args):
+    def parse_only_user_flags(self, args: List[str]) -> str:
         try:
             unknown = chatdbg_config.parse_user_flags(args)
             if unknown:
@@ -162,7 +164,9 @@ class ChatDBGConfig(Configurable):
         except Exception as e:
             return str(e) + f"\nChatDBG arguments:\n\n{self.user_flags_help()}"
 
-    def make_printer(self, stdout, prompt, prefix, width):
+    def make_printer(
+        self, stdout: TextIOWrapper, prompt: str, prefix: str, width: int
+    ) -> BaseAssistantListener:
         format = chatdbg_config.format
         split = format.split(":")
         if split[0] == "md":

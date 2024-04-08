@@ -1,6 +1,10 @@
 
 import copy
-import litellm
+import warnings
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    import litellm
 
 def sandwich_tokens(
     text: str, model: str, max_tokens: int = 1024, top_proportion: float = 0.5

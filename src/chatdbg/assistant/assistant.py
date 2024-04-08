@@ -4,7 +4,12 @@ import textwrap
 import time
 import pprint
 
-import litellm
+import warnings
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    import litellm
+
 import openai
 
 from ..util.trim import sandwich_tokens, trim_messages

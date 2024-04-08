@@ -46,11 +46,14 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
         self._width = shutil.get_terminal_size(fallback=(width, 24)).columns
         self._theme = _theme
         self._code_theme = "default"
-        self._console = Console(soft_wrap=False, file=out, theme=self._theme, width=self._width)
-
         # used to keep track of streaming
         self._streamed = ""
 
+        self._console = self._make_console(out)
+
+
+    def _make_console(self, out):
+        return Console(soft_wrap=False, file=out, theme=self._theme, width=self._width)
         
     # Call backs
 
@@ -60,9 +63,8 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
     def on_end_query(self, stats):
         pass
 
-    def _print(self, text, **kwargs):
-        if text.strip():
-            self._console.print(text, end="")
+    def _print(self, renderable, end=""):
+        self._console.print(renderable, end=end)
 
     def _wrap_in_panel(self, rich_element):
 
@@ -77,7 +79,7 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
         return table
 
     def on_warn(self, text):
-        self._print(textwrap.indent(text + "\n\n", "*** "))
+        self._print(textwrap.indent(text + "\n\n", "*** ", lambda _: True))
 
     def _stream_append(self, text):
         self._streamed += text
@@ -100,7 +102,7 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
     def on_response(self, text):
         if self._streamed == "" and text != None:
             m = self._wrap_in_panel(Markdown(text, code_theme=self._code_theme))
-            self._console.print(m)
+            self._print(m, end="\n")
         self._streamed = ""
 
     def on_function_call(self, call, result):
@@ -117,4 +119,4 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
         entry += full_response
             
         m = self._wrap_in_panel(entry) 
-        self._console.print(m, end='')
+        self._print(m, end='')

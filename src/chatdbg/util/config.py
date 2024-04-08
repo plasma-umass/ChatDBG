@@ -11,6 +11,8 @@ from io import StringIO
 from types import *
 from typing import *
 
+from chatdbg.util.jupyter import ChatDBGJupyterPrinter
+
 def _chatdbg_get_env(option_name: str, default_value: Union[int, str, bool]) -> Union[int, str, bool]:
     env_name = "CHATDBG_" + option_name.upper()
     v = os.getenv(env_name, str(default_value))
@@ -165,6 +167,8 @@ class ChatDBGConfig(Configurable):
             )
         elif format == 'text':
             return ChatDBGPrinter(stdout, prompt, prefix, width)
+        elif format == 'jupyter':
+            return ChatDBGJupyterPrinter(stdout, prompt, prefix, width)
         else:
             print("*** Unknown format '{format}'.  Defaulting to 'text'", file=stdout)
             return ChatDBGPrinter(stdout, prompt, prefix, width)

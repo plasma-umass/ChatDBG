@@ -8,7 +8,7 @@ import gdb
 import llm_utils
 
 sys.path.append(os.path.abspath(pathlib.Path(__file__).parent.resolve()))
-import chatdbg_utils
+import old_stuff.chatdbg_utils as chatdbg_utils
 
 # The file produced by the panic handler if the Rust program is using the chatdbg crate.
 rust_panic_log_filename = "panic_log.txt"

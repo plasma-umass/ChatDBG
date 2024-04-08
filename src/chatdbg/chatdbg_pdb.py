@@ -33,6 +33,7 @@ def load_ipython_extension(ipython):
     print("*** Loaded ChatDBG ***")
 
 
+_special_config = [ ]
 try:
     ipython = IPython.get_ipython()
     if ipython != None:
@@ -45,6 +46,7 @@ try:
             # inside jupyter
             from IPython.core.debugger import InterruptiblePdb
             ChatDBGSuper = InterruptiblePdb
+            _special_config +=  [ '--format=jupyter' ] 
     else:
         # ichatpdb on command line
         from IPython.terminal.debugger import TerminalPdb
@@ -57,6 +59,8 @@ except NameError as e:
 class ChatDBG(ChatDBGSuper):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        chatdbg_config.parse_only_user_flags(_special_config)
 
         self.prompt = "(ChatDBG) "
         self._chat_prefix = "   "
@@ -83,9 +87,6 @@ class ChatDBG(ChatDBGSuper):
             for path in sys.path
             if "site-packages" in path or "dist-packages" in path
         ]
-
-        if ChatDBGSuper == IPython.core.debugger.InterruptiblePdb:
-            chatdbg_config.no_stream = True
 
         self._log = ChatDBGLog(
             log_filename=chatdbg_config.log,

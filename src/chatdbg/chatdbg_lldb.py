@@ -65,8 +65,6 @@ def chat(
     internal_dict: dict,
 ):
     try:
-        # print(type(sys.stdout))
-        # print(type(sys.__stdout__))
         dialog = LLDBDialog(PROMPT, debugger)
         dialog.dialog(command)
     except Exception as e:

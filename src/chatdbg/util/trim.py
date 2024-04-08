@@ -47,7 +47,7 @@ def chunkify(messages, model):
         return [ ]
     m = messages[0]
     if 'tool_calls' not in m:
-        m['content'] = sandwich_tokens(m['content'], model, 512, 0)
+        m['content'] = sandwich_tokens(m['content'], model, 1024, 0)
         return [ ([m], False) ] + chunkify(messages[1:], model)
     else:
         ids = [ tool_call['id'] for tool_call in m['tool_calls']]
@@ -111,4 +111,4 @@ def trim_messages(
 
     assert sum_kept_chunks(chunks, model) < max_tokens, f"New conversation too big {sum_kept_chunks(chunks, model)} vs {max_tokens}!"
 
-    return [ m for (messages, kept) in chunks for m in messages if kept]
+    return [ m for (messages, kept) in chunks if kept for m in messages]

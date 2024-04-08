@@ -80,7 +80,7 @@ class ChatDBGConfig(Configurable):
 
     format = Unicode(
         _chatdbg_get_env("format", "md"),
-        help="The output format (text or md:light or md:dark).",
+        help="The output format (text or md or md:simple or jupyter).",
     ).tag(config=True)
 
     instructions = Unicode(

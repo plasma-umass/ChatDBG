@@ -37,7 +37,7 @@ _themes = {
             "warning": "bright_white on green",
             "error": "bright_white on red"
         }),
-    "llvm" : Theme(
+    "basic" : Theme(
         {
             "markdown.block": "bright_blue on bright_white",
             "markdown.paragraph": "bright_blue on bright_white",
@@ -113,7 +113,7 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
 
         self._console = self._make_console(out)
 
-        if theme == 'llvm':
+        if theme == 'basic':
             Markdown.elements["list_item_open"] = MyListItem
             self._code_theme = "monokai"
 
@@ -181,7 +181,7 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
         line = fill_to_width(f"\n{prefix}{self._debugger_prompt}{call}", self._width)
         entry = f"[command]{escape(line)}[/]\n"
 
-        entry += self._wrap_and_fill_and_indent(result+"\n", prefix, "result")
+        entry += self._wrap_and_fill_and_indent(result.rstrip()+"\n", prefix, "result")
         m = self._wrap_in_panel(entry)
         self._print(m, end='')
 

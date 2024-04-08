@@ -1,5 +1,8 @@
 
+import textwrap
 from typing import List
+
+import llm_utils
 
 
 class _ArgumentEntry:
@@ -59,3 +62,45 @@ class _SkippedFramesEntry:
     def __repr__(self):
         return f"_SkippedFramesEntry({self._count})"
 
+
+def build_enriched_stacktrace(summaries):
+        parts = []
+        if not summaries:
+            print("could not generate any frame summary.")
+        else:
+            frame_summary = "\n".join([str(s) for s in summaries])
+            parts.append(frame_summary)
+
+            total_frames = sum(
+                [s.count() if isinstance(s, _SkippedFramesEntry) else 1 for s in summaries]
+            )
+
+            if total_frames > 1000:
+                parts.append(
+                    "Note that there are over 1000 frames in the stack trace, hinting at a possible stack overflow error."
+                )
+
+        max_initial_locations_to_send = 3
+        source_code_entries = []
+        for summary in summaries:
+            if isinstance(summary, _FrameSummaryEntry):
+                file_path, lineno = summary.file_path(), summary.lineno()
+                lines, first = llm_utils.read_lines(file_path, lineno - 10, lineno + 9)
+                block = llm_utils.number_group_of_lines(lines, first)
+                block = textwrap.indent(block, '  ')
+                source_code_entries.append(
+                    f"Frame #{summary.index()} at {file_path}:{lineno}:\n{block}\n"
+                )
+
+                if len(source_code_entries) == max_initial_locations_to_send:
+                    break
+
+        if source_code_entries:
+            parts.append(
+                f"Here is the source code for the first {len(source_code_entries)} frames:\n\n"
+                + "\n\n".join(source_code_entries)
+            )
+        else:
+            print("could not retrieve source code for any frames.")
+
+        return "\n\n".join(parts)

@@ -24,14 +24,18 @@ def truncate_proportionally(text, maxlen=32000, top_proportion=0.5):
         return text[:pre] + "[...]" + text[len(text) - post :]
     return text
 
-def wrap_long_lines(text, width=80, subsequent_indent='    '):
+
+def wrap_long_lines(text, width=80, subsequent_indent="    "):
     wrapped_lines = []
-    for line in text.split('\n'):
+    for line in text.split("\n"):
         if len(line) > width:
-            wrapped_lines.extend(textwrap.wrap(line, width, subsequent_indent = subsequent_indent))
+            wrapped_lines.extend(
+                textwrap.wrap(line, width, subsequent_indent=subsequent_indent)
+            )
         else:
             wrapped_lines.append(line)
-    return '\n'.join(wrapped_lines)
+    return "\n".join(wrapped_lines)
 
-def fill_to_width(text, width = 80):
-    return "\n".join([ line.ljust(width) for line in text.split("\n")])
+
+def fill_to_width(text, width=80):
+    return "\n".join([line.ljust(width) for line in text.split("\n")])

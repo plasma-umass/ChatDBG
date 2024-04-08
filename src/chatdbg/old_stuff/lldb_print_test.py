@@ -1,4 +1,3 @@
-
 @lldb.command("print-test")
 def print_test(
     debugger: lldb.SBDebugger,

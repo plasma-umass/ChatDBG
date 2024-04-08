@@ -7,7 +7,11 @@ from typing import List, Optional, Union
 import lldb
 
 from chatdbg.native_util import clangd_lsp_integration
-from chatdbg.native_util.stacks import _ArgumentEntry, _FrameSummaryEntry, _SkippedFramesEntry
+from chatdbg.native_util.stacks import (
+    _ArgumentEntry,
+    _FrameSummaryEntry,
+    _SkippedFramesEntry,
+)
 from chatdbg.native_util.code import code
 from chatdbg.util.config import chatdbg_config
 
@@ -22,7 +26,6 @@ PROMPT = "(ChatDBG lldb) "
 def __lldb_init_module(debugger: lldb.SBDebugger, internal_dict: dict) -> None:
     debugger.HandleCommand(f"settings set prompt '{PROMPT}'")
     chatdbg_config.format = "md"
-
 
 
 @lldb.command("code")
@@ -59,6 +62,7 @@ def chat(
     except Exception as e:
         result.SetError(str(e))
 
+
 # @lldb.command("test_prompt")
 # def test_prompt(
 #     debugger: lldb.SBDebugger,
@@ -86,7 +90,6 @@ def config(
     args = command.split()
     message = chatdbg_config.parse_only_user_flags(args)
     result.AppendMessage(message)
-
 
 
 ####
@@ -137,7 +140,6 @@ class LLDBDialog(DBGDialog):
                 return thread
         return thread
 
-
     def check_debugger_state(self):
         if not self._debugger.GetSelectedTarget():
             self.fail("must be attached to a program to use `chat`.")
@@ -156,8 +158,8 @@ class LLDBDialog(DBGDialog):
                 "`clangd` was not found. The `find_definition` function will not be made available."
             )
 
-        
-    def _get_frame_summaries(self, max_entries: int = 20
+    def _get_frame_summaries(
+        self, max_entries: int = 20
     ) -> Optional[List[Union[_FrameSummaryEntry, _SkippedFramesEntry]]]:
         thread = self.get_thread(self._debugger)
         if not thread:
@@ -179,7 +181,9 @@ class LLDBDialog(DBGDialog):
             ):
                 arg = frame.FindVariable(frame.GetFunction().GetArgumentName(j))
                 if not arg:
-                    arguments.append(_ArgumentEntry("[unknown]", "[unknown]", "[unknown]"))
+                    arguments.append(
+                        _ArgumentEntry("[unknown]", "[unknown]", "[unknown]")
+                    )
                     continue
                 # TODO: Check if we should simplify / truncate types, e.g. std::unordered_map.
                 arguments.append(
@@ -205,7 +209,9 @@ class LLDBDialog(DBGDialog):
                 summaries.append(_SkippedFramesEntry(skipped))
                 skipped = 0
 
-            summaries.append(_FrameSummaryEntry(index, name, arguments, file_path, lineno))
+            summaries.append(
+                _FrameSummaryEntry(index, name, arguments, file_path, lineno)
+            )
             if len(summaries) >= max_entries:
                 break
 
@@ -224,7 +230,9 @@ class LLDBDialog(DBGDialog):
                     len(thread) - total_summary_count + summaries[-1].count()
                 )
             else:
-                summaries.append(_SkippedFramesEntry(len(thread) - total_summary_count + 1))
+                summaries.append(
+                    _SkippedFramesEntry(len(thread) - total_summary_count + 1)
+                )
                 if len(summaries) > max_entries:
                     summaries.pop(-2)
 
@@ -233,7 +241,6 @@ class LLDBDialog(DBGDialog):
         ) == len(thread)
 
         return summaries
-
 
     def _get_process(self, debugger) -> Optional[lldb.SBProcess]:
         """
@@ -246,7 +253,7 @@ class LLDBDialog(DBGDialog):
     def _initial_prompt_error_message(self):
         thread = self.get_thread(self._debugger)
 
-        error_message = (thread.GetStopDescription(1024) if thread else None)
+        error_message = thread.GetStopDescription(1024) if thread else None
         if error_message:
             return error_message
         else:
@@ -255,13 +262,17 @@ class LLDBDialog(DBGDialog):
 
     def _initial_prompt_command_line(self):
         executable = self._debugger.GetSelectedTarget().GetExecutable()
-        executable_path = os.path.join(executable.GetDirectory(), executable.GetFilename())
+        executable_path = os.path.join(
+            executable.GetDirectory(), executable.GetFilename()
+        )
         if executable_path.startswith(os.getcwd()):
             executable_path = os.path.join(".", os.path.relpath(executable_path))
 
         command_line_arguments = [
             self._debugger.GetSelectedTarget().GetLaunchInfo().GetArgumentAtIndex(i)
-            for i in range(self._debugger.GetSelectedTarget().GetLaunchInfo().GetNumArguments())
+            for i in range(
+                self._debugger.GetSelectedTarget().GetLaunchInfo().GetNumArguments()
+            )
         ]
 
         command_line_invocation = " ".join([executable_path, *command_line_arguments])
@@ -275,8 +286,8 @@ class LLDBDialog(DBGDialog):
         stream = lldb.SBStream()
         self._debugger.GetSetting("target.input-path").GetAsJSON(stream)
         entry = json.loads(stream.GetData())
-    
-        input_path = (entry if entry else None)
+
+        input_path = entry if entry else None
         if input_path:
             try:
                 with open(input_path, "r", errors="ignore") as file:
@@ -284,7 +295,7 @@ class LLDBDialog(DBGDialog):
                     return input_contents
             except FileNotFoundError:
                 self.warn("could not retrieve the input data.")
-                return None    
+                return None
 
     def _initial_prompt_error_details(self):
         """Anything more beyond the initial error message to include."""
@@ -296,5 +307,3 @@ class LLDBDialog(DBGDialog):
         in followup prompts.
         """
         return None
-
-

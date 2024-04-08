@@ -1,14 +1,14 @@
 class CommandHistory:
 
     def __init__(self, prompt):
-        self._history = [ ]
+        self._history = []
         self._prompt = prompt
 
     def append(self, command, result):
-        self._history += [ (command, result) ]
+        self._history += [(command, result)]
 
     def clear(self):
-        self._history = [ ]
+        self._history = []
 
     def _format_history_entry(self, entry):
         line, output = entry

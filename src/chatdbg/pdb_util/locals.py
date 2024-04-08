@@ -10,6 +10,7 @@ from io import StringIO
 from types import *
 from typing import *
 
+
 class SymbolFinder(ast.NodeVisitor):
     def __init__(self):
         self.defined_symbols = set()
@@ -29,6 +30,7 @@ class SymbolFinder(ast.NodeVisitor):
         if isinstance(node.target, ast.Name):
             self.defined_symbols.add(node.target.id)
         self.generic_visit(node)
+
 
 def _extract_locals(frame: FrameType) -> Set[str]:
     try:
@@ -61,7 +63,7 @@ def _extract_nb_globals(globals):
     return result
 
 
-def _is_iterable(obj: Union[Any, List[str], List[Any]]) -> bool: # FIXME
+def _is_iterable(obj: Union[Any, List[str], List[Any]]) -> bool:  # FIXME
     try:
         iter(obj)
         return True
@@ -69,7 +71,7 @@ def _is_iterable(obj: Union[Any, List[str], List[Any]]) -> bool: # FIXME
         return False
 
 
-def _repr_if_defined(obj: Union[Any, List[str], List[Any]]) -> bool: # FIXME
+def _repr_if_defined(obj: Union[Any, List[str], List[Any]]) -> bool:  # FIXME
     if obj.__class__ in [np.ndarray, dict, list, tuple]:
         # handle these at iterables to truncate reasonably
         return False
@@ -80,7 +82,9 @@ def _repr_if_defined(obj: Union[Any, List[str], List[Any]]) -> bool: # FIXME
     return result
 
 
-def _format_limited(value: Union[np.ndarray, int], limit: int=10, depth: int=3) -> str:
+def _format_limited(
+    value: Union[np.ndarray, int], limit: int = 10, depth: int = 3
+) -> str:
     def format_tuple(t, depth):
         return tuple([helper(x, depth) for x in t])
 

@@ -1,4 +1,3 @@
-
 class PrintTest(gdb.Command):
     """print all variables in a run while recursing through pointers, keeping track of seen addresses"""
 

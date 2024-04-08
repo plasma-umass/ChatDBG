@@ -1,8 +1,11 @@
 import sys
 
 from . import clangd_lsp_integration
-from ..util.prompts import (build_followup_prompt, build_initial_prompt,
-                          initial_instructions)
+from ..util.prompts import (
+    build_followup_prompt,
+    build_initial_prompt,
+    initial_instructions,
+)
 
 from ..assistant.assistant import Assistant
 from ..util.config import chatdbg_config
@@ -43,10 +46,10 @@ class DBGDialog:
         while True:
             try:
                 command = input(">>> " + self._prompt).strip()
-                
-                if command in [ "exit", "quit" ]:
+
+                if command in ["exit", "quit"]:
                     break
-                if command in [ "chat", "why" ]:
+                if command in ["chat", "why"]:
                     self.query_and_print(assistant, command, True)
                 elif command == "history":
                     print(self._history)
@@ -65,13 +68,12 @@ class DBGDialog:
                 break
 
         assistant.close()
-    
 
     # Return string for valid command.  None if the command is not valid.
     def _run_one_command(self, command):
         pass
 
-    def _message_is_a_bad_command_error(self, message):        
+    def _message_is_a_bad_command_error(self, message):
         pass
 
     def check_debugger_state(self):
@@ -112,19 +114,20 @@ class DBGDialog:
 
     def build_prompt(self, arg, conversing):
         if not conversing:
-            return build_initial_prompt(self._initial_prompt_enchriched_stack_trace(),
-                                 self._initial_prompt_error_message(),
-                                 self._initial_prompt_error_details(),
-                                 self._initial_prompt_command_line(),
-                                 self._initial_prompt_input(),
-                                 self._prompt_history(),
-                                 None,
-                                 arg)
+            return build_initial_prompt(
+                self._initial_prompt_enchriched_stack_trace(),
+                self._initial_prompt_error_message(),
+                self._initial_prompt_error_details(),
+                self._initial_prompt_command_line(),
+                self._initial_prompt_input(),
+                self._prompt_history(),
+                None,
+                arg,
+            )
         else:
-            return build_followup_prompt(self._prompt_history(), 
-                                         self._prompt_stack(), 
-                                         arg)
-
+            return build_followup_prompt(
+                self._prompt_history(), self._prompt_stack(), arg
+            )
 
     # TODO: Factor out the name of the debugger that's embedded in the doc string...
     def llm_debug(self, command: str) -> str:
@@ -201,9 +204,9 @@ class DBGDialog:
         )
 
     def _supported_functions(self):
-        functions = [ self.llm_debug, self.llm_get_code_surrounding]
+        functions = [self.llm_debug, self.llm_get_code_surrounding]
         if clangd_lsp_integration.is_available():
-            functions += [ self.llm_find_definition ]
+            functions += [self.llm_find_definition]
         return functions
 
     def _make_assistant(self) -> Assistant:
@@ -219,12 +222,12 @@ class DBGDialog:
             stream=not chatdbg_config.no_stream,
             listeners=[
                 chatdbg_config.make_printer(sys.stdout, self._prompt, "   ", 80),
-                self._log
+                self._log,
             ],
         )
 
         return assistant
-        
+
     def warn(self, message):
         print(message)
 

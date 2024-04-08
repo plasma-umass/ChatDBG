@@ -17,7 +17,7 @@ from chatdbg.util.text import fill_to_width, wrap_long_lines
 from ..assistant.listeners import BaseAssistantListener
 
 
-_themes = { 
+_themes = {
     "default": Theme(
         {
             "markdown.block": "black on light_steel_blue1",
@@ -35,9 +35,10 @@ _themes = {
             "command": "bold gray11 on wheat1",
             "result": "grey35 on wheat1",
             "warning": "bright_white on green",
-            "error": "bright_white on red"
-        }),
-    "basic" : Theme(
+            "error": "bright_white on red",
+        }
+    ),
+    "basic": Theme(
         {
             "markdown.block": "bright_blue on bright_white",
             "markdown.paragraph": "bright_blue on bright_white",
@@ -54,26 +55,19 @@ _themes = {
             "command": "bold bright_yellow on white",
             "result": "yellow on white",
             "warning": "bright_white on green",
-            "error": "bright_white on red"
+            "error": "bright_white on red",
         }
-    )
+    ),
 }
 
 _simple_box = Box = box.Box(
-    "    \n"
-    "    \n"
-    "    \n"
-    "    \n"
-    "    \n"
-    "    \n"
-    "    \n"
-    "    \n",
-    ascii=True
+    "    \n" "    \n" "    \n" "    \n" "    \n" "    \n" "    \n" "    \n", ascii=True
 )
 
 from rich.markdown import *
+
+
 class MyListItem(rich.markdown.ListItem):
-    
     """An item in a list."""
 
     style_name = "markdown.item"
@@ -95,12 +89,9 @@ class MyListItem(rich.markdown.ListItem):
             yield new_line
 
 
-
 class ChatDBGMarkdownPrinter(BaseAssistantListener):
 
-    def __init__(
-        self, out, debugger_prompt, chat_prefix, width, theme=None
-    ):
+    def __init__(self, out, debugger_prompt, chat_prefix, width, theme=None):
         self._out = out
         self._debugger_prompt = debugger_prompt
         self._chat_prefix = chat_prefix
@@ -113,13 +104,13 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
 
         self._console = self._make_console(out)
 
-        if theme == 'basic':
+        if theme == "basic":
             Markdown.elements["list_item_open"] = MyListItem
             self._code_theme = "monokai"
 
     def _make_console(self, out):
         return Console(soft_wrap=False, file=out, theme=self._theme, width=self._width)
-        
+
     # Call backs
 
     def on_begin_query(self, prompt, user_text):
@@ -134,7 +125,11 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
     def _wrap_in_panel(self, rich_element):
 
         left_panel = Panel("", box=_simple_box, style="on default")
-        right_panel = Panel(rich_element, box=_simple_box, style=self._console.get_style("markdown.block"))
+        right_panel = Panel(
+            rich_element,
+            box=_simple_box,
+            style=self._console.get_style("markdown.block"),
+        )
 
         # Create a table to hold the panels side by side
         table = Table.grid(padding=0)
@@ -144,7 +139,9 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
         return table
 
     def _message(self, text, style):
-        self._print(self._wrap_in_panel(self._wrap_and_fill_and_indent(text, " *** ", style)))
+        self._print(
+            self._wrap_in_panel(self._wrap_and_fill_and_indent(text, " *** ", style))
+        )
 
     def on_warn(self, text):
         self._message(text, "warning")
@@ -177,17 +174,19 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
         self._streamed = ""
 
     def on_function_call(self, call, result):
-        prefix=self._chat_prefix
+        prefix = self._chat_prefix
         line = fill_to_width(f"\n{prefix}{self._debugger_prompt}{call}", self._width)
         entry = f"[command]{escape(line)}[/]\n"
 
-        entry += self._wrap_and_fill_and_indent(result.rstrip()+"\n", prefix, "result")
+        entry += self._wrap_and_fill_and_indent(
+            result.rstrip() + "\n", prefix, "result"
+        )
         m = self._wrap_in_panel(entry)
-        self._print(m, end='')
+        self._print(m, end="")
 
     def _wrap_and_fill_and_indent(self, text, prefix, style_name):
         line_width = self._width - len(prefix) - self._left_indent - 2
-        text = wrap_long_lines(text.expandtabs(), line_width, subsequent_indent='    ')
+        text = wrap_long_lines(text.expandtabs(), line_width, subsequent_indent="    ")
         text = fill_to_width(text, line_width)
         text = textwrap.indent(text, prefix, lambda _: True)
         text = escape(text)

@@ -138,5 +138,3 @@ def buildPrompt() -> tuple[str, str, str]:
         pass
 
     return (source_code, stack_trace, last_error_type)
-
-

@@ -5,23 +5,23 @@ from rich.console import Console
 from rich.markdown import Markdown
 from chatdbg.util.markdown import ChatDBGMarkdownPrinter
 
+
 class ChatDBGJupyterPrinter(ChatDBGMarkdownPrinter):
 
-    def __init__(
-        self, debugger_prompt, chat_prefix, width
-    ):
+    def __init__(self, debugger_prompt, chat_prefix, width):
         super().__init__(StringIO(), debugger_prompt, chat_prefix, width)
 
     def _make_console(self, out):
-        return Console(soft_wrap=False, file=out, record=True, theme=self._theme, width=self._width)
-                
+        return Console(
+            soft_wrap=False, file=out, record=True, theme=self._theme, width=self._width
+        )
+
     # Call backs
 
     # override to flush to the display
     def _print(self, text, end=""):
         super()._print(text, end=end)
         display(HTML(self._export_html()))
-
 
     def _export_html(self):
         exported_html = self._console.export_html(clear=True, inline_styles=True)
@@ -54,9 +54,8 @@ class ChatDBGJupyterPrinter(ChatDBGMarkdownPrinter):
 
     def on_stream_delta(self, text):
         if self._streamed == "":
-            self._display_handle = display(HTML(''), display_id=True)
+            self._display_handle = display(HTML(""), display_id=True)
         self._stream_append(text)
 
     def on_end_stream(self):
         pass
-    

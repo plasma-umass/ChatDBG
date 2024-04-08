@@ -13,7 +13,10 @@ from typing import *
 
 from chatdbg.util.jupyter import ChatDBGJupyterPrinter
 
-def _chatdbg_get_env(option_name: str, default_value: Union[int, str, bool]) -> Union[int, str, bool]:
+
+def _chatdbg_get_env(
+    option_name: str, default_value: Union[int, str, bool]
+) -> Union[int, str, bool]:
     env_name = "CHATDBG_" + option_name.upper()
     v = os.getenv(env_name, str(default_value))
     if type(default_value) == int:
@@ -119,7 +122,7 @@ class ChatDBGConfig(Configurable):
             "take_the_wheel": self.take_the_wheel,
             "no_stream": self.no_stream,
             "format": self.format,
-            "instructions": self.instructions
+            "instructions": self.instructions,
         }
 
     def parse_user_flags(self, argv):
@@ -164,12 +167,10 @@ class ChatDBGConfig(Configurable):
         split = format.split(":")
         if split[0] == "md":
             theme = split[1] if len(split) == 2 else None
-            return ChatDBGMarkdownPrinter(
-                stdout, prompt, prefix, width, theme=theme
-            )
-        elif format == 'text':
+            return ChatDBGMarkdownPrinter(stdout, prompt, prefix, width, theme=theme)
+        elif format == "text":
             return ChatDBGPrinter(stdout, prompt, prefix, width)
-        elif format == 'jupyter':
+        elif format == "jupyter":
             return ChatDBGJupyterPrinter(prompt, prefix, width)
         else:
             print("*** Unknown format '{format}'.  Defaulting to 'text'", file=stdout)

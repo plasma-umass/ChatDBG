@@ -13,7 +13,11 @@ from pathlib import Path
 
 import IPython
 
-from chatdbg.util.prompts import build_followup_prompt, build_initial_prompt, initial_instructions
+from chatdbg.util.prompts import (
+    build_followup_prompt,
+    build_initial_prompt,
+    initial_instructions,
+)
 
 from chatdbg.assistant.assistant import Assistant, AssistantError
 from chatdbg.pdb_util.capture import CaptureInput, CaptureOutput
@@ -22,6 +26,7 @@ from chatdbg.util.text import strip_ansi, truncate_proportionally
 from chatdbg.util.config import chatdbg_config
 from chatdbg.util.log import ChatDBGLog
 from chatdbg.util.history import CommandHistory
+
 
 def load_ipython_extension(ipython):
     global chatdbg_config
@@ -33,23 +38,27 @@ def load_ipython_extension(ipython):
     print("*** Loaded ChatDBG ***")
 
 
-_special_config = [ ]
+_special_config = []
 try:
     ipython = IPython.get_ipython()
     if ipython != None:
         from IPython.terminal.interactiveshell import TerminalInteractiveShell
+
         if isinstance(ipython, TerminalInteractiveShell):
             # ipython --pdb
             from IPython.terminal.debugger import TerminalPdb
+
             ChatDBGSuper = TerminalPdb
         else:
             # inside jupyter
             from IPython.core.debugger import InterruptiblePdb
+
             ChatDBGSuper = InterruptiblePdb
-            _special_config +=  [ '--format=jupyter' ] 
+            _special_config += ["--format=jupyter"]
     else:
         # ichatpdb on command line
         from IPython.terminal.debugger import TerminalPdb
+
         ChatDBGSuper = TerminalPdb
 except NameError as e:
     print(f"Error {e}: IPython not found. Defaulting to pdb plugin.")
@@ -380,9 +389,7 @@ class ChatDBG(ChatDBGSuper):
         [For debugging] Prints the prompts to be sent to the assistant.
         """
         self.message("Instructions:")
-        self.message(
-            self._initial_prompt_instructions()
-        )
+        self.message(self._initial_prompt_instructions())
         self.message("-" * 80)
         self.message("Prompt:")
         self.message(self._build_prompt(arg, False))
@@ -494,7 +501,7 @@ class ChatDBG(ChatDBGSuper):
         return self._error_details
 
     def _initial_prompt_command_line(self):
-        return ' '.join(sys.argv)
+        return " ".join(sys.argv)
 
     def _initial_prompt_input(self):
         return sys.stdin.get_captured_input()
@@ -504,18 +511,20 @@ class ChatDBG(ChatDBGSuper):
 
     def _build_prompt(self, arg, conversing):
         if not conversing:
-            return build_initial_prompt(self._initial_prompt_enchriched_stack_trace(),
-                                 self._initial_prompt_error_message(),
-                                 self._initial_prompt_error_details(),
-                                 self._initial_prompt_command_line(),
-                                 self._initial_prompt_input(),
-                                 self._prompt_history(),
-                                 None,
-                                 arg)
+            return build_initial_prompt(
+                self._initial_prompt_enchriched_stack_trace(),
+                self._initial_prompt_error_message(),
+                self._initial_prompt_error_details(),
+                self._initial_prompt_command_line(),
+                self._initial_prompt_input(),
+                self._prompt_history(),
+                None,
+                arg,
+            )
         else:
-            return build_followup_prompt(self._prompt_history(), 
-                                         self._prompt_stack(), 
-                                         arg)
+            return build_followup_prompt(
+                self._prompt_history(), self._prompt_stack(), arg
+            )
 
     def do_chat(self, arg):
         """chat
@@ -536,7 +545,7 @@ class ChatDBG(ChatDBGSuper):
             stats = self._assistant.query(full_prompt, user_text=arg)
             self.message(stats["message"])
         except AssistantError as e:
-            for line in str(e).split('\n'):
+            for line in str(e).split("\n"):
                 self.error(line)
 
     def do_renew(self, arg):
@@ -578,7 +587,7 @@ class ChatDBG(ChatDBGSuper):
             debug=chatdbg_config.debug,
             functions=functions,
             stream=not chatdbg_config.no_stream,
-            max_call_response_tokens= 8192,
+            max_call_response_tokens=8192,
             listeners=[
                 chatdbg_config.make_printer(
                     self.stdout, self.prompt, self._chat_prefix, self._text_width

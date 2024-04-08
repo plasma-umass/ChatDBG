@@ -17,14 +17,17 @@ from ..util.text import strip_ansi
 
 from .listeners import Printer
 
+
 class AssistantError(Exception):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
 
+
 def remove_non_printable_chars(s):
     printable_chars = set(string.printable)
-    filtered_string = ''.join(filter(lambda x: x in printable_chars, s))
+    filtered_string = "".join(filter(lambda x: x in printable_chars, s))
     return filtered_string
+
 
 class Assistant:
     def __init__(
@@ -41,7 +44,7 @@ class Assistant:
 
         # Hide their debugging info -- it messes with our error handling
         litellm.suppress_debug_info = True
-        
+
         if debug:
             log_file = open(f"chatdbg.log", "w")
             self._logger = lambda model_call_dict: print(
@@ -74,10 +77,10 @@ class Assistant:
 
     def _warn_about_exception(self, e, message="Unexpected Exception"):
         import traceback
+
         tb_lines = traceback.format_exception(type(e), e, e.__traceback__)
-        tb_string = ''.join(tb_lines)
+        tb_string = "".join(tb_lines)
         self._broadcast("on_error", f"{message}\n\n{e}\n{tb_string}")
-        
 
     def query(self, prompt: str, user_text):
         """
@@ -119,18 +122,15 @@ class Assistant:
         except Exception as e:
             self._warn_about_exception(e, f"Unexpected Exception.")
             stats["message"] = f"[Exception: {e}]"
-        
+
         self._broadcast("on_end_query", stats)
         return stats
-
 
     def _report(self, stats):
         if stats["completed"]:
             print()
         else:
             print("[Chat Interrupted]")
-
-
 
     def _broadcast(self, method_name, *args):
         for client in self._clients:
@@ -221,9 +221,7 @@ class Assistant:
             self._conversation.append(response_message.json())
 
             if response_message.content:
-                self._broadcast(
-                    "on_response", response_message.content
-                )
+                self._broadcast("on_response", response_message.content)
 
             if completion.choices[0].finish_reason == "tool_calls":
                 self._add_function_results_to_conversation(response_message)
@@ -256,7 +254,7 @@ class Assistant:
                 chunks = []
                 tool_chunks = []
                 for chunk in stream:
-                    self._log({"chunk":chunk})
+                    self._log({"chunk": chunk})
                     chunks.append(chunk)
                     if chunk.choices[0].delta.content != None:
                         self._broadcast(
@@ -280,9 +278,7 @@ class Assistant:
                 self._conversation.append(response_message.json())
 
             if response_message.content != None:
-                self._broadcast(
-                    "on_response", response_message.content
-                )
+                self._broadcast("on_response", response_message.content)
 
             if completion.choices[0].finish_reason == "tool_calls":
                 # create a message with just the tool calls, append that to the conversation, and generate the responses.
@@ -295,7 +291,7 @@ class Assistant:
 
                 tool_message = tool_completion.choices[0].message
                 tool_json = tool_message.json()
-                tool_json['role'] = 'assistant'
+                tool_json["role"] = "assistant"
                 self._conversation.append(tool_json)
                 self._add_function_results_to_conversation(tool_message)
             else:
@@ -326,13 +322,15 @@ class Assistant:
         )
 
     def _trim_conversation(self):
-        old_len = litellm.token_counter(self._model, messages = self._conversation)
-        
+        old_len = litellm.token_counter(self._model, messages=self._conversation)
+
         self._conversation = trim_messages(self._conversation, self._model)
 
-        new_len = litellm.token_counter(self._model, messages = self._conversation)
+        new_len = litellm.token_counter(self._model, messages=self._conversation)
         if old_len != new_len:
-            self._broadcast("on_warn", f"Trimming conversation from {old_len} to {new_len} tokens.")
+            self._broadcast(
+                "on_warn", f"Trimming conversation from {old_len} to {new_len} tokens."
+            )
 
     def _add_function_results_to_conversation(self, response_message):
         response_message["role"] = "assistant"
@@ -353,4 +351,6 @@ class Assistant:
         except Exception as e:
             # Warning: potential infinite loop if the LLM keeps sending
             # the same bad call.
-            self._broadcast("on_error", f"An exception occured while processing tool calls: {e}")
+            self._broadcast(
+                "on_error", f"An exception occured while processing tool calls: {e}"
+            )

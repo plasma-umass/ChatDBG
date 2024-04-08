@@ -150,29 +150,25 @@ class clangd:
 
 def lldb_definition(command):
     if not is_available():
-        return (
-            "`clangd` was not found. The `definition` function will not be made available."
-        )
+        return "`clangd` was not found. The `definition` function will not be made available."
     last_space_index = command.rfind(" ")
     if last_space_index == -1:
-        return (
-            "`clangd` was not found. The `definition` function will not be made available."
-        )
+        return "`clangd` was not found. The `definition` function will not be made available."
     filename_lineno = command[:last_space_index]
     symbol = command[last_space_index + 1 :]
     parts = filename_lineno.split(":")
     if len(parts) != 2:
-        return ("usage: definition <filename>:<lineno> <symbol>")
+        return "usage: definition <filename>:<lineno> <symbol>"
     filename, lineno = parts[0], int(parts[1])
 
     try:
         with open(filename, "r") as file:
             lines = file.readlines()
     except FileNotFoundError:
-        return (f"file '{filename}' not found.")
+        return f"file '{filename}' not found."
 
     if lineno - 1 >= len(lines):
-        return ("symbol not found at that location.")
+        return "symbol not found at that location."
 
     # We just return the first match here. Maybe we should find all definitions.
     character = lines[lineno - 1].find(symbol)
@@ -197,18 +193,18 @@ def lldb_definition(command):
                 break
 
     if character == -1:
-        return ("symbol not found at that location.")
+        return "symbol not found at that location."
 
     _clangd = None
     if is_available():
         _clangd = clangd()
-        
+
     _clangd.didOpen(filename, "c" if filename.endswith(".c") else "cpp")
     definition = _clangd.definition(filename, lineno, character + 1)
     _clangd.didClose(filename)
 
     if "result" not in definition or not definition["result"]:
-        return ("No definition found.")
+        return "No definition found."
 
     path = uri_to_path(definition["result"][0]["uri"])
     start_lineno = definition["result"][0]["range"]["start"]["line"] + 1
@@ -220,4 +216,4 @@ def lldb_definition(command):
         if start_lineno == end_lineno
         else f"lines {start_lineno}-{end_lineno}"
     )
-    return (f"""File '{path}' at {line_string}:\n```\n{content}\n```""")
+    return f"""File '{path}' at {line_string}:\n```\n{content}\n```"""

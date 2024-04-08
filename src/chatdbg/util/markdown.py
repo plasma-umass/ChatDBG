@@ -34,6 +34,19 @@ _theme = Theme(
         }
     )
 
+_simple_box = Box = box.Box(
+    "    \n"
+    "    \n"
+    "    \n"
+    "    \n"
+    "    \n"
+    "    \n"
+    "    \n"
+    "    \n",
+    ascii=True
+)
+
+
 class ChatDBGMarkdownPrinter(BaseAssistantListener):
 
     def __init__(
@@ -68,8 +81,8 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
 
     def _wrap_in_panel(self, rich_element):
 
-        left_panel = Panel("", box=box.MINIMAL, style="on default")
-        right_panel = Panel(rich_element, box=box.MINIMAL, style="black on light_steel_blue1")
+        left_panel = Panel("", box=_simple_box, style="on default")
+        right_panel = Panel(rich_element, box=_simple_box, style="black on light_steel_blue1")
 
         # Create a table to hold the panels side by side
         table = Table.grid(padding=0)

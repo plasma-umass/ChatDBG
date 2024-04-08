@@ -62,6 +62,7 @@ class ChatDBGPrinter(BaseAssistantListener):
 
     def on_response(self, text):
         if self._at_start and text != None:
+            text = "(Message) " + text
             text = word_wrap_except_code_blocks(
                 text, self._width - len(self._chat_prefix)
             )

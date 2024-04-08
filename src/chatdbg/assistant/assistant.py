@@ -209,7 +209,7 @@ class Assistant:
 
             if response_message.content:
                 self._broadcast(
-                    "on_response", "(Message) " + response_message.content
+                    "on_response", response_message.content
                 )
 
             if completion.choices[0].finish_reason == "tool_calls":
@@ -268,7 +268,7 @@ class Assistant:
 
             if response_message.content != None:
                 self._broadcast(
-                    "on_response", "(Message) " + response_message.content
+                    "on_response", response_message.content
                 )
 
             if completion.choices[0].finish_reason == "tool_calls":

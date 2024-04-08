@@ -18,7 +18,7 @@ from chatdbg.util.prompts import build_followup_prompt, build_initial_prompt, in
 from chatdbg.assistant.assistant import Assistant, AssistantError
 from chatdbg.pdb_util.capture import CaptureInput, CaptureOutput
 from chatdbg.pdb_util.locals import print_locals
-from chatdbg.util.text import strip_color, truncate_proportionally
+from chatdbg.util.text import strip_ansi, truncate_proportionally
 from chatdbg.util.config import chatdbg_config
 from chatdbg.util.log import ChatDBGLog
 from chatdbg.util.history import CommandHistory
@@ -141,7 +141,7 @@ class ChatDBG(ChatDBGSuper):
             self.print_stack_trace(context)
         finally:
             self.stdout = old_stdout
-        return strip_color(buf.getvalue())
+        return strip_ansi(buf.getvalue())
 
     def interaction(self, frame, tb_or_exc):
         if isinstance(tb_or_exc, BaseException):
@@ -209,7 +209,7 @@ class ChatDBG(ChatDBGSuper):
                 return super().onecmd(line)
             finally:
                 self.stdout = hist_file.getfile()
-                output = strip_color(hist_file.getvalue())
+                output = strip_ansi(hist_file.getvalue())
                 if not self.was_chat_or_renew:
                     self._log.on_function_call(line, output)
                     if line.split()[0] not in [
@@ -244,7 +244,7 @@ class ChatDBG(ChatDBGSuper):
             self.stdout = StringIO()
             super().onecmd(line)
             result = self.stdout.getvalue().rstrip()
-            result = strip_color(result)
+            result = strip_ansi(result)
             return result
         finally:
             self.stdout = stdout
@@ -524,7 +524,7 @@ class ChatDBG(ChatDBGSuper):
         self.was_chat_or_renew = True
 
         full_prompt = self._build_prompt(arg, self._assistant != None)
-        full_prompt = strip_color(full_prompt)
+        full_prompt = strip_ansi(full_prompt)
         full_prompt = truncate_proportionally(full_prompt)
 
         self._history.clear()

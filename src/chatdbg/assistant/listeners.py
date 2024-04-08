@@ -40,9 +40,12 @@ class BaseAssistantListener:
     def on_end_stream(self):
         pass
 
-    # Notifications of non-fatal / fatal problems
+    # Notifications of non-fatal problems
 
     def on_warn(self, text):
+        pass
+
+    def on_error(self, text):
         pass
 
 
@@ -51,6 +54,9 @@ class Printer(BaseAssistantListener):
         self.out = out
 
     def on_warn(self, text):
+        print(textwrap.indent(text, "*** "), file=self.out)
+
+    def on_error(self, text):
         print(textwrap.indent(text, "*** "), file=self.out)
 
     def on_begin_stream(self):

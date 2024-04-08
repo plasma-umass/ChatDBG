@@ -3,19 +3,22 @@ import shutil
 import textwrap
 
 from rich import box
+import rich
 from rich.console import Console
 from rich.live import Live
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.theme import Theme
 from rich.table import Table
+from rich.markup import escape
 
 from chatdbg.util.text import fill_to_width, wrap_long_lines
 
 from ..assistant.listeners import BaseAssistantListener
 
 
-_theme = Theme(
+_themes = { 
+    "default": Theme(
         {
             "markdown.block": "black on light_steel_blue1",
             "markdown.paragraph": "black on light_steel_blue1",
@@ -31,8 +34,30 @@ _theme = Theme(
             "markdown.h5": "bold black",
             "command": "bold gray11 on wheat1",
             "result": "grey35 on wheat1",
+            "warning": "bright_white on green",
+            "error": "bright_white on red"
+        }),
+    "llvm" : Theme(
+        {
+            "markdown.block": "bright_blue on bright_white",
+            "markdown.paragraph": "bright_blue on bright_white",
+            "markdown.text": "bright_blue on bright_white",
+            "markdown.code": "cyan",
+            "markdown.code_block": "bright_blue",
+            "markdown.item.bullet": "bold cyan",
+            "markdown.item.number": "bold cyan",
+            "markdown.h1": "bold black",
+            "markdown.h2": "bold black",
+            "markdown.h3": "bold black",
+            "markdown.h4": "bold black",
+            "markdown.h5": "bold bright_blue on bright_white",
+            "command": "bold bright_yellow on white",
+            "result": "yellow on white",
+            "warning": "bright_white on green",
+            "error": "bright_white on red"
         }
     )
+}
 
 _simple_box = Box = box.Box(
     "    \n"
@@ -46,24 +71,51 @@ _simple_box = Box = box.Box(
     ascii=True
 )
 
+from rich.markdown import *
+class MyListItem(rich.markdown.ListItem):
+    
+    """An item in a list."""
+
+    style_name = "markdown.item"
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def render_bullet(self, console: Console, options: ConsoleOptions) -> RenderResult:
+        render_options = options.update(width=options.max_width - 3)
+        lines = console.render_lines(self.elements, render_options, style=self.style)
+        bullet_style = console.get_style("markdown.item.bullet", default="none")
+
+        bullet = Segment(" * ", bullet_style)
+        padding = Segment(" " * 3, bullet_style)
+        new_line = Segment("\n")
+        for first, line in loop_first(lines):
+            yield bullet if first else padding
+            yield from line
+            yield new_line
+
+
 
 class ChatDBGMarkdownPrinter(BaseAssistantListener):
 
     def __init__(
-        self, out, debugger_prompt, chat_prefix, width
+        self, out, debugger_prompt, chat_prefix, width, theme=None
     ):
         self._out = out
         self._debugger_prompt = debugger_prompt
         self._chat_prefix = chat_prefix
         self._left_indent = 4
         self._width = shutil.get_terminal_size(fallback=(width, 24)).columns
-        self._theme = _theme
+        self._theme = _themes["default"] if theme == None else _themes[theme]
         self._code_theme = "default"
         # used to keep track of streaming
         self._streamed = ""
 
         self._console = self._make_console(out)
 
+        if theme == 'llvm':
+            Markdown.elements["list_item_open"] = MyListItem
+            self._code_theme = "monokai"
 
     def _make_console(self, out):
         return Console(soft_wrap=False, file=out, theme=self._theme, width=self._width)
@@ -82,7 +134,7 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
     def _wrap_in_panel(self, rich_element):
 
         left_panel = Panel("", box=_simple_box, style="on default")
-        right_panel = Panel(rich_element, box=_simple_box, style="black on light_steel_blue1")
+        right_panel = Panel(rich_element, box=_simple_box, style=self._console.get_style("markdown.block"))
 
         # Create a table to hold the panels side by side
         table = Table.grid(padding=0)
@@ -91,8 +143,14 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
         table.add_row(left_panel, right_panel)
         return table
 
+    def _message(self, text, style):
+        self._print(self._wrap_in_panel(self._wrap_and_fill_and_indent(text, " *** ", style)))
+
     def on_warn(self, text):
-        self._print(textwrap.indent(text + "\n\n", "*** ", lambda _: True))
+        self._message(text, "warning")
+
+    def on_error(self, text):
+        self._message(text, "error")
 
     def _stream_append(self, text):
         self._streamed += text
@@ -119,17 +177,18 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
         self._streamed = ""
 
     def on_function_call(self, call, result):
-        
         prefix=self._chat_prefix
         line = fill_to_width(f"\n{prefix}{self._debugger_prompt}{call}", self._width)
-        entry = f"[command]{line}[/]\n"
+        entry = f"[command]{escape(line)}[/]\n"
 
-        line_width = self._width - len(prefix) - self._left_indent - 2
-        result = wrap_long_lines(result.expandtabs()+"\n", line_width, subsequent_indent='    ')
-        result = fill_to_width(result, line_width)
-        result = textwrap.indent(result, prefix, lambda _: True)
-        full_response = f"[result]{result}[/]"
-        entry += full_response
-            
-        m = self._wrap_in_panel(entry) 
+        entry += self._wrap_and_fill_and_indent(result+"\n", prefix, "result")
+        m = self._wrap_in_panel(entry)
         self._print(m, end='')
+
+    def _wrap_and_fill_and_indent(self, text, prefix, style_name):
+        line_width = self._width - len(prefix) - self._left_indent - 2
+        text = wrap_long_lines(text.expandtabs(), line_width, subsequent_indent='    ')
+        text = fill_to_width(text, line_width)
+        text = textwrap.indent(text, prefix, lambda _: True)
+        text = escape(text)
+        return f"[{style_name}]{text}[/]"

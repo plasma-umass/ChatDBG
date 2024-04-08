@@ -22,7 +22,7 @@ PROMPT = "(ChatDBG lldb) "
 
 def __lldb_init_module(debugger: lldb.SBDebugger, internal_dict: dict) -> None:
     debugger.HandleCommand(f"settings set prompt '{PROMPT}'")
-    # chatdbg_config.format = "text"
+    chatdbg_config.format = "md:llvm"
 
 
 def code(command):

@@ -8,12 +8,12 @@ from chatdbg.util.markdown import ChatDBGMarkdownPrinter
 class ChatDBGJupyterPrinter(ChatDBGMarkdownPrinter):
 
     def __init__(
-        self, out, debugger_prompt, chat_prefix, width
+        self, debugger_prompt, chat_prefix, width
     ):
         super().__init__(StringIO(), debugger_prompt, chat_prefix, width)
 
     def _make_console(self, out):
-        return Console(soft_wrap=False, file=StringIO(), record=True, theme=self._theme, width=self._width)
+        return Console(soft_wrap=False, file=out, record=True, theme=self._theme, width=self._width)
                 
     # Call backs
 
@@ -32,6 +32,10 @@ class ChatDBGJupyterPrinter(ChatDBGMarkdownPrinter):
                 margin-bottom: 0 !important;
                 font-size: 14px !important;
             }
+
+            .rich-text .jp-RenderedHTMLCommon pre, .jp-RenderedHTMLCommon code {
+                white-space: pre;
+            }            
         </style>
         """
         exported_html = f'<div class="rich-text">{exported_html}</div>'

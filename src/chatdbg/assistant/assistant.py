@@ -1,4 +1,5 @@
 import json
+import string
 import textwrap
 import time
 import pprint
@@ -7,12 +8,18 @@ import litellm
 import openai
 
 from ..util.trim import sandwich_tokens, trim_messages
+from ..util.text import strip_ansi
 
 from .listeners import Printer
 
 class AssistantError(Exception):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
+
+def remove_non_printable_chars(s):
+    printable_chars = set(string.printable)
+    filtered_string = ''.join(filter(lambda x: x in printable_chars, s))
+    return filtered_string
 
 class Assistant:
     def __init__(
@@ -64,7 +71,7 @@ class Assistant:
         import traceback
         tb_lines = traceback.format_exception(type(e), e, e.__traceback__)
         tb_string = ''.join(tb_lines)
-        self._broadcast("on_warn", f"{message}:\n\n{e}\n{tb_string}")
+        self._broadcast("on_error", f"{message}\n\n{e}\n{tb_string}")
         
 
     def query(self, prompt: str, user_text):
@@ -182,6 +189,7 @@ class Assistant:
             args = json.loads(tool_call.function.arguments)
             function = self._functions[name]
             call, result = function["function"](**args)
+            result = remove_non_printable_chars(strip_ansi(result).expandtabs())
             self._broadcast("on_function_call", call, result)
         except OSError as e:
             # function produced some error -- move this to client???
@@ -340,4 +348,4 @@ class Assistant:
         except Exception as e:
             # Warning: potential infinite loop if the LLM keeps sending
             # the same bad call.
-            self._broadcast("on_warn", f"An exception occured while processing tool calls: {e}")
+            self._broadcast("on_error", f"An exception occured while processing tool calls: {e}")

@@ -161,14 +161,16 @@ class ChatDBGConfig(Configurable):
 
     def make_printer(self, stdout, prompt, prefix, width):
         format = chatdbg_config.format
-        if format == "md":
+        split = format.split(":")
+        if split[0] == "md":
+            theme = split[1] if len(split) == 2 else None
             return ChatDBGMarkdownPrinter(
-                stdout, prompt, prefix, width
+                stdout, prompt, prefix, width, theme=theme
             )
         elif format == 'text':
             return ChatDBGPrinter(stdout, prompt, prefix, width)
         elif format == 'jupyter':
-            return ChatDBGJupyterPrinter(stdout, prompt, prefix, width)
+            return ChatDBGJupyterPrinter(prompt, prefix, width)
         else:
             print("*** Unknown format '{format}'.  Defaulting to 'text'", file=stdout)
             return ChatDBGPrinter(stdout, prompt, prefix, width)

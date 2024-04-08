@@ -11,7 +11,7 @@ def make_arrow(pad):
     return ""
 
 
-def strip_color(s: str) -> str:
+def strip_ansi(s: str) -> str:
     ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
     return ansi_escape.sub("", s)
 
@@ -34,5 +34,4 @@ def wrap_long_lines(text, width=80, subsequent_indent='    '):
     return '\n'.join(wrapped_lines)
 
 def fill_to_width(text, width = 80):
-    filled = "\n".join([ line.ljust(width) for line in text.split("\n")])
-    return filled
+    return "\n".join([ line.ljust(width) for line in text.split("\n")])

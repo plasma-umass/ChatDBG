@@ -6,10 +6,9 @@ import os
 from typing import List, Optional, Union
 import lldb
 
-import llm_utils
-
 from chatdbg.native_util import clangd_lsp_integration
 from chatdbg.native_util.stacks import _ArgumentEntry, _FrameSummaryEntry, _SkippedFramesEntry
+from chatdbg.native_util.code import code
 from chatdbg.util.config import chatdbg_config
 
 from chatdbg.native_util.dbg_dialog import DBGDialog
@@ -25,16 +24,6 @@ def __lldb_init_module(debugger: lldb.SBDebugger, internal_dict: dict) -> None:
     chatdbg_config.format = "md:llvm"
 
 
-def code(command):
-    parts = command.split(":")
-    if len(parts) != 2:
-        return ("usage: code <filename>:<lineno>")
-    filename, lineno = parts[0], int(parts[1])
-    try:
-        lines, first = llm_utils.read_lines(filename, lineno - 7, lineno + 3)
-    except FileNotFoundError:
-        return (f"file '{filename}' not found.")
-    return llm_utils.number_group_of_lines(lines, first)
 
 @lldb.command("code")
 def _function_code(

@@ -5,7 +5,7 @@ from textwrap import TextWrapper
 from traitlets import Bool, Int, Unicode
 from traitlets.config import Configurable
 
-from assistant.listeners import BaseAssistantListener
+from chatdbg.assistant.listeners import BaseAssistantListener
 from chatdbg.util.markdown import ChatDBGMarkdownPrinter
 from chatdbg.util.printer import ChatDBGPrinter
 

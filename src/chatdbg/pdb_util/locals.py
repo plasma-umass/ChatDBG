@@ -15,18 +15,18 @@ class SymbolFinder(ast.NodeVisitor):
     def __init__(self):
         self.defined_symbols = set()
 
-    def visit_Assign(self, node):
+    def visit_Assign(self, node: ast.Assign) -> None:
         for target in node.targets:
             if isinstance(target, ast.Name):
                 self.defined_symbols.add(target.id)
         self.generic_visit(node)
 
-    def visit_For(self, node):
+    def visit_For(self, node: ast.For) -> None:
         if isinstance(node.target, ast.Name):
             self.defined_symbols.add(node.target.id)
         self.generic_visit(node)
 
-    def visit_comprehension(self, node):
+    def visit_comprehension(self, node: ast.Name) -> None:
         if isinstance(node.target, ast.Name):
             self.defined_symbols.add(node.target.id)
         self.generic_visit(node)
@@ -50,7 +50,7 @@ def _extract_locals(frame: FrameType) -> Set[str]:
         return set()
 
 
-def _extract_nb_globals(globals):
+def _extract_nb_globals(globals: Dict[str, Any]):
     result = set()
     for source in globals["In"]:
         try:
@@ -63,7 +63,7 @@ def _extract_nb_globals(globals):
     return result
 
 
-def _is_iterable(obj: Union[Any, List[str], List[Any]]) -> bool:  # FIXME
+def _is_iterable(obj: Any) -> bool:
     try:
         iter(obj)
         return True
@@ -71,7 +71,7 @@ def _is_iterable(obj: Union[Any, List[str], List[Any]]) -> bool:  # FIXME
         return False
 
 
-def _repr_if_defined(obj: Union[Any, List[str], List[Any]]) -> bool:  # FIXME
+def _repr_if_defined(obj: Any) -> bool:
     if obj.__class__ in [np.ndarray, dict, list, tuple]:
         # handle these at iterables to truncate reasonably
         return False
@@ -82,9 +82,7 @@ def _repr_if_defined(obj: Union[Any, List[str], List[Any]]) -> bool:  # FIXME
     return result
 
 
-def _format_limited(
-    value: Union[np.ndarray, int], limit: int = 10, depth: int = 3
-) -> str:
+def _format_limited(value: Any, limit: int = 10, depth: int = 3) -> str:
     def format_tuple(t, depth):
         return tuple([helper(x, depth) for x in t])
 

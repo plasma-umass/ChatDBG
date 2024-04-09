@@ -1,21 +1,18 @@
-import os
-
 import json
 import os
 from typing import List, Optional, Union
+
 import lldb
 
 from chatdbg.native_util import clangd_lsp_integration
+from chatdbg.native_util.code import code
+from chatdbg.native_util.dbg_dialog import DBGDialog
 from chatdbg.native_util.stacks import (
     _ArgumentEntry,
     _FrameSummaryEntry,
     _SkippedFramesEntry,
 )
-from chatdbg.native_util.code import code
 from chatdbg.util.config import chatdbg_config
-
-from chatdbg.native_util.dbg_dialog import DBGDialog
-
 
 # The file produced by the panic handler if the Rust program is using the chatdbg crate.
 RUST_PANIC_LOG_FILENAME = "panic_log.txt"

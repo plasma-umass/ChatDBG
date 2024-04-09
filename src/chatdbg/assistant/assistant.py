@@ -14,7 +14,6 @@ import openai
 
 from ..util.trim import sandwich_tokens, trim_messages
 from ..util.text import strip_ansi
-
 from .listeners import Printer
 
 

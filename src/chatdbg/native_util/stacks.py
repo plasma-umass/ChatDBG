@@ -66,6 +66,7 @@ def build_enriched_stacktrace(summaries):
     parts = []
     if not summaries:
         print("could not generate any frame summary.")
+        return
     else:
         frame_summary = "\n".join([str(s) for s in summaries])
         parts.append(frame_summary)

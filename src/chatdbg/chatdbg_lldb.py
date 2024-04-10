@@ -138,11 +138,11 @@ class LLDBDialog(DBGDialog):
 
     def check_debugger_state(self):
         if not self._debugger.GetSelectedTarget():
-            self.fail("must be attached to a program to use `chat`.")
+            self.fail("Must be attached to a program to use `why` or `chat`.")
 
         elif not self._is_debug_build():
             self.fail(
-                "your program must be compiled with debug information (`-g`) to use `chat`."
+                "Your program must be compiled with debug information (`-g`) to use `why` or `chat`."
             )
 
         thread = self.get_thread(self._debugger)

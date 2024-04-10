@@ -35,6 +35,7 @@ class DBGDialog:
 
     def query_and_print(self, assistant, user_text, is_followup):
         prompt = self.build_prompt(user_text, is_followup)
+        print("This is the prompt from Dialog:", prompt)
         self._history.clear()
         print(assistant.query(prompt, user_text)["message"])
 
@@ -46,7 +47,7 @@ class DBGDialog:
         while True:
             try:
                 command = input(">>> " + self._prompt).strip()
-
+                print("This is the input you gave me: ", command)
                 if command in ["exit", "quit"]:
                     break
                 if command in ["chat", "why"]:

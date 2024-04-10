@@ -122,12 +122,12 @@ class LLDBDialog(DBGDialog):
                         return True
         return False
 
-    def get_thread(self, debugger: lldb.SBDebugger) -> Optional[lldb.SBThread]:
+    def get_thread(self) -> Optional[lldb.SBThread]:
         """
         Returns a currently stopped thread in the debugged process.
         :return: A currently stopped thread or None if no thread is stopped.
         """
-        process = self._get_process(debugger)
+        process = self._get_process()
         if not process:
             return None
         for thread in process:
@@ -157,7 +157,7 @@ class LLDBDialog(DBGDialog):
     def _get_frame_summaries(
         self, max_entries: int = 20
     ) -> Optional[List[Union[_FrameSummaryEntry, _SkippedFramesEntry]]]:
-        thread = self.get_thread(self._debugger)
+        thread = self.get_thread()
         if not thread:
             return None
 
@@ -238,12 +238,12 @@ class LLDBDialog(DBGDialog):
 
         return summaries
 
-    def _get_process(self, debugger) -> Optional[lldb.SBProcess]:
+    def _get_process(self) -> Optional[lldb.SBProcess]:
         """
         Get the process that the current target owns.
         :return: An lldb object representing the process (lldb.SBProcess) that this target owns.
         """
-        target = debugger.GetSelectedTarget()
+        target = self._debugger.GetSelectedTarget()
         return target.process if target else None
 
     def _initial_prompt_error_message(self):

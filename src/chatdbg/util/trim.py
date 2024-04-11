@@ -65,10 +65,10 @@ def chunkify(messages, model):
 
 
 def trim_messages(
-    messages,
-    model,
+    messages: Union[List[Dict[str, str]], List[Dict[str, List[Dict[str, str]]]]],
+    model: str,
     trim_ratio: float = 0.75,
-):
+) -> list:
     """
     Strategy:
     - chunk messages:

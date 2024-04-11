@@ -4,7 +4,7 @@ from chatdbg.util.config import chatdbg_config
 from .text import truncate_proportionally
 
 
-def _wrap_it(before, x, after="", maxlen=2048):
+def _wrap_it(before: str, x: Union[str, NoneType], after: str="", maxlen: int=2048) -> str:
     if x:
         x = truncate_proportionally(x, maxlen, 0.5)
         before = before + ":\n" if before else ""
@@ -14,18 +14,18 @@ def _wrap_it(before, x, after="", maxlen=2048):
         return ""
 
 
-def _concat_prompt(*args):
+def _concat_prompt(*args) -> str:
     args = [a for a in args if a]
     return "\n".join(args)
 
 
-def _user_text_it(user_text):
+def _user_text_it(user_text: str) -> str:
     return user_text if user_text else "What's the bug? Give me a fix."
 
 
 def build_initial_prompt(
-    stack, error, details, command_line, inputs, history, extra="", user_text=""
-):
+    stack: str, error: str, details: str, command_line: str, inputs: str, history: str, extra: NoneType="", user_text: str=""
+) -> str:
     return _concat_prompt(
         _wrap_it("The program has this stack trace", stack),
         _wrap_it("The program encountered the following error", error, details),
@@ -37,7 +37,7 @@ def build_initial_prompt(
     )
 
 
-def build_followup_prompt(history, extra, user_text):
+def build_followup_prompt(history: str, extra: str, user_text: str) -> str:
     return _concat_prompt(
         _wrap_it("This is the history of some debugger commands I ran", history),
         _wrap_it("", extra),
@@ -45,7 +45,7 @@ def build_followup_prompt(history, extra, user_text):
     )
 
 
-def initial_instructions(functions):
+def initial_instructions(functions: List[Callable[[Any], Any]]) -> str:
     if chatdbg_config.instructions == "":
         file_path = os.path.join(os.path.dirname(__file__), "instructions.txt")
     else:

@@ -1,6 +1,6 @@
 import re
 import textwrap
-
+from typing import Union
 
 def make_arrow(pad):
     """generate the leading arrow in front of traceback or debugger"""

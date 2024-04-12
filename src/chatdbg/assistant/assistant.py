@@ -22,7 +22,7 @@ class AssistantError(Exception):
         super().__init__(*args)
 
 
-def remove_non_printable_chars(s):
+def remove_non_printable_chars(s: str) -> str:
     printable_chars = set(string.printable)
     filtered_string = "".join(filter(lambda x: x in printable_chars, s))
     return filtered_string

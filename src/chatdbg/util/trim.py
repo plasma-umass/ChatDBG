@@ -1,5 +1,6 @@
 import copy
 import warnings
+from typing import Dict, List, Union
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
@@ -25,19 +26,15 @@ def sandwich_tokens(
         )
 
 
-def sum_messages(messages, model):
+def _sum_messages(messages, model):
     return litellm.token_counter(model, messages=messages)
 
 
-def sum_kept_chunks(chunks, model):
-    return sum(sum_messages(messages, model) for (messages, kept) in chunks if kept)
+def _sum_kept_chunks(chunks, model):
+    return sum(_sum_messages(messages, model) for (messages, kept) in chunks if kept)
 
 
-def sum_all_chunks(chunks, model):
-    return sum(sum_messages(messages, model) for (messages, kept) in chunks)
-
-
-def extract(messages, model, tool_call_ids):
+def _extract(messages, model, tool_call_ids):
     tools = []
     other = []
     for m in messages:
@@ -51,24 +48,24 @@ def extract(messages, model, tool_call_ids):
     return tools, other
 
 
-def chunkify(messages, model):
+def _chunkify(messages, model):
     if not messages:
         return []
     m = messages[0]
     if "tool_calls" not in m:
         m["content"] = sandwich_tokens(m["content"], model, 1024, 0)
-        return [([m], False)] + chunkify(messages[1:], model)
+        return [([m], False)] + _chunkify(messages[1:], model)
     else:
         ids = [tool_call["id"] for tool_call in m["tool_calls"]]
-        tools, other = extract(messages[1:], model, ids)
-        return [([m] + tools, False)] + chunkify(other, model)
+        tools, other = _extract(messages[1:], model, ids)
+        return [([m] + tools, False)] + _chunkify(other, model)
 
 
 def trim_messages(
-    messages,
-    model,
+    messages: List[Dict],  # list of JSON objects encoded as dicts
+    model: str,
     trim_ratio: float = 0.75,
-):
+) -> List[Dict]:
     """
     Strategy:
     - chunk messages:
@@ -89,7 +86,7 @@ def trim_messages(
     if litellm.token_counter(model, messages=messages) < max_tokens:
         return messages
 
-    chunks = chunkify(messages=messages, model=model)
+    chunks = _chunkify(messages=messages, model=model)
     # print("0", sum_all_chunks(chunks, model), max_tokens)
 
     # 1. System messages
@@ -110,7 +107,8 @@ def trim_messages(
             # print('+')
             continue
         elif (
-            sum_kept_chunks(chunks, model) + sum_messages(messages, model) < max_tokens
+            _sum_kept_chunks(chunks, model) + _sum_messages(messages, model)
+            < max_tokens
         ):
             # print('-', len(messages))
             chunks[i] = (messages, True)
@@ -121,7 +119,7 @@ def trim_messages(
     # print("3", sum_kept_chunks(chunks, model))
 
     assert (
-        sum_kept_chunks(chunks, model) < max_tokens
-    ), f"New conversation too big {sum_kept_chunks(chunks, model)} vs {max_tokens}!"
+        _sum_kept_chunks(chunks, model) < max_tokens
+    ), f"New conversation too big {_sum_kept_chunks(chunks, model)} vs {max_tokens}!"
 
     return [m for (messages, kept) in chunks if kept for m in messages]

@@ -12,6 +12,10 @@ As far as we are aware, ChatDBG is the *first* debugger to automatically perform
 
 For technical details and a complete evaluation, see our arXiv paper, [_ChatDBG: An AI-Powered Debugging Assistant_](https://arxiv.org/abs/2403.16354) ([PDF](https://github.com/plasma-umass/ChatDBG/blob/main/ChatDBG-arxiv-2403.16354.pdf)).
 
+> [!NOTE]
+>
+> ChatDBG for `pdb` and `lldb` are feature-complete; we are currently backporting features for these debuggers into the other debuggers.
+>
 
 ## Installation
 

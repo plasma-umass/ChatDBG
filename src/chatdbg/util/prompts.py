@@ -3,29 +3,39 @@ import os
 from chatdbg.util.config import chatdbg_config
 from .text import truncate_proportionally
 from types import NoneType
-from typing import Any, Callable, List, Union
+from typing import Any, Callable, List, Union, Optional
 
-def _wrap_it(before: str, x: Union[str, NoneType], after: str="", maxlen: int=2048) -> str:
-    if x:
-        x = truncate_proportionally(x, maxlen, 0.5)
+
+def _wrap_it(
+    before: str, text: Optional[str], after: str = "", maxlen: int = 2048
+) -> str:
+    if text:
+        text = truncate_proportionally(text, maxlen, 0.5)
         before = before + ":\n" if before else ""
         after = after + "\n" if after else ""
-        return f"{before}```\n{x}\n```\n{after}"
+        return f"{before}```\n{text}\n```\n{after}"
     else:
         return ""
 
 
 def _concat_prompt(*args) -> str:
-    args = [a for a in args if a]
+    args = [a for a in args if len(a) > 0]
     return "\n".join(args)
 
 
 def _user_text_it(user_text: str) -> str:
-    return user_text if user_text else "What's the bug? Give me a fix."
+    return user_text if len(user_text) > 0 else "What's the bug? Give me a fix."
 
 
 def build_initial_prompt(
-    stack: str, error: str, details: str, command_line: str, inputs: str, history: str, extra: NoneType="", user_text: str=""
+    stack: str,
+    error: str,
+    details: str,
+    command_line: str,
+    inputs: str,
+    history: str,
+    extra: str = "",
+    user_text: str = "",
 ) -> str:
     return _concat_prompt(
         _wrap_it("The program has this stack trace", stack),

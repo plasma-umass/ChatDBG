@@ -121,8 +121,7 @@ class DBGDialog:
                 self._initial_prompt_command_line(),
                 self._initial_prompt_input(),
                 self._prompt_history(),
-                None,
-                arg,
+                user_text=arg,
             )
         else:
             return build_followup_prompt(

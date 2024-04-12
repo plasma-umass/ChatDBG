@@ -3,7 +3,7 @@
 # branches ['44->45', '44->52', '45->46', '45->51']
 
 import pytest
-from chatdbg.util.trim import extract
+from chatdbg.util.trim import _extract
 from unittest.mock import patch
 
 @pytest.fixture
@@ -27,7 +27,7 @@ def test_extract_with_tool_call_ids(mock_sandwich_tokens, mock_litellm_encode):
     model = "model"
     tool_call_ids = [1, 2]
 
-    tools, other = extract(messages, model, tool_call_ids)
+    tools, other = _extract(messages, model, tool_call_ids)
 
     assert mock_sandwich_tokens.called
     assert len(tools) == 2
@@ -45,7 +45,7 @@ def test_extract_without_tool_call_ids(mock_sandwich_tokens, mock_litellm_encode
     model = "model"
     tool_call_ids = [3]
 
-    tools, other = extract(messages, model, tool_call_ids)
+    tools, other = _extract(messages, model, tool_call_ids)
 
     assert not mock_sandwich_tokens.called
     assert len(tools) == 0

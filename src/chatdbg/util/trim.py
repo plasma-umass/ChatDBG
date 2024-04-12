@@ -1,5 +1,6 @@
 import copy
 import warnings
+from typing import Dict, List, Union
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
@@ -65,10 +66,10 @@ def chunkify(messages, model):
 
 
 def trim_messages(
-    messages,
-    model,
+    messages: List[Dict[str, str]],
+    model: str,
     trim_ratio: float = 0.75,
-):
+) -> list:
     """
     Strategy:
     - chunk messages:

@@ -1,6 +1,6 @@
 import re
 import textwrap
-
+from typing import Union
 
 def make_arrow(pad):
     """generate the leading arrow in front of traceback or debugger"""
@@ -16,7 +16,7 @@ def strip_ansi(s: str) -> str:
     return ansi_escape.sub("", s)
 
 
-def truncate_proportionally(text, maxlen=32000, top_proportion=0.5):
+def truncate_proportionally(text: str, maxlen: int=32000, top_proportion: Union[int, float]=0.5) -> str:
     """Omit part of a string if needed to make it fit in a maximum length."""
     if len(text) > maxlen:
         pre = max(0, int((maxlen - 5) * top_proportion))
@@ -25,7 +25,7 @@ def truncate_proportionally(text, maxlen=32000, top_proportion=0.5):
     return text
 
 
-def wrap_long_lines(text, width=80, subsequent_indent="    "):
+def wrap_long_lines(text: str, width: int=80, subsequent_indent: str="    ") -> str:
     wrapped_lines = []
     for line in text.split("\n"):
         if len(line) > width:
@@ -37,5 +37,5 @@ def wrap_long_lines(text, width=80, subsequent_indent="    "):
     return "\n".join(wrapped_lines)
 
 
-def fill_to_width(text, width=80):
+def fill_to_width(text: str, width: int=80) -> str:
     return "\n".join([line.ljust(width) for line in text.split("\n")])

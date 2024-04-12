@@ -49,5 +49,7 @@ jobs:
         python3 -m pip install .
 
     - name: run tests
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         python3 -m pytest --forked

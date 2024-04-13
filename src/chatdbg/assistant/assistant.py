@@ -289,7 +289,15 @@ class Assistant:
                 cost += litellm.completion_cost(tool_completion)
 
                 tool_message = tool_completion.choices[0].message
+
                 tool_json = tool_message.json()
+
+                # patch for litellm sometimes putting index fields in the tool calls it constructs
+                # in stream_chunk_builder.  gpt-4-turbo-2024-04-09 can't handle those index fields, so
+                # just remove them for the moment.
+                for tool_call in tool_json.get("tool_calls", []):
+                    _ = tool_call.pop("index", None)
+
                 tool_json["role"] = "assistant"
                 self._conversation.append(tool_json)
                 self._add_function_results_to_conversation(tool_message)

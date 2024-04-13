@@ -17,8 +17,8 @@ from chatdbg.util.jupyter import ChatDBGJupyterPrinter
 
 
 def _chatdbg_get_env(
-    option_name: str, default_value: Union[int, bool, str]
-) -> Union[int, bool, str]:
+    option_name: str, default_value: Union[bool, int, str]
+) -> Union[bool, int, str]:
     env_name = "CHATDBG_" + option_name.upper()
     v = os.getenv(env_name, str(default_value))
     if type(default_value) == int:

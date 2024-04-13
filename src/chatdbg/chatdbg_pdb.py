@@ -1,3 +1,4 @@
+import types
 import ast
 import atexit
 import inspect
@@ -297,6 +298,7 @@ class ChatDBG(ChatDBGSuper):
         """info name
         Print the pydoc string (and source code, if available) for a name.
         """
+
         try:
             # try both given and unqualified form incase LLM biffs
             args_to_try = [arg, arg.split(".")[-1]]
@@ -309,10 +311,19 @@ class ChatDBG(ChatDBGSuper):
                     # fail silently, try the next name
                     pass
 
+            if obj == None:
+                # try again, using pydoc's logic...
+                obj = pydoc.locate(arg)
+
             # didn't find anything
             if obj == None:
                 self.message(f"No name `{arg}` is visible in the current frame.")
+            elif isinstance(obj, types.BuiltinFunctionType) or isinstance(
+                obj, types.BuiltinMethodType
+            ):
+                self.message(f"`{arg}` is a built-in.")
             elif self._is_user_file(inspect.getfile(obj)):
+                self.message(f"Source from file {inspect.getfile(obj)}:")
                 self.do_source(x)
             else:
                 self.do_pydoc(x)

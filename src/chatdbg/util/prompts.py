@@ -2,7 +2,6 @@ import json
 import os
 from chatdbg.util.config import chatdbg_config
 from .text import truncate_proportionally
-from types import NoneType
 from typing import Any, Callable, List, Union, Optional
 
 

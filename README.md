@@ -12,9 +12,14 @@ As far as we are aware, ChatDBG is the *first* debugger to automatically perform
 
 For technical details and a complete evaluation, see our arXiv paper, [_ChatDBG: An AI-Powered Debugging Assistant_](https://arxiv.org/abs/2403.16354) ([PDF](https://github.com/plasma-umass/ChatDBG/blob/main/ChatDBG-arxiv-2403.16354.pdf)).
 
+> [!NOTE]
+>
+> ChatDBG for `pdb` and `lldb` are feature-complete; we are currently backporting features for these debuggers into the other debuggers.
+>
+
 ## Installation
 
-> [!NOTE]
+> [!IMPORTANT]
 >
 > ChatDBG currently needs to be connected to an [OpenAI account](https://openai.com/api/). _Your account will need to have a positive balance for this to work_ ([check your balance](https://platform.openai.com/account/usage)). If you have never purchased credits, you will need to purchase at least \$1 in credits (if your API account was created before August 13, 2023) or \$0.50 (if you have a newer API account) in order to have access to GPT-4, which ChatDBG uses. [Get a key here.](https://platform.openai.com/account/api-keys)
 >

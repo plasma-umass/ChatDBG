@@ -18,7 +18,7 @@ def strip_ansi(s: str) -> str:
 
 
 def truncate_proportionally(
-    text: str, maxlen: int = 32000, top_proportion: float = 0.5
+    text: str, maxlen: int = 32000, top_proportion: Union[float, int] = 0.5
 ) -> str:
     """Omit part of a string if needed to make it fit in a maximum length."""
     if len(text) > maxlen:

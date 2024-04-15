@@ -62,10 +62,10 @@ def _chunkify(messages, model):
 
 
 def trim_messages(
-    messages: List[Dict],  # list of JSON objects encoded as dicts
+    messages: List[Dict[str, str]],  # list of JSON objects encoded as dicts
     model: str,
     trim_ratio: float = 0.75,
-) -> List[Dict]:
+) -> list:
     """
     Strategy:
     - chunk messages:

@@ -2,12 +2,11 @@ import json
 import os
 from chatdbg.util.config import chatdbg_config
 from .text import truncate_proportionally
-from types import NoneType
 from typing import Any, Callable, List, Union, Optional
 
 
 def _wrap_it(
-    before: str, text: Optional[str], after: str = "", maxlen: int = 2048
+    before: str, text: str, after: str = "", maxlen: int = 2048
 ) -> str:
     if text:
         text = truncate_proportionally(text, maxlen, 0.5)

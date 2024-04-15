@@ -145,7 +145,7 @@ class LLDBDialog(DBGDialog):
                 "Your program must be compiled with debug information (`-g`) to use `why` or `chat`."
             )
 
-        thread = self.get_thread(self._debugger)
+        thread = self.get_thread()
         if not thread:
             self.fail("must run the code first to use `chat`.")
 
@@ -247,7 +247,7 @@ class LLDBDialog(DBGDialog):
         return target.process if target else None
 
     def _initial_prompt_error_message(self):
-        thread = self.get_thread(self._debugger)
+        thread = self.get_thread()
 
         error_message = thread.GetStopDescription(1024) if thread else None
         if error_message:

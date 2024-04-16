@@ -1,16 +1,17 @@
 import os
-import sys
 from typing import List, Optional, Union
+
 
 import gdb
 
+from chatdbg.native_util import clangd_lsp_integration
+from chatdbg.native_util.code import code
+from chatdbg.native_util.dbg_dialog import DBGDialog
 from chatdbg.native_util.stacks import (
     _ArgumentEntry,
     _FrameSummaryEntry,
     _SkippedFramesEntry,
 )
-from chatdbg.native_util.dbg_dialog import DBGDialog
-
 
 # The file produced by the panic handler if the Rust program is using the chatdbg crate.
 RUST_PANIC_LOG_FILENAME = "panic_log.txt"
@@ -36,6 +37,27 @@ def stop_handler(event):
 
 gdb.events.stop.connect(stop_handler)
 
+class Code(gdb.Command):
+
+    def __init__(self):
+        gdb.Command.__init__(self, "code", gdb.COMMAND_USER)
+
+    def invoke(self, command, from_tty):
+        print(code(command))
+        return
+
+Code()
+
+class Definition(gdb.Command):
+
+    def __init__(self):
+        gdb.Command.__init__(self, "definition", gdb.COMMAND_USER)
+
+    def invoke(self, command, from_tty):
+        print(clangd_lsp_integration.native_definition(command))
+        return
+
+Definition()
 
 # Implement the command `why`
 class Why(gdb.Command):
@@ -78,11 +100,10 @@ class GDBDialog(DBGDialog):
             frame = gdb.selected_frame()
             block = frame.block()
         except gdb.error:
-            self.fail("Must be attached to a program to use `why` or `chat`.")
+            self.fail("Must be attached to a program that fails to use `why` or `chat`.")
         except RuntimeError:
             self.fail("Your program must be compiled with debug information (`-g`) to use `why` or `chat`.")
-
-    # TODO - _FrameSummaries recorded correctly. _Skipped?
+        
     def _get_frame_summaries(
         self, max_entries: int = 20
     ) -> Optional[List[Union[_FrameSummaryEntry, _SkippedFramesEntry]]]:
@@ -98,21 +119,29 @@ class GDBDialog(DBGDialog):
         index = -1
         # Walk the stack and build up the frames list.
         while frame is not None:
-            index = index + 1
+            index += 1
 
-            # Get frame name
             name = frame.name()
+            if not name:
+                skipped += 1
+                frame = frame.older()
+                continue
             symtab_and_line = frame.find_sal()
 
-            # Get frame filename
+            # Get frame file path
             if symtab_and_line.symtab is not None:
                 file_path = symtab_and_line.symtab.fullname()
-                # If we are in a subdirectory, use a relative path instead.
-                if file_path.startswith(os.getcwd()):
-                    file_path = os.path.relpath(file_path)
                 if file_path == None:
                     file_path = "[unknown]"
-                
+                else:
+                    # If we are in a subdirectory, use a relative path instead.
+                    if file_path.startswith(os.getcwd()):
+                        file_path = os.path.relpath(file_path)
+                    # Skip frames for which we have no source -- likely system frames.
+                    if not os.path.exists(file_path):
+                        skipped += 1
+                        frame = frame.older()
+                        continue
             else:
                 file_path = None
 
@@ -124,19 +153,33 @@ class GDBDialog(DBGDialog):
 
             # Get arguments
             arguments: List[_ArgumentEntry] = []
-            block = frame.block()
+            block = gdb.Block
+            try:
+                block = frame.block()
+            except Exception:
+                skipped += 1
+                frame = frame.older()
+                continue
             for symbol in block:
                 if symbol.is_argument:
                     typename = symbol.type
                     name = symbol.name
-                    value = frame.read_var(name)
+                    value = str(frame.read_var(name))
                     arguments.append(_ArgumentEntry(typename, name, value))
+
+            if skipped > 0:
+                summaries.append(_SkippedFramesEntry(skipped))
+                skipped = 0
+
             summaries.append(
                 _FrameSummaryEntry(index, name, arguments, file_path, lineno)
             )
             if len(summaries) >= max_entries:
                 break
             frame = frame.older()
+
+        if skipped > 0:
+            summaries.append(_SkippedFramesEntry(skipped))
 
         return summaries
 
@@ -157,15 +200,10 @@ class GDBDialog(DBGDialog):
 
     # TODO 
     def _initial_prompt_command_line(self):
-        # Get the executable file path
-        exe_path = gdb.current_progspace().filename
-        print("Exe_path: ", exe_path)
+        # exe_path = gdb.current_progspace().filename
+        pass
 
-        if exe_path.startswith(os.getcwd()):
-            exe_path = os.path.relpath(exe_path)
-        print("New Exe_path: ", exe_path)
-
-    # TODO
+    # TODO:
     def _initial_prompt_input(self):
         pass
 

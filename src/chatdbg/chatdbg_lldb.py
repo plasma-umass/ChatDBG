@@ -41,7 +41,7 @@ def _function_definition(
     result: lldb.SBCommandReturnObject,
     internal_dict: dict,
 ) -> None:
-    result.AppendMessage(clangd_lsp_integration.lldb_definition(command))
+    result.AppendMessage(clangd_lsp_integration.native_definition(command))
 
 
 @lldb.command("chat")
@@ -168,7 +168,6 @@ class LLDBDialog(DBGDialog):
         # For each frame in thread
         for frame in thread:
             index += 1
-            # If there's no display function name, skip
             if not frame.GetDisplayFunctionName():
                 skipped += 1
                 continue

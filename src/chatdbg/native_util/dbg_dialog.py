@@ -35,9 +35,6 @@ class DBGDialog:
 
     def query_and_print(self, assistant, user_text, is_followup):
         prompt = self.build_prompt(user_text, is_followup)
-
-        print("This is the prompt from Dialog:", prompt)
-        
         self._history.clear()
         print(assistant.query(prompt, user_text)["message"])
 
@@ -114,7 +111,7 @@ class DBGDialog:
     def _prompt_history(self):
         return str(self._history)
 
-    def build_prompt(self, arg, conversing):
+    def build_prompt(self, arg, conversing):        
         if not conversing:
             return build_initial_prompt(
                 self._initial_prompt_enchriched_stack_trace(),

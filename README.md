@@ -1,6 +1,8 @@
 # ChatDBG
 
+
 <script src="https://asciinema.org/a/7UsIyykbtoyH8JUY1cFlriy0k.js" id="asciicast-654526" async="true"></script>
+
 
 by [Emery Berger](https://emeryberger.com), [Stephen Freund](https://www.cs.williams.edu/~freund/index.html), [Kyla Levin](https://ravenblood000.github.io/KylaHLevin/index.html), [Nicolas van Kempen](https://nvankempen.com/) (ordered alphabetically)
 

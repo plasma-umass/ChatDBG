@@ -165,12 +165,15 @@ class LLDBDialog(DBGDialog):
         summaries: List[Union[_FrameSummaryEntry, _SkippedFramesEntry]] = []
 
         index = -1
+        # For each frame in thread
         for frame in thread:
             index += 1
+            # If there's no display function name, skip
             if not frame.GetDisplayFunctionName():
                 skipped += 1
                 continue
             name = frame.GetDisplayFunctionName().split("(")[0]
+            # Get function arguments, store as _ArgumentEntries
             arguments: List[_ArgumentEntry] = []
             for j in range(
                 frame.GetFunction().GetType().GetFunctionArgumentTypes().GetSize()
@@ -186,6 +189,7 @@ class LLDBDialog(DBGDialog):
                     _ArgumentEntry(arg.GetTypeName(), arg.GetName(), arg.GetValue())
                 )
 
+            # Look for paths to the function file. If there's no source, skip frame.
             line_entry = frame.GetLineEntry()
             file_path = line_entry.GetFileSpec().fullpath
             if file_path == None:
@@ -201,10 +205,12 @@ class LLDBDialog(DBGDialog):
                 skipped += 1
                 continue
 
+            # Add _SkippedFramesEntry onto summaries list
             if skipped > 0:
                 summaries.append(_SkippedFramesEntry(skipped))
                 skipped = 0
 
+            # Otherwise, add _FrameSummaryEntries until max_entries, then break
             summaries.append(
                 _FrameSummaryEntry(index, name, arguments, file_path, lineno)
             )

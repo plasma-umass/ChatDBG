@@ -1,28 +1,35 @@
 #include <iostream>
 #include <fstream>
-#include <vector>
-#include <string>
+#include <cstdlib> // For atoi
 
-int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        std::cerr << "Usage: " << argv[0] << " <input_file>\n";
+using namespace std;
+
+int main(int argc, char *argv[]) {
+    if (argc != 4) {
+        cerr << "Usage: " << argv[0] << " <integer> <string> <filename>" << endl;
         return 1;
     }
 
-    std::ifstream inputFile(argv[1]);
-    if (!inputFile) {
-        std::cerr << "Error: Unable to open input file.\n";
+    int integerValue = atoi(argv[1]);
+    string stringValue = argv[2];
+    string filename = argv[3];
+
+    cout << "Integer value: " << integerValue << endl;
+    cout << "String value: " << stringValue << endl;
+    cout << "Filename: " << filename << endl;
+
+    // Open and parse the file
+    ifstream file(filename);
+    if (!file.is_open()) {
+        cerr << "Error: Unable to open file " << filename << endl;
         return 1;
     }
 
-    std::vector<std::string> lines;
-    std::string line;
-    while (std::getline(inputFile, line)) {
-        lines.push_back(line);
-    }
+    // Intentional null pointer reference
+    int *nullPtr = nullptr;
+    *nullPtr = 42; // This will cause a segmentation fault
 
-    int* nullPointer = nullptr;
-    *nullPointer = 42;
+    file.close();
 
     return 0;
 }

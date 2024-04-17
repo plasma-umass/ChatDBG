@@ -1,14 +1,27 @@
 #include <iostream>
 #include <string>
-#include <stdexcept>
 
 int main() {
-    std::string input;
-    std::cout << "Enter an integer: ";
-    std::cin >> input;
+    // Ask the user for their first name
+    std::cout << "Enter your first name: ";
+    std::string firstName;
+    std::cin >> firstName;
+    std::cin.clear();
 
-    int number = std::stoi(input); // Attempt to convert input to an integer
-    std::cout << "You entered: " << number << std::endl;
+    // Print the first name back to the user
+    std::cout << "Hello, " << firstName << "!" << std::endl;
+
+    // Ask the user for their last name
+    std::cout << "Enter your last name: ";
+    std::string lastName;
+    std::cin >> lastName;
+    std::cin.clear();
+
+    // Print the last name back to the user
+    std::cout << "Your full name is " << firstName << " " << lastName << std::endl;
+
+    int *p = nullptr;
+    *p = 42;
 
     return 0;
 }

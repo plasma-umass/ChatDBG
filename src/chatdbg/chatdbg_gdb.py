@@ -12,6 +12,7 @@ from chatdbg.native_util.stacks import (
     _FrameSummaryEntry,
     _SkippedFramesEntry,
 )
+from chatdbg.util.config import chatdbg_config
 
 # The file produced by the panic handler if the Rust program is using the chatdbg crate.
 RUST_PANIC_LOG_FILENAME = "panic_log.txt"
@@ -58,6 +59,19 @@ class Definition(gdb.Command):
         return
 
 Definition()
+
+class Config(gdb.Command):
+
+    def __init__(self):
+        gdb.Command.__init__(self, "config", gdb.COMMAND_USER)
+
+    def invoke(self, command, from_tty):
+        args = command.split()
+        message = chatdbg_config.parse_only_user_flags(args)
+        print(message)
+        return
+
+Config()
 
 # Implement the command `why`
 class Why(gdb.Command):
@@ -200,7 +214,6 @@ class GDBDialog(DBGDialog):
 
     # TODO 
     def _initial_prompt_command_line(self):
-        # exe_path = gdb.current_progspace().filename
         pass
 
     # TODO:

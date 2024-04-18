@@ -263,6 +263,7 @@ class LLDBDialog(DBGDialog):
 
     def _initial_prompt_command_line(self):
         executable = self._debugger.GetSelectedTarget().GetExecutable()
+
         executable_path = os.path.join(
             executable.GetDirectory(), executable.GetFilename()
         )

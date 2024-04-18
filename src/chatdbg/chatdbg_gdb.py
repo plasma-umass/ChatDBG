@@ -212,9 +212,18 @@ class GDBDialog(DBGDialog):
         """Anything more beyond the initial error message to include."""
         return None
 
-    # TODO 
     def _initial_prompt_command_line(self):
-        pass
+        executable_path = gdb.selected_inferior().progspace.filename
+
+        if executable_path.startswith(os.getcwd()):
+            executable_path = os.path.join(".", os.path.relpath(executable_path))
+        
+        prefix = "Argument list to give program being debugged when it is started is "
+        args = gdb.execute("show args", to_string=True).strip()
+        if args.startswith(prefix):
+            args = args[len(prefix):].strip('."')
+
+        return executable_path + " " + args
 
     # TODO:
     def _initial_prompt_input(self):

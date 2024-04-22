@@ -225,9 +225,21 @@ class GDBDialog(DBGDialog):
 
         return executable_path + " " + args
 
-    # TODO:
     def _initial_prompt_input(self):
-        pass
+        prefix = "Argument list to give program being debugged when it is started is "
+        args = gdb.execute("show args", to_string=True).strip()
+        if args.startswith(prefix):
+            args = args[len(prefix):].strip('."')
+
+        input_pipe = args.find('<')
+        if input_pipe != -1:
+            input_file = args[input_pipe + 1:].strip()
+
+        try:
+            content = open(input_file, 'r').read()
+            return content
+        except Exception:
+            self.fail(f"The detected input file {input_file} could not be read.")
 
     def _prompt_stack(self):
         """

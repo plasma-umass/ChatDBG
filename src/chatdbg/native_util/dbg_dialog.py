@@ -36,8 +36,6 @@ class DBGDialog:
     def query_and_print(self, assistant, user_text, is_followup):
         prompt = self.build_prompt(user_text, is_followup)
 
-        print("Prompt from Dialog: ", prompt)
-
         self._history.clear()
         print(assistant.query(prompt, user_text)["message"])
 

@@ -1,21 +1,26 @@
-import json
 import os
-import pathlib
-import sys
+from typing import List, Optional, Union
+
 
 import gdb
 
-import llm_utils
-
-sys.path.append(os.path.abspath(pathlib.Path(__file__).parent.resolve()))
-import old_stuff.chatdbg_utils as chatdbg_utils
+from chatdbg.native_util import clangd_lsp_integration
+from chatdbg.native_util.code import code
+from chatdbg.native_util.dbg_dialog import DBGDialog
+from chatdbg.native_util.stacks import (
+    _ArgumentEntry,
+    _FrameSummaryEntry,
+    _SkippedFramesEntry,
+)
+from chatdbg.util.config import chatdbg_config
 
 # The file produced by the panic handler if the Rust program is using the chatdbg crate.
-rust_panic_log_filename = "panic_log.txt"
+RUST_PANIC_LOG_FILENAME = "panic_log.txt"
+PROMPT = "(ChatDBG gdb) "
 
+# Set the prompt to ChatDBG gdb
+gdb.prompt_hook = lambda current_prompt: PROMPT
 
-# Set the prompt to gdb-ChatDBG
-gdb.prompt_hook = lambda current_prompt: "(gdb-ChatDBG) "
 
 last_error_type = ""
 
@@ -33,6 +38,40 @@ def stop_handler(event):
 
 gdb.events.stop.connect(stop_handler)
 
+class Code(gdb.Command):
+
+    def __init__(self):
+        gdb.Command.__init__(self, "code", gdb.COMMAND_USER)
+
+    def invoke(self, command, from_tty):
+        print(code(command))
+        return
+
+Code()
+
+class Definition(gdb.Command):
+
+    def __init__(self):
+        gdb.Command.__init__(self, "definition", gdb.COMMAND_USER)
+
+    def invoke(self, command, from_tty):
+        print(clangd_lsp_integration.native_definition(command))
+        return
+
+Definition()
+
+class Config(gdb.Command):
+
+    def __init__(self):
+        gdb.Command.__init__(self, "config", gdb.COMMAND_USER)
+
+    def invoke(self, command, from_tty):
+        args = command.split()
+        message = chatdbg_config.parse_only_user_flags(args)
+        print(message)
+        return
+
+Config()
 
 # Implement the command `why`
 class Why(gdb.Command):
@@ -41,100 +80,170 @@ class Why(gdb.Command):
     def __init__(self):
         gdb.Command.__init__(self, "why", gdb.COMMAND_USER)
 
-    def invoke(self, arg, from_tty):
+    def invoke(self, command, from_tty):
         try:
-            frame = gdb.selected_frame()
-        except:
-            print("Must run the code first to ask `why`.")
+            dialog = GDBDialog(PROMPT)
+            dialog.dialog(command)
+        except Exception as e:
+            print(str(e))
             return
+
+Why()
+
+gdb.execute("alias chat = why")
+
+
+class GDBDialog(DBGDialog):
+
+    def __init__(self, prompt) -> None:
+        super().__init__(prompt)
+
+    def _message_is_a_bad_command_error(self, message):
+        return message.strip().startswith("Undefined command:")
+
+    def _run_one_command(self, command):
+        return gdb.execute(command, to_string=True)
+
+    def check_debugger_state(self):
         global last_error_type
         if not last_error_type:
             # Assume we are running from a core dump,
             # which _probably_ means a SEGV.
             last_error_type = "SIGSEGV"
-        the_prompt = buildPrompt()
-        args, _ = chatdbg_utils.parse_known_args(arg.split())
-        if the_prompt:
-            # Call `explain` function with pieces of the_prompt  as arguments.
-            chatdbg_utils.explain(the_prompt[0], the_prompt[1], the_prompt[2], args)
-
-
-Why()
-
-
-def buildPrompt() -> tuple[str, str, str]:
-    thread = gdb.selected_thread()
-    if not thread:
-        return ""
-
-    stack_trace = ""
-    source_code = ""
-
-    frames = []
-    frame = gdb.selected_frame()
-
-    # magic number - don't bother walking up more than this many frames.
-    # This is just to prevent overwhelming OpenAI (or to cope with a stack overflow!).
-    max_frames = 10
-
-    # Walk the stack and build up the frames list.
-    while frame is not None and max_frames > 0:
-        func_name = frame.name()
-        symtab_and_line = frame.find_sal()
-        if symtab_and_line.symtab is not None:
-            filename = symtab_and_line.symtab.filename
-        else:
-            filename = None
-        if symtab_and_line.line is not None:
-            lineno = symtab_and_line.line
-            colno = None
-        else:
-            lineno = None
-            colno = None
-        args = []
         try:
+            frame = gdb.selected_frame()
             block = frame.block()
+        except gdb.error:
+            self.fail("Must be attached to a program that fails to use `why` or `chat`.")
         except RuntimeError:
-            print(
-                "Your program must be compiled with debug information (`-g`) to use `why`."
+            self.fail("Your program must be compiled with debug information (`-g`) to use `why` or `chat`.")
+        
+    def _get_frame_summaries(
+        self, max_entries: int = 20
+    ) -> Optional[List[Union[_FrameSummaryEntry, _SkippedFramesEntry]]]:
+        thread = gdb.selected_thread()
+        if not thread:
+            return None
+
+        skipped = 0
+        summaries: List[Union[_FrameSummaryEntry, _SkippedFramesEntry]] = []
+
+        frame = gdb.selected_frame()
+
+        index = -1
+        # Walk the stack and build up the frames list.
+        while frame is not None:
+            index += 1
+
+            name = frame.name()
+            if not name:
+                skipped += 1
+                frame = frame.older()
+                continue
+            symtab_and_line = frame.find_sal()
+
+            # Get frame file path
+            if symtab_and_line.symtab is not None:
+                file_path = symtab_and_line.symtab.fullname()
+                if file_path == None:
+                    file_path = "[unknown]"
+                else:
+                    # If we are in a subdirectory, use a relative path instead.
+                    if file_path.startswith(os.getcwd()):
+                        file_path = os.path.relpath(file_path)
+                    # Skip frames for which we have no source -- likely system frames.
+                    if not os.path.exists(file_path):
+                        skipped += 1
+                        frame = frame.older()
+                        continue
+            else:
+                file_path = None
+
+            # Get frame lineno
+            if symtab_and_line.line is not None:
+                lineno = symtab_and_line.line
+            else:
+                lineno = None
+
+            # Get arguments
+            arguments: List[_ArgumentEntry] = []
+            block = gdb.Block
+            try:
+                block = frame.block()
+            except Exception:
+                skipped += 1
+                frame = frame.older()
+                continue
+            for symbol in block:
+                if symbol.is_argument:
+                    typename = symbol.type
+                    name = symbol.name
+                    value = str(frame.read_var(name))
+                    arguments.append(_ArgumentEntry(typename, name, value))
+
+            if skipped > 0:
+                summaries.append(_SkippedFramesEntry(skipped))
+                skipped = 0
+
+            summaries.append(
+                _FrameSummaryEntry(index, name, arguments, file_path, lineno)
             )
-            return ""
-        for symbol in block:
-            if symbol.is_argument:
-                name = symbol.name
-                value = frame.read_var(name)
-                args.append((name, value))
-        frames.append((filename, func_name, args, lineno, colno))
-        frame = frame.older()
-        max_frames -= 1
+            if len(summaries) >= max_entries:
+                break
+            frame = frame.older()
 
-    # Now build the stack trace and source code strings.
-    for i, frame_info in enumerate(frames):
-        file_name = frame_info[0]
-        func_name = frame_info[1]
-        line_num = frame_info[3]
-        arg_list = []
-        for arg in frame_info[2]:
-            arg_list.append(str(arg[1]))  # Note: arg[0] is the name of the argument
-        stack_trace += (
-            f'frame {i}: {func_name}({",".join(arg_list)}) at {file_name}:{line_num}\n'
-        )
+        if skipped > 0:
+            summaries.append(_SkippedFramesEntry(skipped))
+
+        return summaries
+
+    def _initial_prompt_error_message(self):
+        # If the Rust panic log exists, append it to the error reason.
+        global last_error_type
         try:
-            source_code += f"/* frame {i} */\n"
-            (lines, first) = llm_utils.read_lines(filename, line_num - 10, line_num)
-            block = llm_utils.number_group_of_lines(lines, first)
-            source_code += f"{block}\n\n"
+            with open(RUST_PANIC_LOG_FILENAME, "r") as log:
+                panic_log = log.read()
+            last_error_type = panic_log + "\n" + last_error_type
         except:
-            # Couldn't find source for some reason. Skip file.
             pass
+        return last_error_type
 
-    # If the Rust panic log exists, append it to the error reason.
-    global last_error_type
-    try:
-        with open(rust_panic_log_filename, "r") as log:
-            panic_log = log.read()
-        last_error_type = panic_log + "\n" + last_error_type
-    except:
-        pass
+    def _initial_prompt_error_details(self):
+        """Anything more beyond the initial error message to include."""
+        return None
 
-    return (source_code, stack_trace, last_error_type)
+    def _initial_prompt_command_line(self):
+        executable_path = gdb.selected_inferior().progspace.filename
+
+        if executable_path.startswith(os.getcwd()):
+            executable_path = os.path.join(".", os.path.relpath(executable_path))
+        
+        prefix = "Argument list to give program being debugged when it is started is "
+        args = gdb.execute("show args", to_string=True).strip()
+        if args.startswith(prefix):
+            args = args[len(prefix):].strip('."')
+
+        return executable_path + " " + args
+
+    def _initial_prompt_input(self):
+        prefix = "Argument list to give program being debugged when it is started is "
+        args = gdb.execute("show args", to_string=True).strip()
+        if args.startswith(prefix):
+            args = args[len(prefix):].strip('."')
+
+        input_pipe = args.find('<')
+        if input_pipe != -1:
+            input_file = args[input_pipe + 1:].strip()
+
+        try:
+            content = open(input_file, 'r').read()
+            return content
+        except Exception:
+            self.fail(f"The detected input file {input_file} could not be read.")
+
+    def _prompt_stack(self):
+        """
+        Return a simple backtrace to show the LLM where we are on the stack
+        in followup prompts.
+        """
+        return None

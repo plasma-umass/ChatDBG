@@ -41,7 +41,7 @@ def _function_definition(
     result: lldb.SBCommandReturnObject,
     internal_dict: dict,
 ) -> None:
-    result.AppendMessage(clangd_lsp_integration.lldb_definition(command))
+    result.AppendMessage(clangd_lsp_integration.native_definition(command))
 
 
 @lldb.command("chat")
@@ -138,14 +138,14 @@ class LLDBDialog(DBGDialog):
 
     def check_debugger_state(self):
         if not self._debugger.GetSelectedTarget():
-            self.fail("must be attached to a program to use `chat`.")
+            self.fail("Must be attached to a program to use `why` or `chat`.")
 
         elif not self._is_debug_build():
             self.fail(
-                "your program must be compiled with debug information (`-g`) to use `chat`."
+                "Your program must be compiled with debug information (`-g`) to use `why` or `chat`."
             )
 
-        thread = self.get_thread(self._debugger)
+        thread = self.get_thread()
         if not thread:
             self.fail("must run the code first to use `chat`.")
 
@@ -165,12 +165,14 @@ class LLDBDialog(DBGDialog):
         summaries: List[Union[_FrameSummaryEntry, _SkippedFramesEntry]] = []
 
         index = -1
+        # For each frame in thread
         for frame in thread:
             index += 1
             if not frame.GetDisplayFunctionName():
                 skipped += 1
                 continue
             name = frame.GetDisplayFunctionName().split("(")[0]
+            # Get function arguments, store as _ArgumentEntries
             arguments: List[_ArgumentEntry] = []
             for j in range(
                 frame.GetFunction().GetType().GetFunctionArgumentTypes().GetSize()
@@ -186,6 +188,7 @@ class LLDBDialog(DBGDialog):
                     _ArgumentEntry(arg.GetTypeName(), arg.GetName(), arg.GetValue())
                 )
 
+            # Look for paths to the function file. If there's no source, skip frame.
             line_entry = frame.GetLineEntry()
             file_path = line_entry.GetFileSpec().fullpath
             if file_path == None:
@@ -201,10 +204,12 @@ class LLDBDialog(DBGDialog):
                 skipped += 1
                 continue
 
+            # Add _SkippedFramesEntry onto summaries list
             if skipped > 0:
                 summaries.append(_SkippedFramesEntry(skipped))
                 skipped = 0
 
+            # Otherwise, add _FrameSummaryEntries until max_entries, then break
             summaries.append(
                 _FrameSummaryEntry(index, name, arguments, file_path, lineno)
             )
@@ -247,7 +252,7 @@ class LLDBDialog(DBGDialog):
         return target.process if target else None
 
     def _initial_prompt_error_message(self):
-        thread = self.get_thread(self._debugger)
+        thread = self.get_thread()
 
         error_message = thread.GetStopDescription(1024) if thread else None
         if error_message:
@@ -258,6 +263,7 @@ class LLDBDialog(DBGDialog):
 
     def _initial_prompt_command_line(self):
         executable = self._debugger.GetSelectedTarget().GetExecutable()
+
         executable_path = os.path.join(
             executable.GetDirectory(), executable.GetFilename()
         )

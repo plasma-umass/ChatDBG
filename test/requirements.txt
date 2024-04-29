@@ -1,0 +1,4 @@
+ipdb==0.13.13
+numpy==1.26.4
+rich==13.7.1
+traitlets==5.14.2

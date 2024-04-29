@@ -2,10 +2,10 @@
 # lines [426, 428, 429, 430, 431, 432, 433, 434, 435, 436, 437, 439, 440, 442, 444, 445, 446, 447, 448, 449, 450, 451, 452, 453, 455, 456, 457, 458, 459, 460, 461, 462, 464, 465]
 # branches ['430->431', '430->432', '434->435', '434->439', '439->440', '439->442', '446->447', '446->459', '447->448', '447->450', '450->451', '450->456', '457->446', '457->458', '459->exit', '459->460']
 
+from chatdbg.util.config import *
 import pytest
 from unittest.mock import Mock, MagicMock, patch
 from chatdbg.chatdbg_pdb import ChatDBG, ChatDBGSuper
-
 
 @pytest.fixture
 def chat_dbg_instance(monkeypatch):

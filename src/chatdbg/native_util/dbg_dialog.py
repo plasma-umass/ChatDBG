@@ -213,18 +213,17 @@ class DBGDialog:
         functions = self._supported_functions()
         instruction_prompt = self.initial_prompt_instructions()
 
+        # gdb overwrites sys.stdin to be a file object that doesn't seem
+        # to support colors or streaming.  So, just use the original stdout
+        # here for all subclasses.
+        printer = chatdbg_config.make_printer(sys.__stdout__, self._prompt, "   ", 80)
+        
         assistant = Assistant(
             instruction_prompt,
             model=chatdbg_config.model,
             debug=chatdbg_config.debug,
             functions=functions,
             stream=not chatdbg_config.no_stream,
-
-            # gdb overwrites sys.stdin to be a file object that doesn't seem
-            # to support colors or streaming.  So, just use the original stdout
-            # here for all subclasses.
-            printer = chatdbg_config.make_printer(sys.__stdout__, self._prompt, "   ", 80)
-            
             listeners=[
                 printer,
                 self._log,

@@ -219,8 +219,14 @@ class DBGDialog:
             debug=chatdbg_config.debug,
             functions=functions,
             stream=not chatdbg_config.no_stream,
+
+            # gdb overwrites sys.stdin to be a file object that doesn't seem
+            # to support colors or streaming.  So, just use the original stdout
+            # here for all subclasses.
+            printer = chatdbg_config.make_printer(sys.__stdout__, self._prompt, "   ", 80)
+            
             listeners=[
-                chatdbg_config.make_printer(sys.stdout, self._prompt, "   ", 80),
+                printer,
                 self._log,
             ],
         )

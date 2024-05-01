@@ -102,7 +102,10 @@ class GDBDialog(DBGDialog):
         return message.strip().startswith("Undefined command:")
 
     def _run_one_command(self, command):
-        return gdb.execute(command, to_string=True)
+        try:
+            return gdb.execute(command, to_string=True)
+        except Exception as e:
+            return str(e)
 
     def check_debugger_state(self):
         global last_error_type
@@ -234,12 +237,11 @@ class GDBDialog(DBGDialog):
         input_pipe = args.find('<')
         if input_pipe != -1:
             input_file = args[input_pipe + 1:].strip()
-
-        try:
-            content = open(input_file, 'r').read()
-            return content
-        except Exception:
-            self.fail(f"The detected input file {input_file} could not be read.")
+            try:
+                content = open(input_file, 'r').read()
+                return content
+            except Exception:
+                self.fail(f"The detected input file {input_file} could not be read.")
 
     def _prompt_stack(self):
         """
@@ -247,3 +249,22 @@ class GDBDialog(DBGDialog):
         in followup prompts.
         """
         return None
+    
+    def llm_debug(self, command: str) -> str:
+        """
+        {
+            "name": "debug",
+            "description": "The `debug` function runs a GDB command on the stopped program and gets the response.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {
+                        "type": "string",
+                        "description": "The GDB command to run, possibly with arguments."
+                    }
+                },
+                "required": [ "command" ]
+            }
+        }
+        """
+        return command, self._run_one_command(command)

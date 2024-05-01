@@ -1,0 +1,244 @@
+<?xml version="1.0"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1027.64666626" height="671.9998320000001" font-family="Consolas, Menlo, 'Bitstream Vera Sans Mono', monospace, 'Powerline Symbols'" font-size="14px">
+  <style>
+    .br { font-weight: bold }
+    .fa { fill-opacity: 0.5 }
+    .it { font-style: italic }
+    .un { text-decoration: underline }
+  </style>
+
+  <rect width="100%" height="100%" style="fill: #121314" rx="4" ry="4"></rect>
+
+  <svg x="8.42333333" y="9.333331000000001" class="default-text-fill">
+    <g style="shape-rendering: optimizeSpeed">
+
+        <rect x="16.84666666" y="317.333254" width="993.95333294" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="335.99991600000004" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect><rect x="33.69333332" y="335.99991600000004" width="960.25999962" height="18.666662000000002" style="fill: #FFFFAF"></rect><rect x="993.95333294" y="335.99991600000004" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="354.666578" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect><rect x="33.69333332" y="354.666578" width="960.25999962" height="18.666662000000002" style="fill: #FFFFAF"></rect><rect x="993.95333294" y="354.666578" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="373.33324000000005" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect><rect x="33.69333332" y="373.33324000000005" width="960.25999962" height="18.666662000000002" style="fill: #FFFFAF"></rect><rect x="993.95333294" y="373.33324000000005" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="391.999902" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect><rect x="33.69333332" y="391.999902" width="960.25999962" height="18.666662000000002" style="fill: #FFFFAF"></rect><rect x="993.95333294" y="391.999902" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="410.66656400000005" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect><rect x="33.69333332" y="410.66656400000005" width="960.25999962" height="18.666662000000002" style="fill: #FFFFAF"></rect><rect x="993.95333294" y="410.66656400000005" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="429.333226" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect><rect x="33.69333332" y="429.333226" width="960.25999962" height="18.666662000000002" style="fill: #FFFFAF"></rect><rect x="993.95333294" y="429.333226" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="447.99988800000006" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect><rect x="33.69333332" y="447.99988800000006" width="960.25999962" height="18.666662000000002" style="fill: #FFFFAF"></rect><rect x="993.95333294" y="447.99988800000006" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="466.66655000000003" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect><rect x="33.69333332" y="466.66655000000003" width="960.25999962" height="18.666662000000002" style="fill: #FFFFAF"></rect><rect x="993.95333294" y="466.66655000000003" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="485.33321200000006" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect><rect x="33.69333332" y="485.33321200000006" width="960.25999962" height="18.666662000000002" style="fill: #FFFFAF"></rect><rect x="993.95333294" y="485.33321200000006" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="503.99987400000003" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect><rect x="33.69333332" y="503.99987400000003" width="960.25999962" height="18.666662000000002" style="fill: #FFFFAF"></rect><rect x="993.95333294" y="503.99987400000003" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="522.6665360000001" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect><rect x="33.69333332" y="522.6665360000001" width="960.25999962" height="18.666662000000002" style="fill: #FFFFAF"></rect><rect x="993.95333294" y="522.6665360000001" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="541.333198" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect><rect x="33.69333332" y="541.333198" width="960.25999962" height="18.666662000000002" style="fill: #FFFFAF"></rect><rect x="993.95333294" y="541.333198" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="559.99986" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect><rect x="33.69333332" y="559.99986" width="960.25999962" height="18.666662000000002" style="fill: #FFFFAF"></rect><rect x="993.95333294" y="559.99986" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="578.6665220000001" width="993.95333294" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="597.3331840000001" width="993.95333294" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="615.999846" width="488.55333314" height="18.666662000000002" style="fill: #D7D7FF"></rect><rect x="505.3999998" y="615.999846" width="58.96333331" height="18.666662000000002" style="fill: #D7D7FF"></rect><rect x="564.36333311" y="615.999846" width="446.43666649" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="634.666508" width="993.95333294" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+
+    </g>
+
+    <text style="fill: #cccccc">
+      <tspan y="18.666662000000002">
+        <tspan dy="1em" x="0.0">
+For help, type &quot;help&quot;.
+        </tspan>
+      </tspan><tspan y="37.333324000000005">
+        <tspan dy="1em" x="0.0">
+Type &quot;apropos word&quot; to search for commands related to &quot;word&quot;...
+        </tspan>
+      </tspan><tspan y="55.99998600000001">
+        <tspan dy="1em" x="0.0">
+Reading symbols from 
+        </tspan><tspan x="176.88999993000002" style="fill: #4ebf22">
+a.out
+        </tspan><tspan x="219.00666658">
+...
+        </tspan>
+      </tspan><tspan y="74.66664800000001">
+        <tspan dy="1em" x="0.0">
+(ChatDBG gdb) run
+        </tspan>
+      </tspan><tspan y="93.33331000000001">
+        <tspan dy="1em" x="0.0">
+Starting program: 
+        </tspan><tspan x="151.61999994" style="fill: #4ebf22">
+/home/steve/ChatDBG/samples/cpp/a.out
+        </tspan>
+      </tspan><tspan y="111.99997200000001">
+        <tspan dy="1em" x="0.0">
+[Thread debugging using libthread_db enabled]
+        </tspan>
+      </tspan><tspan y="130.66663400000002">
+        <tspan dy="1em" x="0.0">
+Using host libthread_db library &quot;
+        </tspan><tspan x="277.96999989" style="fill: #4ebf22">
+/lib/x86_64-linux-gnu/libthread_db.so.1
+        </tspan><tspan x="606.47999976">
+&quot;.
+        </tspan>
+      </tspan><tspan y="149.33329600000002">
+        <tspan dy="1em" x="0.0">
+TEST 1
+        </tspan>
+      </tspan><tspan y="167.99995800000002">
+        <tspan dy="1em" x="0.0">
+TEST 0
+        </tspan>
+      </tspan><tspan y="186.66662000000002">
+        <tspan dy="1em" x="0.0">
+TEST 0
+        </tspan>
+      </tspan><tspan y="205.33328200000003">
+        <tspan dy="1em" x="0.0">
+TEST 0
+        </tspan>
+      </tspan><tspan y="242.66660600000003">
+        <tspan dy="1em" x="0.0">
+Program received signal SIGSEGV, Segmentation fault.
+        </tspan>
+      </tspan><tspan y="261.33326800000003">
+        <tspan dy="1em" x="0.0" style="fill: #26b0d7">
+0x0000555555555213
+        </tspan><tspan x="160.04333327">
+in 
+        </tspan><tspan x="185.31333326" style="fill: #ddaf3c">
+foo
+        </tspan><tspan x="219.00666658">
+(
+        </tspan><tspan x="227.42999991" style="fill: #54e1b9">
+n
+        </tspan><tspan x="235.85333324">
+=4, 
+        </tspan><tspan x="269.54666656" style="fill: #54e1b9">
+b
+        </tspan><tspan x="277.96999989">
+=1) at 
+        </tspan><tspan x="336.9333332" style="fill: #4ebf22">
+test-overflow.cpp
+        </tspan><tspan x="480.12999981">
+:7
+        </tspan>
+      </tspan><tspan y="279.99993">
+        <tspan dy="1em" x="0.0">
+7
+        </tspan><tspan x="84.2333333">
+cout 
+        </tspan><tspan x="126.34999995" style="fill: #dd3c69">
+&lt;&lt;
+        </tspan><tspan x="151.61999994" style="fill: #dd3c69">
+&quot;TEST &quot;
+        </tspan><tspan x="219.00666658" style="fill: #dd3c69">
+&lt;&lt;
+        </tspan><tspan x="244.27666657">
+x
+        </tspan><tspan x="252.6999999" style="fill: #dd3c69">
+[
+        </tspan><tspan x="261.12333323">
+n 
+        </tspan><tspan x="277.96999989" style="fill: #dd3c69">
+*
+        </tspan><tspan x="294.81666655" style="fill: #b954e1">
+10000
+        </tspan><tspan x="336.9333332" style="fill: #dd3c69">
+]
+        </tspan><tspan x="353.77999986000003" style="fill: #dd3c69">
+&lt;&lt;
+        </tspan><tspan x="379.04999985">
+endl
+        </tspan><tspan x="412.74333317" style="fill: #dd3c69">
+;
+        </tspan>
+      </tspan><tspan y="298.66659200000004">
+        <tspan dy="1em" x="0.0">
+(ChatDBG gdb) why?
+        </tspan>
+      </tspan><tspan y="354.666578">
+        <tspan dy="1em" x="58.96333331" class="br" style="fill: #1C1C1C">
+(ChatDBG gdb) code test-overflow.cpp:7
+        </tspan>
+      </tspan><tspan y="373.33324000000005">
+        <tspan dy="1em" x="67.38666664" style="fill: #585858">
+1 #include &lt;iostream&gt;
+        </tspan>
+      </tspan><tspan y="391.999902">
+        <tspan dy="1em" x="67.38666664" style="fill: #585858">
+2 using namespace std;
+        </tspan>
+      </tspan><tspan y="410.66656400000005">
+        <tspan dy="1em" x="67.38666664" style="fill: #585858">
+3
+        </tspan>
+      </tspan><tspan y="429.333226">
+        <tspan dy="1em" x="67.38666664" style="fill: #585858">
+4 int x[] = { 1, 2, 3, 4, 5 };
+        </tspan>
+      </tspan><tspan y="447.99988800000006">
+        <tspan dy="1em" x="67.38666664" style="fill: #585858">
+5
+        </tspan>
+      </tspan><tspan y="466.66655000000003">
+        <tspan dy="1em" x="67.38666664" style="fill: #585858">
+6 void foo(int n, float b) {
+        </tspan>
+      </tspan><tspan y="485.33321200000006">
+        <tspan dy="1em" x="67.38666664" style="fill: #585858">
+7
+        </tspan><tspan x="101.07999996000001" style="fill: #585858">
+cout &lt;&lt; &quot;TEST &quot; &lt;&lt; x[n * 10000] &lt;&lt; endl;
+        </tspan>
+      </tspan><tspan y="503.99987400000003">
+        <tspan dy="1em" x="67.38666664" style="fill: #585858">
+8 }
+        </tspan>
+      </tspan><tspan y="522.6665360000001">
+        <tspan dy="1em" x="67.38666664" style="fill: #585858">
+9
+        </tspan>
+      </tspan><tspan y="541.333198">
+        <tspan dy="1em" x="58.96333331" style="fill: #585858">
+10 int main()
+        </tspan>
+      </tspan><tspan y="615.999846">
+        <tspan dy="1em" x="33.69333332" style="fill: #000000">
+The stack trace shows that the program crashed due to a 
+        </tspan><tspan x="505.3999998" style="fill: #26b0d7">
+SIGSEGV
+        </tspan><tspan x="572.78666644" style="fill: #000000">
+(segmentation fault), which
+        </tspan>
+      </tspan>
+    </text>
+  </svg>
+
+  <g transform="translate(-50 -50)">
+    <svg x="50%" y="50%" width="100" height="100">
+      <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 866.0254037844387 866.0254037844387" style="filter: drop-shadow(0px 0px 5px rgba(0, 0, 0, 0.4))">
+  <defs>
+    <mask id="small-triangle-mask">
+      <rect width="100%" height="100%" fill="white"></rect>
+      <polygon points="508.01270189221935 433.01270189221935, 208.0127018922194 259.8076211353316, 208.01270189221927 606.217782649107" fill="black">
+      </polygon>
+    </mask>
+  </defs>
+  <polygon points="808.0127018922194 433.01270189221935, 58.01270189221947 -1.1368683772161603e-13, 58.01270189221913 866.0254037844386" mask="url(#small-triangle-mask)" fill="white">
+  </polygon>
+  <polyline points="481.2177826491071 333.0127018922194, 134.80762113533166 533.0127018922194" stroke="white" stroke-width="90">
+  </polyline>
+</svg>
+    </svg>
+  </g>
+</svg>

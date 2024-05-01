@@ -1,0 +1,238 @@
+<?xml version="1.0"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1027.64666626" height="671.9998320000001" font-family="Consolas, Menlo, 'Bitstream Vera Sans Mono', monospace, 'Powerline Symbols'" font-size="14px">
+  <style>
+    .br { font-weight: bold }
+    .fa { fill-opacity: 0.5 }
+    .it { font-style: italic }
+    .un { text-decoration: underline }
+  </style>
+
+  <rect width="100%" height="100%" style="fill: #121314" rx="4" ry="4"></rect>
+
+  <svg x="8.42333333" y="9.333331000000001" class="default-text-fill">
+    <g style="shape-rendering: optimizeSpeed">
+
+        <rect x="16.84666666" y="410.66656400000005" width="993.95333294" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="429.333226" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect><rect x="33.69333332" y="429.333226" width="960.25999962" height="18.666662000000002" style="fill: #FFFFAF"></rect><rect x="993.95333294" y="429.333226" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="447.99988800000006" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect><rect x="33.69333332" y="447.99988800000006" width="960.25999962" height="18.666662000000002" style="fill: #FFFFAF"></rect><rect x="993.95333294" y="447.99988800000006" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="466.66655000000003" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect><rect x="33.69333332" y="466.66655000000003" width="960.25999962" height="18.666662000000002" style="fill: #FFFFAF"></rect><rect x="993.95333294" y="466.66655000000003" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="485.33321200000006" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect><rect x="33.69333332" y="485.33321200000006" width="960.25999962" height="18.666662000000002" style="fill: #FFFFAF"></rect><rect x="993.95333294" y="485.33321200000006" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="503.99987400000003" width="993.95333294" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="522.6665360000001" width="993.95333294" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="541.333198" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect><rect x="33.69333332" y="541.333198" width="960.25999962" height="18.666662000000002" style="fill: #FFFFAF"></rect><rect x="993.95333294" y="541.333198" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="559.99986" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect><rect x="33.69333332" y="559.99986" width="960.25999962" height="18.666662000000002" style="fill: #FFFFAF"></rect><rect x="993.95333294" y="559.99986" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="578.6665220000001" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect><rect x="33.69333332" y="578.6665220000001" width="960.25999962" height="18.666662000000002" style="fill: #FFFFAF"></rect><rect x="993.95333294" y="578.6665220000001" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="597.3331840000001" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect><rect x="33.69333332" y="597.3331840000001" width="960.25999962" height="18.666662000000002" style="fill: #FFFFAF"></rect><rect x="993.95333294" y="597.3331840000001" width="16.84666666" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="16.84666666" y="615.999846" width="993.95333294" height="18.666662000000002" style="fill: #D7D7FF"></rect>
+
+        <rect x="0.0" y="634.666508" width="8.42333333" height="18.666662000000002" style="fill: #d9d9d9"></rect>
+
+
+    </g>
+
+    <text style="fill: #cccccc">
+      <tspan y="0.0">
+        <tspan dy="1em" x="33.69333332">
+exec(cmd, globals, locals)
+        </tspan>
+      </tspan><tspan y="18.666662000000002">
+        <tspan dy="1em" x="16.84666666">
+File &quot;&lt;string&gt;&quot;, line 1, in &lt;module&gt;
+        </tspan>
+      </tspan><tspan y="37.333324000000005">
+        <tspan dy="1em" x="16.84666666">
+File &quot;/home/steve/ChatDBG/samples/python/bootstrap.py&quot;, line 19, in &lt;module&gt;
+        </tspan>
+      </tspan><tspan y="55.99998600000001">
+        <tspan dy="1em" x="33.69333332">
+stats = resampled_stats(observed_marbles, 5)
+        </tspan>
+      </tspan><tspan y="74.66664800000001">
+        <tspan dy="1em" x="16.84666666">
+File &quot;/home/steve/ChatDBG/samples/python/bootstrap.py&quot;, line 15, in resampled_stats
+        </tspan>
+      </tspan><tspan y="93.33331000000001">
+        <tspan dy="1em" x="33.69333332">
+assert len(stats) == num_trials
+        </tspan>
+      </tspan><tspan y="111.99997200000001">
+        <tspan dy="1em" x="0.0">
+AssertionError
+        </tspan>
+      </tspan><tspan y="130.66663400000002">
+        <tspan dy="1em" x="0.0">
+Uncaught exception. Entering post mortem debugging
+        </tspan>
+      </tspan><tspan y="149.33329600000002">
+        <tspan dy="1em" x="0.0">
+Running &#39;cont&#39; or &#39;step&#39; will restart the program
+        </tspan>
+      </tspan><tspan y="167.99995800000002">
+        <tspan dy="1em" x="0.0">
+&gt; 
+        </tspan><tspan x="16.84666666" style="fill: #4ebf22">
+/home/steve/ChatDBG/samples/python/bootstrap.py
+        </tspan><tspan x="412.74333317">
+(15)
+        </tspan><tspan x="446.43666649" style="fill: #54e1b9">
+resampled_stats
+        </tspan><tspan x="572.78666644" style="fill: #26b0d7">
+()
+        </tspan>
+      </tspan><tspan y="186.66662000000002">
+        <tspan dy="1em" x="42.11666665" style="fill: #4ebf22">
+10 
+        </tspan>
+      </tspan><tspan y="205.33328200000003">
+        <tspan dy="1em" x="42.11666665" style="fill: #4ebf22">
+11 def
+        </tspan><tspan x="101.07999996000001">
+resampled_stats
+        </tspan><tspan x="227.42999991" style="fill: #26b0d7">
+(
+        </tspan><tspan x="235.85333324">
+observed_marbles
+        </tspan><tspan x="370.62666652" style="fill: #26b0d7">
+,
+        </tspan><tspan x="387.47333318">
+num_trials
+        </tspan><tspan x="471.70666648" style="fill: #26b0d7">
+):
+        </tspan>
+      </tspan><tspan y="223.99994400000003">
+        <tspan dy="1em" x="42.11666665" style="fill: #4ebf22">
+12 
+        </tspan><tspan x="101.07999996000001" style="fill: #dd3c69">
+stats = bootstrap_statistic(observed_marbles,
+        </tspan>
+      </tspan><tspan y="242.66660600000003">
+        <tspan dy="1em" x="42.11666665" style="fill: #4ebf22">
+13 
+        </tspan><tspan x="336.9333332">
+proportion_blue
+        </tspan><tspan x="463.28333315000003" style="fill: #26b0d7">
+,
+        </tspan>
+      </tspan><tspan y="261.33326800000003">
+        <tspan dy="1em" x="42.11666665" style="fill: #4ebf22">
+14 
+        </tspan><tspan x="336.9333332" style="fill: #dd3c69">
+num_trials)
+        </tspan>
+      </tspan><tspan y="279.99993">
+        <tspan dy="1em" x="0.0" style="fill: #4ebf22">
+---&gt; 15 
+        </tspan><tspan x="101.07999996000001" style="fill: #4ebf22">
+assert
+        </tspan><tspan x="160.04333327">
+len
+        </tspan><tspan x="185.31333326" style="fill: #26b0d7">
+(
+        </tspan><tspan x="193.73666659">
+stats
+        </tspan><tspan x="235.85333324" style="fill: #26b0d7">
+)
+        </tspan><tspan x="252.6999999" style="fill: #26b0d7">
+==
+        </tspan><tspan x="277.96999989">
+num_trials
+        </tspan>
+      </tspan><tspan y="298.66659200000004">
+        <tspan dy="1em" x="42.11666665" style="fill: #4ebf22">
+16 
+        </tspan><tspan x="101.07999996000001" style="fill: #4ebf22">
+return
+        </tspan><tspan x="160.04333327">
+stats
+        </tspan>
+      </tspan><tspan y="317.333254">
+        <tspan dy="1em" x="42.11666665" style="fill: #4ebf22">
+17 
+        </tspan>
+      </tspan><tspan y="335.99991600000004">
+        <tspan dy="1em" x="42.11666665" style="fill: #4ebf22">
+18 
+        </tspan><tspan x="67.38666664">
+observed_marbles 
+        </tspan><tspan x="210.58333325" style="fill: #26b0d7">
+=
+        </tspan><tspan x="227.42999991">
+make_marble_sample
+        </tspan><tspan x="379.04999985" style="fill: #26b0d7">
+()
+        </tspan>
+      </tspan><tspan y="354.666578">
+        <tspan dy="1em" x="42.11666665" style="fill: #4ebf22">
+19 
+        </tspan><tspan x="67.38666664">
+stats 
+        </tspan><tspan x="117.92666662" style="fill: #26b0d7">
+=
+        </tspan><tspan x="134.77333328">
+resampled_stats
+        </tspan><tspan x="261.12333323" style="fill: #26b0d7">
+(
+        </tspan><tspan x="269.54666656">
+observed_marbles
+        </tspan><tspan x="404.31999984000004" style="fill: #26b0d7">
+,
+        </tspan><tspan x="421.1666665" style="fill: #54e1b9">
+5
+        </tspan><tspan x="429.58999983" style="fill: #26b0d7">
+)
+        </tspan>
+      </tspan><tspan y="391.999902">
+        <tspan dy="1em" x="0.0" style="fill: #4ebf22">
+(ChatDBG) 
+        </tspan><tspan x="84.2333333">
+why
+        </tspan>
+      </tspan><tspan y="447.99988800000006">
+        <tspan dy="1em" x="58.96333331" class="br" style="fill: #1C1C1C">
+(ChatDBG) p proportion_blue
+        </tspan>
+      </tspan><tspan y="466.66655000000003">
+        <tspan dy="1em" x="58.96333331" style="fill: #585858">
+&lt;function proportion_blue at 0x7f5655935480&gt;
+        </tspan>
+      </tspan><tspan y="559.99986">
+        <tspan dy="1em" x="58.96333331" class="br" style="fill: #1C1C1C">
+(ChatDBG) p bootstrap_statistic
+        </tspan>
+      </tspan><tspan y="578.6665220000001">
+        <tspan dy="1em" x="58.96333331" style="fill: #585858">
+&lt;function bootstrap_statistic at 0x7f5655e26440&gt;
+        </tspan>
+      </tspan>
+    </text>
+  </svg>
+
+  <g transform="translate(-50 -50)">
+    <svg x="50%" y="50%" width="100" height="100">
+      <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 866.0254037844387 866.0254037844387" style="filter: drop-shadow(0px 0px 5px rgba(0, 0, 0, 0.4))">
+  <defs>
+    <mask id="small-triangle-mask">
+      <rect width="100%" height="100%" fill="white"></rect>
+      <polygon points="508.01270189221935 433.01270189221935, 208.0127018922194 259.8076211353316, 208.01270189221927 606.217782649107" fill="black">
+      </polygon>
+    </mask>
+  </defs>
+  <polygon points="808.0127018922194 433.01270189221935, 58.01270189221947 -1.1368683772161603e-13, 58.01270189221913 866.0254037844386" mask="url(#small-triangle-mask)" fill="white">
+  </polygon>
+  <polyline points="481.2177826491071 333.0127018922194, 134.80762113533166 533.0127018922194" stroke="white" stroke-width="90">
+  </polyline>
+</svg>
+    </svg>
+  </g>
+</svg>

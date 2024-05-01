@@ -129,7 +129,7 @@ class DBGDialog:
             )
 
     def llm_debug(self, command: str) -> str:
-        pass
+        return ""
 
     def llm_get_code_surrounding(self, filename: str, line_number: int) -> str:
         """

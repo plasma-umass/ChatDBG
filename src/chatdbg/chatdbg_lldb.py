@@ -309,3 +309,23 @@ class LLDBDialog(DBGDialog):
         in followup prompts.
         """
         return None
+    
+    def llm_debug(self, command: str) -> str:
+        """
+        {
+            "name": "debug",
+            "description": "The `debug` function runs an LLDB command on the stopped program and gets the response.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {
+                        "type": "string",
+                        "description": "The LLDB command to run, possibly with arguments."
+                    }
+                },
+                "required": [ "command" ]
+            }
+        }
+        """
+        return command, self._run_one_command(command)
+

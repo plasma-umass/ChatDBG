@@ -165,9 +165,7 @@ Inside Jupyter, run your notebook with the [ipyflow kernel](https://github.com/i
 
 To use ChatDBG with `lldb` or `gdb`, just run native code (compiled with `-g` for debugging symbols) with your choice of debugger; when it crashes, ask `why`. This also works for post mortem debugging (when you load a core with the `-c` option).  
 
-The native debuggers work slightly differently than Pdb.  After the debugger responds to your question, you will enter into ChatDBG's command loop, as indicated by the `(ChatDBG chatting)` prompt.  
-You may continue issuing debugging commands and you may send additional messages to the LLM by starting those messages with "chat".  
-When you are done, type `quit` to return to the debugger's main command loop.
+The native debuggers work slightly differently than Pdb.  After the debugger responds to your question, you will enter into ChatDBG's command loop, as indicated by the `(ChatDBG chatting)` prompt.  You may continue issuing debugging commands and you may send additional messages to the LLM by starting those messages with "chat".  When you are done, type `quit` to return to the debugger's main command loop.
 
 <details>
 <summary>

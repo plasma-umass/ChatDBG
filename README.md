@@ -10,6 +10,11 @@ ChatDBG is an AI-based debugging assistant for C/C++/Python/Rust code that integ
 
 As far as we are aware, ChatDBG is the *first* debugger to automatically perform root cause analysis and to provide suggested fixes.
 
+**Watch ChatDBG in action!**
+| LLDB on [test-overflow.cpp](samples/cpp/test-overflow.cpp) | GDB on [test-overflow.cpp](samples/cpp/test-overflow.cpp)  | Pdb on [bootstrap.py](samples/python/bootstrap.py) |
+|:-------------------------:|:-------------------------:|:-------------------------:|
+| <a href="https://asciinema.org/a/RsAGFFmsicIvMW8xgvPP6PW2f" target="_blank"><img src="https://asciinema.org/a/RsAGFFmsicIvMW8xgvPP6PW2f.svg" /></a>| <a href="https://asciinema.org/a/bMWOyyrh7WXWsTCFboyKpqwTq" target="_blank"><img src="https://asciinema.org/a/bMWOyyrh7WXWsTCFboyKpqwTq.svg" /></a>|<a href="https://asciinema.org/a/qulxiJTqwVRJPaMZ1hcBs6Clu" target="_blank"><img src="https://asciinema.org/a/qulxiJTqwVRJPaMZ1hcBs6Clu.svg" /></a>|
+
 For technical details and a complete evaluation, see our arXiv paper, [_ChatDBG: An AI-Powered Debugging Assistant_](https://arxiv.org/abs/2403.16354) ([PDF](https://github.com/plasma-umass/ChatDBG/blob/main/ChatDBG-arxiv-2403.16354.pdf)).
 
 > [!NOTE]

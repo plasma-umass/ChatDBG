@@ -133,7 +133,9 @@ ChatDBG is an extension of the standard Python debugger `pdb`. Like
 enter post mortem debugging mode.
 
 Unlike other debuggers, you can then use the `why` command to ask
-ChatDBG why your program failed and get a suggested fix.
+ChatDBG why your program failed and get a suggested fix.  After the LLM responds,
+you may issue additional debugging commands or continue the conversation by entering
+any other text.
 
 #### IPython and Jupyter Support
 
@@ -161,7 +163,11 @@ Inside Jupyter, run your notebook with the [ipyflow kernel](https://github.com/i
 
 ### Debugging native code (C, C++, or Rust with <TT>lldb</TT> / <TT>gdb</TT>)
 
-To use ChatDBG with `lldb` or `gdb`, just run native code (compiled with `-g` for debugging symbols) with your choice of debugger; when it crashes, ask `why`. This also works for post mortem debugging (when you load a core with the `-c` option).
+To use ChatDBG with `lldb` or `gdb`, just run native code (compiled with `-g` for debugging symbols) with your choice of debugger; when it crashes, ask `why`. This also works for post mortem debugging (when you load a core with the `-c` option).  
+
+The native debuggers work slightly differently than Pdb.  After the debugger responds to your question, you will enter into ChatDBG's command loop, as indicated by the `(ChatDBG chatting)` prompt.  
+You may continue issuing debugging commands and you may send additional messages to the LLM by starting those messages with "chat".  
+When you are done, type `quit` to return to the debugger's main command loop.
 
 <details>
 <summary>

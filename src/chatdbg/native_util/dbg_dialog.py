@@ -46,7 +46,7 @@ class DBGDialog:
         self.query_and_print(assistant, user_text, False)
         while True:
             try:
-                command = input(">>> " + self._prompt).strip()
+                command = input("\u001b[35m(ChatDBG chatting)\u001b[0m").strip()
                 if command in ["exit", "quit"]:
                     break
                 if command in ["chat", "why"]:

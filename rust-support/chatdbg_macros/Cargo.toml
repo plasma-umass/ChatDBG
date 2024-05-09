@@ -1,8 +1,8 @@
 [package]
 name = "chatdbg_macros"
-version = "0.1.3"
+version = "0.0.0"                                          # Sync with pyproject.toml on release.
 edition = "2021"
-description = "Rust-specific (macro) support for ChatDBG (https://github.com/plasma-umass/chatdbg)."
+description = "Rust-specific (macro) support for ChatDBG."
 authors = ["Noah Lev Bartell-Mangel <noahlevb@gmail.com>"]
 license = "Apache-2.0"
 readme = "../../README.md"

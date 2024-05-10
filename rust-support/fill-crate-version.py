@@ -1,5 +1,6 @@
 import os
 import tomllib
+import re
 
 DIRNAME = os.path.dirname(__file__)
 PYPROJECT_FILE = os.path.join(DIRNAME, "../pyproject.toml")
@@ -14,10 +15,7 @@ if __name__ == "__main__":
         version = tomllib.load(f)["project"]["version"]
     for file in CARGO_TOML_FILES:
         with open(file, "r") as f:
-            lines = f.readlines()
+            content = f.read()
+        content = re.sub(r"##VERSION##", version, content)
         with open(file, "w") as f:
-            for line in lines:
-                if line.startswith("version"):
-                    f.write(f'version = "{version}"\n')
-                else:
-                    f.write(line)
+            f.write(content)

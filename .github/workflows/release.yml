@@ -36,8 +36,8 @@ jobs:
     - name: Publish to crates.io
       run: |
         cargo login ${{ secrets.CRATES_IO_API_TOKEN }}
-        cargo publish -p chatdbg --allow-dirty
         cargo publish -p chatdbg_macros --allow-dirty
+        cargo publish -p chatdbg --allow-dirty
       working-directory: rust-support
 
     - name: Publish to PyPI

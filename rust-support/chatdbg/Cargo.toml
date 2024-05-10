@@ -1,6 +1,6 @@
 [package]
 name = "chatdbg"
-version = "0.0.0"                                       # Sync with pyproject.toml on release.
+version = "##VERSION##"                                 # Sync with pyproject.toml on release.
 edition = "2021"
 description = "Rust-specific support for ChatDBG."
 authors = ["Emery Berger <emery.berger@gmail.com>"]
@@ -10,5 +10,5 @@ homepage = "https://github.com/plasma-umass/ChatDBG/"
 repository = "https://github.com/plasma-umass/ChatDBG/"
 
 [dependencies]
-chatdbg_macros = { path = "../chatdbg_macros" }
+chatdbg_macros = "##VERSION##" # Sync with pyproject.toml on release.
 lazy_static = "1.4.0"

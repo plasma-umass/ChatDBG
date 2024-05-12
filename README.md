@@ -179,7 +179,7 @@ To use ChatDBG with Rust, you need to do two steps: modify your
 
 ```toml
 [dependencies]
-chatdbg = "0.1.3"
+chatdbg = "0.6.2"
 
 [profile.dev]
 panic = "abort"

@@ -17,17 +17,31 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.x'
+        python-version: '>=3.11'
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install build
+        pip install build packaging requests
+
+    - name: Check version bump
+      run: python3 check-version-bump.py
+
+    - name: Sync pyproject.toml/Cargo.toml versions
+      run: python3 rust-support/fill-crate-version.py
 
     - name: Build package
       run: python -m build
 
-    - name: Publish package
+    - name: Publish to crates.io
+      run: |
+        cargo publish -p chatdbg_macros --allow-dirty
+        cargo publish -p chatdbg --allow-dirty
+      env:
+        CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      working-directory: rust-support
+
+    - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         user: __token__

@@ -13,13 +13,13 @@ authors = [
 ]
 dependencies = [
   "llm-utils>=0.2.8",
-  "openai>=1.6.1",
+  "openai>=1.29.0",
   "rich>=13.7.0",
   "ansicolors>=1.1.8",
   "traitlets>=5.14.1",
   "ipdb>=0.13.13",
   "ipython>=8.18.1",
-  "litellm>=1.34.12",
+  "litellm>=1.37.9",
   "PyYAML>=6.0.1", 
   "ipyflow>=0.0.130",
   "numpy>=1.26.3",

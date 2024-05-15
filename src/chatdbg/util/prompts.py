@@ -57,7 +57,9 @@ def build_followup_prompt(history: str, extra: str, user_text: str) -> str:
 
 def initial_instructions(functions: List[Callable[[Any], Any]]) -> str:
     if chatdbg_config.instructions == "":
-        file_path = os.path.join(os.path.dirname(__file__), "instructions.txt")
+        file_path = os.path.join(os.path.dirname(__file__), f"instructions/{chatdbg_config.model}.txt")
+        if not os.path.exists(file_path):
+            file_path = os.path.join(os.path.dirname(__file__), f"instructions/default.txt")
     else:
         file_path = chatdbg_config.instructions
 

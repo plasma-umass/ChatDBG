@@ -42,7 +42,8 @@ def test_initial_instructions_with_config_path(monkeypatch, tmp_path):
 def test_initial_instructions_without_config_path(monkeypatch, tmp_path):
     # Set up a temporary instructions file in the same directory as this test file
     test_instruction_content = "Default instructions: {functions}"
-    test_instruction_file = tmp_path / "instructions.txt"
+    test_instruction_file = tmp_path / "instructions" / "default.txt"
+    os.mkdir(tmp_path / "instructions")
     test_instruction_file.write_text(test_instruction_content)
 
     # Mock os.path.dirname to return the directory of the temporary file

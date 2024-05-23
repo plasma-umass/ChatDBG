@@ -80,7 +80,7 @@ def trim_messages(
 
     messages = copy.deepcopy(messages)
 
-    max_tokens_for_model = litellm.model_cost[model]["max_tokens"]
+    max_tokens_for_model = litellm.model_cost[model]["max_input_tokens"]
     max_tokens = int(max_tokens_for_model * trim_ratio)
 
     if litellm.token_counter(model, messages=messages) < max_tokens:

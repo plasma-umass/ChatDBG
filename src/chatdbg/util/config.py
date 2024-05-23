@@ -39,7 +39,7 @@ class DBGParser(argparse.ArgumentParser):
 
 class ChatDBGConfig(Configurable):
     model = Unicode(
-        _chatdbg_get_env("model", "gpt-4-1106-preview"), help="The LLM model"
+        _chatdbg_get_env("model", "gpt-4o"), help="The LLM model"
     ).tag(config=True)
 
     debug = Bool(_chatdbg_get_env("debug", False), help="Log LLM calls").tag(
@@ -53,6 +53,7 @@ class ChatDBGConfig(Configurable):
     tag = Unicode(_chatdbg_get_env("tag", ""), help="Any extra info for log file").tag(
         config=True
     )
+
     rc_lines = Unicode(
         _chatdbg_get_env("rc_lines", "[]"), help="lines to run at startup"
     ).tag(config=True)
@@ -90,10 +91,10 @@ class ChatDBGConfig(Configurable):
 
     instructions = Unicode(
         _chatdbg_get_env("instructions", ""),
-        help="the File for the instructions, or '' for the default version.",
+        help="The file for the initial instructions to the LLM, or '' for the default (possibly-model specific) version.",
     ).tag(config=True)
 
-    _user_configurable = [debug, log, model, no_stream, format]
+    _user_configurable = [debug, log, model, instructions, no_stream, format]
 
     def _parser(self):
         parser = DBGParser(add_help=False)

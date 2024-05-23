@@ -1,0 +1,35 @@
+The program has this stack trace:
+```
+    [... skipping 4 hidden frame(s)]
+
+> /workspaces/ubuntu/ChatDBG/samples/python/bootstrap.py(26)<module>()
+     17     return stats
+     18 
+     19 def compute_the_stat():
+     20     # pdb.set_trace()
+     21     observed_marbles = make_marble_sample()
+     22     # pdb.set_trace()
+     23     return resampled_stats(observed_marbles, 1000)
+     24 
+     25 stats = compute_the_stat()
+---> 26 assert np.isclose(np.mean(stats), 0.5)
+
+    Global variables:
+      stats: ndarray = array([0.6       , 0.7       , 0.76666667, ..., 0.7       , 0.63333333,
+                              0.76666667])
+
+
+```
+
+The program encountered the following error:
+```
+AssertionError
+```
+The code `assert np.isclose(np.mean(stats), 0.5)` is correct and MUST remain unchanged in your fix.
+
+This was the command line:
+```
+bootstrap.py
+```
+
+What's the bug? Give me a fix.

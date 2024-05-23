@@ -5,9 +5,10 @@ error.
 {functions}
 
 Call any provided functions as many times as you would like.
+Call find_last_def at least once and use the output as part of your response.
 
 The root cause of any error is likely due to a problem in the source
-code from the user.  
+code from the user.
 
 Explain why each variable contributing to the error has been set 
 to the value that it has.

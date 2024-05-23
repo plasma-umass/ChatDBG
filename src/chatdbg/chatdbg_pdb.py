@@ -543,6 +543,11 @@ class ChatDBG(ChatDBGSuper):
         self.was_chat_or_renew = True
 
         full_prompt = self._build_prompt(arg, self._assistant != None)
+
+        # TODO: For testing - REMOVE
+        with open("TESTprompt.txt", "w") as file:
+            file.write(full_prompt)
+
         full_prompt = strip_ansi(full_prompt)
         full_prompt = truncate_proportionally(full_prompt)
 
@@ -579,7 +584,7 @@ class ChatDBG(ChatDBGSuper):
 
     def _supported_functions(self):
         if chatdbg_config.take_the_wheel:
-            functions = [self.debug, self.info]
+            functions = [self.debug, self.info, self.find_last_def]
             if self._supports_flow:
                 functions += [self.slice]
         else:
@@ -676,3 +681,26 @@ class ChatDBG(ChatDBGSuper):
         command = f"slice {name}"
         result = self._capture_onecmd(command)
         return command, truncate_proportionally(result, top_proportion=0.5)
+
+    def find_last_def(self, var):
+        """
+        {
+            "name": "find_last_def",
+            "description": "Call the `find_last_def` function to retrieve the stack trace from the execution point when a variable was last modified.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "The variable to look at."
+                    }
+                },
+                "required": [ "name"  ]
+            }
+        }
+        """
+        str = input("Enter String ")
+        while str != '.':
+            print(str)
+            str = input("Enter String ")
+        return str

@@ -195,15 +195,12 @@ class Assistant:
             call, result = function["function"](**args)
             result = remove_non_printable_chars(strip_ansi(result).expandtabs())
             self._broadcast("on_function_call", call, result)
-        except OSError as e:
-            # function produced some error -- move this to client???
-            # likely to be an exception from the code we ran, not a bug...
-            result = f"Error: {e}"
         except KeyboardInterrupt as e:
             raise e
         except Exception as e:
             # likely to be an exception from the code we ran, not a bug...
-            result = f"Ill-formed function call: {e}"
+            result = f"Exception in function call: {e}"
+            self._broadcast("on_warn", result)
         return result
 
     def _batch_query(self, prompt: str, user_text):

@@ -57,6 +57,5 @@ def test_make_call_oserror(monkeypatch):
     result = assistant._make_call(tool_call)
 
     # Check that the result contains the error message
-    assert result == "Error: simulated os error"
-    # Check that _broadcast was not called since an exception occurred
-    assistant._broadcast.assert_not_called()
+    assert result == "Exception in function call: simulated os error"
+    

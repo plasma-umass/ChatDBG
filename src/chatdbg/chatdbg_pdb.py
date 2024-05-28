@@ -618,7 +618,7 @@ class ChatDBG(ChatDBGSuper):
 
     def _supported_functions(self):
         if chatdbg_config.take_the_wheel:
-            functions = [self.debug, self.info, self.find_last_def]
+            functions = [self.debug, self.info, self.find_initial]
             if self._supports_flow:
                 functions += [self.slice]
         else:
@@ -716,11 +716,11 @@ class ChatDBG(ChatDBGSuper):
         result = self._capture_onecmd(command)
         return command, truncate_proportionally(result, top_proportion=0.5)
 
-    def find_last_def(self, var):
+    def find_initial(self, name):
         """
         {
-            "name": "find_last_def",
-            "description": "Call the `find_last_def` function to retrieve the stack trace from the execution point when a variable was last modified.",
+            "name": "find_initial",
+            "description": "Call the `find_initial` function to retrieve the stack trace from the point at which a variable was initialized.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -733,8 +733,4 @@ class ChatDBG(ChatDBGSuper):
             }
         }
         """
-        str = input("Enter String ")
-        while str != '.':
-            print(str)
-            str = input("Enter String ")
-        return str
+        return input(f"Stack trace at {name} initialization: ")

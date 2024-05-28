@@ -15,8 +15,8 @@ The program has this stack trace:
 ---> 26 assert np.isclose(np.mean(stats), 0.5)
 
     Global variables:
-      stats: ndarray = array([0.6       , 0.7       , 0.76666667, ..., 0.7       , 0.63333333,
-                              0.76666667])
+      stats: ndarray = array([0.73333333, 0.6       , 0.83333333, ..., 0.63333333, 0.7       ,
+                              0.63333333])
 
 
 ```

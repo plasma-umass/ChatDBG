@@ -548,10 +548,6 @@ class ChatDBG(ChatDBGSuper):
 
         full_prompt = self._build_prompt(arg, self._assistant != None)
 
-        # TODO: For testing - REMOVE
-        with open("TESTprompt.txt", "w") as file:
-            file.write(full_prompt)
-
         full_prompt = strip_ansi(full_prompt)
         full_prompt = truncate_proportionally(full_prompt)
 
@@ -588,7 +584,7 @@ class ChatDBG(ChatDBGSuper):
 
     def _supported_functions(self):
         if chatdbg_config.take_the_wheel:
-            functions = [self.debug, self.info, self.find_initial]
+            functions = [self.debug, self.info, self.find_initialization_stack]
             if self._supports_flow:
                 functions += [self.slice]
         else:
@@ -686,11 +682,11 @@ class ChatDBG(ChatDBGSuper):
         result = self._capture_onecmd(command)
         return command, truncate_proportionally(result, top_proportion=0.5)
 
-    def find_initial(self, name):
+    def find_initialization_stack(self, name):
         """
         {
-            "name": "find_initial",
-            "description": "Call the `find_initial` function to retrieve the stack trace from the point at which a variable was initialized.",
+            "name": "find_initialization_stack",
+            "description": "Call the `find_initialization_stack` function to retrieve the stack trace from the point at which a variable was initialized.",
             "parameters": {
                 "type": "object",
                 "properties": {

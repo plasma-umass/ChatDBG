@@ -1,6 +1,5 @@
 from datascience import *
 from ds101 import *
-import pdb
 
 def make_marble_sample():
     table = Table().read_table('marble-sample.csv')
@@ -17,9 +16,7 @@ def resampled_stats(observed_marbles, num_trials):
     return stats
 
 def compute_the_stat():
-    # pdb.set_trace()
     observed_marbles = make_marble_sample()
-    # pdb.set_trace()
     return resampled_stats(observed_marbles, 1000)
 
 stats = compute_the_stat()

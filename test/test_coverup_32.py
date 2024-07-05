@@ -19,7 +19,7 @@ import pytest
 
 # Here is the test script for the above function:
 
-from chatdbg.pdb.text import strip_color
+from chatdbg.custom_pdb.text import strip_color
 
 def test_strip_color_with_ansi_escape_sequences():
     # ANSI escape sequences for colors and formatting

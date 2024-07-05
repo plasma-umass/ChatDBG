@@ -4,7 +4,7 @@ import atexit
 import inspect
 import linecache
 import os
-import pdb
+import custom_pdb as pdb
 import pydoc
 import sys
 import textwrap

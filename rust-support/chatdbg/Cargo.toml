@@ -1,6 +1,6 @@
 [package]
 name = "chatdbg"
-version = "##VERSION##"                                 # Sync with pyproject.toml on release.
+version = "##VERSION##" # Will be auto-synced with pyproject.toml on release.
 edition = "2021"
 description = "Rust-specific support for ChatDBG."
 authors = ["Emery Berger <emery.berger@gmail.com>"]

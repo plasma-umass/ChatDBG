@@ -1,6 +1,6 @@
 [package]
 name = "chatdbg_macros"
-version = "0.6.2"                                    # Sync with pyproject.toml on release.
+version = "##VERSION##" # Will be auto-synced with pyproject.toml on release.
 edition = "2021"
 description = "Rust-specific (macro) support for ChatDBG."
 authors = ["Noah Lev Bartell-Mangel <noahlevb@gmail.com>"]

@@ -3,7 +3,7 @@
 # branches ['23->24', '23->27']
 
 import pytest
-from chatdbg.pdb.text import truncate_proportionally
+from chatdbg.custom_pdb.text import truncate_proportionally
 
 def test_truncate_proportionally_full_coverage():
     # Test case where text is longer than maxlen and top_proportion is default

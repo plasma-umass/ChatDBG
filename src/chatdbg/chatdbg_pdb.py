@@ -4,7 +4,6 @@ import atexit
 import inspect
 import linecache
 import os
-import pdb
 import pydoc
 import sys
 import textwrap
@@ -13,6 +12,8 @@ from io import StringIO
 from pathlib import Path
 
 import IPython
+
+import chatdbg.custom_pdb as pdb
 
 from chatdbg.util.prompts import (
     build_followup_prompt,

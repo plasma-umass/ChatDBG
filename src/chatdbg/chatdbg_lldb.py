@@ -309,7 +309,7 @@ class LLDBDialog(DBGDialog):
         in followup prompts.
         """
         return None
-    
+
     def llm_debug(self, command: str) -> str:
         """
         {
@@ -328,4 +328,3 @@ class LLDBDialog(DBGDialog):
         }
         """
         return command, self._run_one_command(command)
-

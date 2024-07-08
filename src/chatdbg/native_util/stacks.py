@@ -42,7 +42,7 @@ class _FrameSummaryEntry:
         return self._lineno
 
     def __str__(self):
-        a = ', '.join([str(a) for a in self._arguments])
+        a = ", ".join([str(a) for a in self._arguments])
         return f"{self._index}: {self._name}({a}) at {self._file_path}:{self._lineno}"
 
     def __repr__(self):
@@ -68,7 +68,7 @@ def build_enriched_stacktrace(summaries):
     if not summaries:
         print("could not generate any frame summary.")
         return
-    else:        
+    else:
         frame_summary = "\n".join([str(s) for s in summaries])
         parts.append(frame_summary)
 

@@ -5,9 +5,7 @@ from .text import truncate_proportionally
 from typing import Any, Callable, List, Union, Optional
 
 
-def _wrap_it(
-    before: str, text: str, after: str = "", maxlen: int = 2048
-) -> str:
+def _wrap_it(before: str, text: str, after: str = "", maxlen: int = 2048) -> str:
     if text:
         text = truncate_proportionally(text, maxlen, 0.5)
         before = before + ":\n" if before else ""
@@ -57,9 +55,13 @@ def build_followup_prompt(history: str, extra: str, user_text: str) -> str:
 
 def initial_instructions(functions: List[Callable[[Any], Any]]) -> str:
     if chatdbg_config.instructions == "":
-        file_path = os.path.join(os.path.dirname(__file__), f"instructions/{chatdbg_config.model}.txt")
+        file_path = os.path.join(
+            os.path.dirname(__file__), f"instructions/{chatdbg_config.model}.txt"
+        )
         if not os.path.exists(file_path):
-            file_path = os.path.join(os.path.dirname(__file__), f"instructions/default.txt")
+            file_path = os.path.join(
+                os.path.dirname(__file__), f"instructions/default.txt"
+            )
     else:
         file_path = chatdbg_config.instructions
 

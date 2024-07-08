@@ -135,10 +135,10 @@ class ChatDBG(ChatDBGSuper):
     def _is_user_file(self, file_name):
         if file_name.endswith(".pyx"):
             return False
-        elif file_name == "<string>" or file_name.startswith('<frozen'):
+        elif file_name == "<string>" or file_name.startswith("<frozen"):
             # synthetic entry point or frozen modules
             return False
-        elif file_name.startswith('<ipython'):
+        elif file_name.startswith("<ipython"):
             # stdin from ipython session
             return True
 

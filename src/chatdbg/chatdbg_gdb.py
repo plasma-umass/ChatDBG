@@ -38,6 +38,7 @@ def stop_handler(event):
 
 gdb.events.stop.connect(stop_handler)
 
+
 class Code(gdb.Command):
 
     def __init__(self):
@@ -47,7 +48,9 @@ class Code(gdb.Command):
         print(code(command))
         return
 
+
 Code()
+
 
 class Definition(gdb.Command):
 
@@ -58,7 +61,9 @@ class Definition(gdb.Command):
         print(clangd_lsp_integration.native_definition(command))
         return
 
+
 Definition()
+
 
 class Config(gdb.Command):
 
@@ -71,7 +76,9 @@ class Config(gdb.Command):
         print(message)
         return
 
+
 Config()
+
 
 # Implement the command `why`
 class Why(gdb.Command):
@@ -87,6 +94,7 @@ class Why(gdb.Command):
         except Exception as e:
             print(str(e))
             return
+
 
 Why()
 
@@ -117,10 +125,14 @@ class GDBDialog(DBGDialog):
             frame = gdb.selected_frame()
             block = frame.block()
         except gdb.error:
-            self.fail("Must be attached to a program that fails to use `why` or `chat`.")
+            self.fail(
+                "Must be attached to a program that fails to use `why` or `chat`."
+            )
         except RuntimeError:
-            self.fail("Your program must be compiled with debug information (`-g`) to use `why` or `chat`.")
-        
+            self.fail(
+                "Your program must be compiled with debug information (`-g`) to use `why` or `chat`."
+            )
+
     def _get_frame_summaries(
         self, max_entries: int = 20
     ) -> Optional[List[Union[_FrameSummaryEntry, _SkippedFramesEntry]]]:
@@ -220,11 +232,11 @@ class GDBDialog(DBGDialog):
 
         if executable_path.startswith(os.getcwd()):
             executable_path = os.path.join(".", os.path.relpath(executable_path))
-        
+
         prefix = "Argument list to give program being debugged when it is started is "
         args = gdb.execute("show args", to_string=True).strip()
         if args.startswith(prefix):
-            args = args[len(prefix):].strip('."')
+            args = args[len(prefix) :].strip('."')
 
         return executable_path + " " + args
 
@@ -232,13 +244,13 @@ class GDBDialog(DBGDialog):
         prefix = "Argument list to give program being debugged when it is started is "
         args = gdb.execute("show args", to_string=True).strip()
         if args.startswith(prefix):
-            args = args[len(prefix):].strip('."')
+            args = args[len(prefix) :].strip('."')
 
-        input_pipe = args.find('<')
+        input_pipe = args.find("<")
         if input_pipe != -1:
-            input_file = args[input_pipe + 1:].strip()
+            input_file = args[input_pipe + 1 :].strip()
             try:
-                content = open(input_file, 'r').read()
+                content = open(input_file, "r").read()
                 return content
             except Exception:
                 self.fail(f"The detected input file {input_file} could not be read.")
@@ -249,7 +261,7 @@ class GDBDialog(DBGDialog):
         in followup prompts.
         """
         return None
-    
+
     def llm_debug(self, command: str) -> str:
         """
         {

@@ -112,7 +112,7 @@ class DBGDialog:
     def _prompt_history(self):
         return str(self._history)
 
-    def build_prompt(self, arg, conversing):        
+    def build_prompt(self, arg, conversing):
         if not conversing:
             return build_initial_prompt(
                 self._initial_prompt_enchriched_stack_trace(),
@@ -200,7 +200,7 @@ class DBGDialog:
         # to support colors or streaming.  So, just use the original stdout
         # here for all subclasses.
         printer = chatdbg_config.make_printer(sys.__stdout__, self._prompt, "   ", 80)
-        
+
         assistant = Assistant(
             instruction_prompt,
             model=chatdbg_config.model,

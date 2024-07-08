@@ -1,6 +1,6 @@
 import copy
 import warnings
-from typing import Dict, List, Union
+from typing import Dict, List
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")

@@ -2,7 +2,7 @@ import json
 import os
 from chatdbg.util.config import chatdbg_config
 from .text import truncate_proportionally
-from typing import Any, Callable, List, Union, Optional
+from typing import Any, Callable, List
 
 
 def _wrap_it(before: str, text: str, after: str = "", maxlen: int = 2048) -> str:

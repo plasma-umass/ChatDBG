@@ -59,23 +59,6 @@ def chat(
         result.SetError(str(e))
 
 
-# @lldb.command("test_prompt")
-# def test_prompt(
-#     debugger: lldb.SBDebugger,
-#     command: str,
-#     result: lldb.SBCommandReturnObject,
-#     internal_dict: dict,
-# ):
-#     try:
-#         # new dialog object, so no history...
-#         dialog = LLDBDialog(PROMPT, debugger)
-#         result.AppendMessage(dialog.initial_prompt_instructions())
-#         result.AppendMessage("-" * 80)
-#         result.AppendMessage(dialog.build_prompt(command, False))
-#     except Exception as e:
-#         result.SetError(str(e))
-
-
 @lldb.command("config")
 def config(
     debugger: lldb.SBDebugger,
@@ -86,9 +69,6 @@ def config(
     args = command.split()
     message = chatdbg_config.parse_only_user_flags(args)
     result.AppendMessage(message)
-
-
-####
 
 
 class LLDBDialog(DBGDialog):

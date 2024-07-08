@@ -1,6 +1,5 @@
 import argparse
 import os
-from textwrap import TextWrapper
 
 from traitlets import Bool, Int, Unicode
 from traitlets.config import Configurable
@@ -9,7 +8,7 @@ from chatdbg.assistant.listeners import BaseAssistantListener
 from chatdbg.util.markdown import ChatDBGMarkdownPrinter
 from chatdbg.util.printer import ChatDBGPrinter
 
-from io import StringIO, TextIOWrapper
+from io import TextIOWrapper
 from types import *
 from typing import *
 

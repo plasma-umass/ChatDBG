@@ -93,7 +93,11 @@ class ChatDBGConfig(Configurable):
         help="The file for the initial instructions to the LLM, or '' for the default (possibly-model specific) version.",
     ).tag(config=True)
 
-    _user_configurable = [debug, log, model, instructions, no_stream, format]
+    module_whitelist = Unicode(
+        _chatdbg_get_env("module_whitelist", ""), help="The module whitelist file"
+    ).tag(config=True)
+
+    _user_configurable = [debug, log, model, instructions, no_stream, format, module_whitelist]
 
     def _parser(self):
         parser = DBGParser(add_help=False)
@@ -125,6 +129,7 @@ class ChatDBGConfig(Configurable):
             "no_stream": self.no_stream,
             "format": self.format,
             "instructions": self.instructions,
+            "module_whitelist": self.module_whitelist,
         }
 
     def parse_user_flags(self, argv: List[str]) -> None:
@@ -179,6 +184,17 @@ class ChatDBGConfig(Configurable):
         else:
             print("*** Unknown format '{format}'.  Defaulting to 'text'", file=stdout)
             return ChatDBGPrinter(stdout, prompt, prefix, width)
+
+    def get_module_whitelist(self) -> str:
+        if self.module_whitelist == "":
+            file_path = os.path.join(
+                os.path.dirname(__file__), f"module_whitelist.txt"
+            )
+        else:
+            file_path = self.module_whitelist
+
+        with open(file_path, "r") as file:
+            return [ module.rstrip() for module in file if module.rstrip() != "" ]
 
 
 chatdbg_config: ChatDBGConfig = ChatDBGConfig()

@@ -29,6 +29,7 @@ def test_to_json():
         "tag": 'test_tag',
         "rc_lines": '42',  # Adjusted to be a string
         "context": 10,  # Adjusted to be an int
+        'module_whitelist': '',
         "show_locals": True,
         "show_libs": False,
         "show_slices": True,

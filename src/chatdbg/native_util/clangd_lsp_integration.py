@@ -153,7 +153,7 @@ def native_definition(command):
         return "`clangd` was not found. The `definition` function will not be made available."
     last_space_index = command.rfind(" ")
     if last_space_index == -1:
-        return "`clangd` was not found. The `definition` function will not be made available."
+        return "usage: definition <filename>:<lineno> <symbol>"
     filename_lineno = command[:last_space_index]
     symbol = command[last_space_index + 1 :]
     parts = filename_lineno.split(":")

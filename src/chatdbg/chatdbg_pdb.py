@@ -695,7 +695,7 @@ class ChatDBG(ChatDBGSuper):
         """
         {
             "name": "slice",
-            "description": "Call the `slice` function to get the code used to produce the value currently stored a variable.  You MUST call `slice` exactly once on any variable used but not defined in the current frame's code.",
+            "description": "Call the `slice` function to get the code used to produce the value currently stored in a variable.  You MUST call `slice` exactly once on any variable used but not defined in the current frame's code.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -711,22 +711,3 @@ class ChatDBG(ChatDBGSuper):
         command = f"slice {name}"
         result = self._capture_onecmd(command)
         return command, truncate_proportionally(result, top_proportion=0.5)
-
-    def find_initialization_stack(self, name):
-        """
-        {
-            "name": "find_initialization_stack",
-            "description": "Call the `find_initialization_stack` function to retrieve the stack trace from the point at which a variable was initialized.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "type": "string",
-                        "description": "The variable to look at."
-                    }
-                },
-                "required": [ "name"  ]
-            }
-        }
-        """
-        return input(f"Stack trace at {name} initialization: ")

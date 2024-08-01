@@ -60,7 +60,7 @@ def initial_instructions(functions: List[Callable[[Any], Any]]) -> str:
         )
         if not os.path.exists(file_path):
             file_path = os.path.join(
-                os.path.dirname(__file__), f"instructions/default.txt"
+                os.path.dirname(__file__), f"instructions/time-travel.txt"
             )
     else:
         file_path = chatdbg_config.instructions

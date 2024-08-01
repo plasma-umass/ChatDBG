@@ -1,0 +1,25 @@
+Currently Implemented Functions
+
+GDB:
+* debug - Executes a GDB command and returns the response.
+* get_code_surrounding  - Returns the source code surrounding a specified line number.
+* find_definition - Retrieves the source code for the definition of a given symbol at the given source line number
+-----Reverse debugging functions, manually implemented------
+* last - Jump to the point in execution when a variable was last modified.
+* step - Executes program forward to the next source line
+* r-step - Executes program backwards to the previous source line.
+* continue - Continues program execution until a breakpoint is hit or a stop signal is received.
+* go_start - Restart at the beginning of the execution.
+* go_end - Skip to the end of the execution.
+* break - Set a breakpoint at a specific line number or function.
+
+LLDB:
+* debug - Executes an LLDB command and returns the response.
+* get_code_surrounding  - Returns the source code surrounding a specified line number.
+* find_definition - Retrieves the source code for the definition of a given symbol at the given source line number
+
+PDB:
+* info - Get documentation and source code for any variable, function, package, class, method reference, field reference, or dotted reference
+         visible in the current frame.
+* debug - Executes a PDB command and returns the response.
+* slice - Retrieves all code used to produce the value currently stored in a variable in the current frame.

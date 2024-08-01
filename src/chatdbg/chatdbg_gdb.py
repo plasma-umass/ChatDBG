@@ -280,3 +280,88 @@ class GDBDialog(DBGDialog):
         }
         """
         return command, self._run_one_command(command)
+    
+    ################# REVERSE DEBUGGING FUNCTIONS ###########
+
+    def llm_last(self, var: str) -> str:
+        """
+        {
+            "name": "last",
+            "description": "Call the `last` function to jump to the point in execution history when a variable was last modified and see its previous and new values.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "var": {
+                        "type": "string",
+                        "description": "The variable to find the last modification point."
+                    }
+                },
+                "required": [ "var" ]
+            }
+        }
+        """
+        return input(f"last {var}:")
+
+    def llm_step(self) -> str:
+        """
+        {
+            "name": "step",
+            "description": "Call the `step` function to execute the program forward to the next source line."
+        }
+        """
+        return input(f"Step:")
+
+    def llm_r_step(self) -> str:
+        """
+        {
+            "name": "r_step",
+            "description": "Call the `r_step` function to execute the program backwards to the last source line."
+        }
+        """
+        return input(f"R-step:")
+    
+    def llm_continue(self) -> str:
+        """
+        {
+            "name": "continue",
+            "description": "Call the `continue` function to execute the program forward until either a breakpoint is hit or a stop signal is received."
+        }
+        """
+        return input(f"Continue:")
+    
+    def llm_go_start(self) -> str:
+        """
+        {
+            "name": "go_start",
+            "description": "Call the `go_start` function to restart the execution from the beginning."
+        }
+        """
+        return input(f"Go start:")
+    
+    def llm_go_end(self) -> str:
+        """
+        {
+            "name": "go_end",
+            "description": "Call the `go_end` function to skip ahead to the end of the program execution."
+        }
+        """
+        return input(f"Go end:")
+    
+    def llm_breakpt(self, location: str) -> str:
+        """
+        {
+            "name": "breakpt",
+            "description": "Call the `breakpt` function to set a breakpoint at a specific line number or function.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "The line number or function to set the breakpoint at."
+                    }
+                },
+                "required": [ "location" ]
+            }
+        }
+        """
+        return input(f"Set breakpoint {location}:")

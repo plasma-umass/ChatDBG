@@ -300,7 +300,8 @@ class GDBDialog(DBGDialog):
             }
         }
         """
-        return input(f"last {var}:")
+        response = input(f"last {var}:")
+        return f"last {var}", response
 
     def llm_step(self) -> str:
         """
@@ -309,7 +310,8 @@ class GDBDialog(DBGDialog):
             "description": "Call the `step` function to execute the program forward to the next source line."
         }
         """
-        return input(f"Step:")
+        response = input(f"Step:")
+        return f"step", response
 
     def llm_r_step(self) -> str:
         """
@@ -318,7 +320,9 @@ class GDBDialog(DBGDialog):
             "description": "Call the `r_step` function to execute the program backwards to the last source line."
         }
         """
-        return input(f"R-step:")
+        response = input(f"R-step:")
+        return f"r_step", response
+
     
     def llm_continue(self) -> str:
         """
@@ -327,7 +331,8 @@ class GDBDialog(DBGDialog):
             "description": "Call the `continue` function to execute the program forward until either a breakpoint is hit or a stop signal is received."
         }
         """
-        return input(f"Continue:")
+        response = input(f"Continue:")
+        return f"continue", response
     
     def llm_go_start(self) -> str:
         """
@@ -336,7 +341,8 @@ class GDBDialog(DBGDialog):
             "description": "Call the `go_start` function to restart the execution from the beginning."
         }
         """
-        return input(f"Go start:")
+        response = input(f"go_start:")
+        return f"go_start", response
     
     def llm_go_end(self) -> str:
         """
@@ -345,7 +351,8 @@ class GDBDialog(DBGDialog):
             "description": "Call the `go_end` function to skip ahead to the end of the program execution."
         }
         """
-        return input(f"Go end:")
+        response = input(f"go_end:")
+        return f"go_end", response
     
     def llm_breakpt(self, location: str) -> str:
         """
@@ -364,4 +371,5 @@ class GDBDialog(DBGDialog):
             }
         }
         """
-        return input(f"Set breakpoint {location}:")
+        response = input(f"Set breakpoint {location}:")
+        return f"Set breakpoint {location}:", response

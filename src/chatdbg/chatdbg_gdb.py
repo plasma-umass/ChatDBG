@@ -300,7 +300,14 @@ class GDBDialog(DBGDialog):
             }
         }
         """
-        response = input(f"last {var}:")
+        print(f"last {var}:")
+        lines = []
+        while True:
+            line = input()
+            if line == "```":
+                break
+            lines.append(line)
+        response = "\n".join(lines)
         return f"last {var}", response
 
     def llm_step(self) -> str:
@@ -310,7 +317,14 @@ class GDBDialog(DBGDialog):
             "description": "Call the `step` function to execute the program forward to the next source line."
         }
         """
-        response = input(f"Step:")
+        print(f"Step:")
+        lines = []
+        while True:
+            line = input()
+            if line == "```":
+                break
+            lines.append(line)
+        response = "\n".join(lines)
         return f"step", response
 
     def llm_r_step(self) -> str:
@@ -320,7 +334,14 @@ class GDBDialog(DBGDialog):
             "description": "Call the `r_step` function to execute the program backwards to the last source line."
         }
         """
-        response = input(f"R-step:")
+        print(f"R-step:")
+        lines = []
+        while True:
+            line = input()
+            if line == "```":
+                break
+            lines.append(line)
+        response = "\n".join(lines)
         return f"r_step", response
 
     
@@ -331,7 +352,14 @@ class GDBDialog(DBGDialog):
             "description": "Call the `continue` function to execute the program forward until either a breakpoint is hit or a stop signal is received."
         }
         """
-        response = input(f"Continue:")
+        print(f"Continue:")
+        lines = []
+        while True:
+            line = input()
+            if line == "```":
+                break
+            lines.append(line)
+        response = "\n".join(lines)
         return f"continue", response
     
     def llm_go_start(self) -> str:
@@ -341,7 +369,14 @@ class GDBDialog(DBGDialog):
             "description": "Call the `go_start` function to restart the execution from the beginning."
         }
         """
-        response = input(f"go_start:")
+        print(f"go_start:")
+        lines = []
+        while True:
+            line = input()
+            if line == "```":
+                break
+            lines.append(line)
+        response = "\n".join(lines)
         return f"go_start", response
     
     def llm_go_end(self) -> str:
@@ -351,7 +386,14 @@ class GDBDialog(DBGDialog):
             "description": "Call the `go_end` function to skip ahead to the end of the program execution."
         }
         """
-        response = input(f"go_end:")
+        print(f"go_end:")
+        lines = []
+        while True:
+            line = input()
+            if line == "```":
+                break
+            lines.append(line)
+        response = "\n".join(lines)
         return f"go_end", response
     
     def llm_breakpt(self, location: str) -> str:
@@ -371,5 +413,12 @@ class GDBDialog(DBGDialog):
             }
         }
         """
-        response = input(f"Set breakpoint {location}:")
+        print(f"Set breakpoint {location}:")
+        lines = []
+        while True:
+            line = input()
+            if line == "```":
+                break
+            lines.append(line)
+        response = "\n".join(lines)
         return f"Set breakpoint {location}:", response

@@ -283,24 +283,24 @@ class GDBDialog(DBGDialog):
     
     ################# REVERSE DEBUGGING FUNCTIONS ###########
 
-    def llm_last(self, var: str) -> str:
-        """
-        {
-            "name": "last",
-            "description": "Call the `last` function to jump to the point in execution history when a variable was last modified and see its previous and new values.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "var": {
-                        "type": "string",
-                        "description": "The variable to find the last modification point."
-                    }
-                },
-                "required": [ "var" ]
-            }
-        }
-        """
-        return f"last {var}", self._run_one_command("last " + var)
+    # def llm_last(self, var: str) -> str:
+    #     """
+    #     {
+    #         "name": "last",
+    #         "description": "Call the `last` function to jump to the point in execution history when a variable was last modified and see its previous and new values.",
+    #         "parameters": {
+    #             "type": "object",
+    #             "properties": {
+    #                 "var": {
+    #                     "type": "string",
+    #                     "description": "The variable to find the last modification point."
+    #                 }
+    #             },
+    #             "required": [ "var" ]
+    #         }
+    #     }
+    #     """
+    #     return f"last {var}", self._run_one_command("last " + var)
 
     def llm_step(self) -> str:
         """
@@ -311,14 +311,14 @@ class GDBDialog(DBGDialog):
         """
         return f"step", self._run_one_command("step")
 
-    def llm_r_step(self) -> str:
+    def llm_reverse_step(self) -> str:
         """
         {
-            "name": "r_step",
-            "description": "Call the `r_step` function to execute the program backwards to the last source line."
+            "name": "reverse_step",
+            "description": "Call the `reverse_step` function to execute the program backwards to the last source line."
         }
         """
-        return f"reverse-step", self._run_one_command("reverse-step")
+        return f"reverse_step", self._run_one_command("reverse-step")
 
 
     
@@ -330,31 +330,40 @@ class GDBDialog(DBGDialog):
         }
         """
         return f"continue", self._run_one_command("continue")
-
     
-    def llm_go_start(self) -> str:
+    def llm_reverse_continue(self) -> str:
         """
         {
-            "name": "go_start",
-            "description": "Call the `go_start` function to restart the execution from the beginning."
+            "name": "reverse_continue",
+            "description": "Call the `reverse_continue` function to execute the program backwards until either a breakpoint is hit or a stop signal is received."
+        }
+        """
+        return f"reverse_continue", self._run_one_command("reverse-continue")
+
+    
+    def llm_ugo_start(self) -> str:
+        """
+        {
+            "name": "ugo_start",
+            "description": "Call the `ugo_start` function to restart the execution from the beginning."
         }
         """
         return f"ugo start", self._run_one_command("ugo start")
     
-    def llm_go_end(self) -> str:
+    def llm_ugo_end(self) -> str:
         """
         {
-            "name": "go_end",
-            "description": "Call the `go_end` function to skip ahead to the end of the program execution."
+            "name": "ugo_end",
+            "description": "Call the `ugo_end` function to skip ahead to the end of the program execution."
         }
         """
         return f"ugo end", self._run_one_command("ugo end")
     
-    def llm_breakpt(self, location: str) -> str:
+    def llm_break(self, location: str) -> str:
         """
         {
-            "name": "breakpt",
-            "description": "Call the `breakpt` function to set a breakpoint at a specific line number or function.",
+            "name": "break",
+            "description": "Call the `break` function to set a breakpoint at a specific line number or function.",
             "parameters": {
                 "type": "object",
                 "properties": {

@@ -20,6 +20,10 @@ def _concat_prompt(*args) -> str:
     return "\n".join(args)
 
 
+def _reverse_debug_prompt() -> str:
+    return """You should use reverse debugging techniques, such as using 'step' and 'reverse-step' to navigate through the program execution,
+    and then looking at the current state of local variables using 'info locals' to see when variables were last modified."""
+
 def _user_text_it(user_text: str) -> str:
     return user_text if len(user_text) > 0 else "What's the bug? Give me a fix."
 
@@ -41,6 +45,7 @@ def build_initial_prompt(
         _wrap_it("This was the program's input", inputs),
         _wrap_it("This is the history of some debugger commands I ran", history),
         _wrap_it("", extra),
+        _reverse_debug_prompt(),
         _user_text_it(user_text),
     )
 

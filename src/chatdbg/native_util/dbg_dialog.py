@@ -131,25 +131,28 @@ class DBGDialog:
     def llm_debug(self, command: str) -> str:
         pass
 
-    def llm_last(self, var: str) -> str:
-        pass
+    # def llm_last(self, var: str) -> str:
+    #     pass
 
     def llm_step(self) -> str:
         pass
 
-    def llm_r_step(self) -> str:
+    def llm_reverse_step(self) -> str:
         pass
 
     def llm_continue(self) -> str:
         pass
-    
-    def llm_go_start(self) -> str:
+
+    def llm_reverse_continue(self) -> str:
         pass
     
-    def llm_go_end(self) -> str:
+    def llm_ugo_start(self) -> str:
         pass
     
-    def llm_breakpt(self, location: str) -> str:
+    def llm_ugo_end(self) -> str:
+        pass
+    
+    def llm_break(self, location: str) -> str:
         pass
 
     def llm_get_code_surrounding(self, filename: str, line_number: int) -> str:
@@ -208,7 +211,8 @@ class DBGDialog:
 
     def _supported_functions(self):
         functions = [self.llm_debug, self.llm_get_code_surrounding,
-                     self.llm_last, self.llm_step, self.llm_r_step, self.llm_continue, self.llm_go_start, self.llm_go_end, self.llm_breakpt]
+                    #  self.llm_last, 
+                    self.llm_step, self.llm_reverse_step, self.llm_continue, self.llm_reverse_continue, self.llm_ugo_start, self.llm_ugo_end, self.llm_break]
         if clangd_lsp_integration.is_available():
             functions += [self.llm_find_definition]
         return functions

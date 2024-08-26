@@ -45,28 +45,3 @@ def sandbox_eval(expression, globals, locals):
     globals = globals.copy()
     globals["_sandboxed_call"] = _sandboxed_call
     return eval(code, globals, locals)
-
-
-
-
-
-if __name__ == "__main__":
-    import numpy as np
-    import pandas as pd
-    import textwrap
-
-    expressions = [
-        "np.mean([1, 2, 3])",
-        "pd.DataFrame({'a': [1, 2, 3]})['a'].sum()",
-        "textwrap.indent('2', '2')",
-        "abs(-3)",
-        "eval('2+2')",
-    ]
-
-    for expression in expressions:
-        try:
-            result = sandbox_eval(expression, globals(), locals())
-            print(result)
-        except Exception as e:
-            print(e)
-

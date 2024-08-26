@@ -1,5 +1,6 @@
 from typing import List, Tuple
 
+
 class CommandHistory:
     def __init__(self, prompt: str):
         self._history: List[Tuple[str, str]] = []

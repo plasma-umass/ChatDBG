@@ -97,7 +97,15 @@ class ChatDBGConfig(Configurable):
         _chatdbg_get_env("module_whitelist", ""), help="The module whitelist file"
     ).tag(config=True)
 
-    _user_configurable = [debug, log, model, instructions, no_stream, format, module_whitelist]
+    _user_configurable = [
+        debug,
+        log,
+        model,
+        instructions,
+        no_stream,
+        format,
+        module_whitelist,
+    ]
 
     def _parser(self):
         parser = DBGParser(add_help=False)
@@ -187,14 +195,12 @@ class ChatDBGConfig(Configurable):
 
     def get_module_whitelist(self) -> str:
         if self.module_whitelist == "":
-            file_path = os.path.join(
-                os.path.dirname(__file__), f"module_whitelist.txt"
-            )
+            file_path = os.path.join(os.path.dirname(__file__), f"module_whitelist.txt")
         else:
             file_path = self.module_whitelist
 
         with open(file_path, "r") as file:
-            return [ module.rstrip() for module in file if module.rstrip() != "" ]
+            return [module.rstrip() for module in file if module.rstrip() != ""]
 
 
 chatdbg_config: ChatDBGConfig = ChatDBGConfig()

@@ -279,7 +279,7 @@ class ChatDBG(ChatDBGSuper):
         if ChatDBGSuper != pdb.Pdb:
             line = super(IPython.core.debugger.Pdb, self).precmd(line)
         return line
-    
+
     def _getval(self, arg):
         """
         Sandbox for evaluating expressions from the LLM.
@@ -291,7 +291,7 @@ class ChatDBG(ChatDBGSuper):
             return None
         except ImportError as e:
             self.error(f"ImportError: {e}")
-            return None 
+            return None
 
     def _getval_except(self, arg, frame=None):
         """
@@ -305,8 +305,7 @@ class ChatDBG(ChatDBGSuper):
         except:
             exc_info = sys.exc_info()[:2]
             err = traceback.format_exception_only(*exc_info)[-1].strip()
-            return ('** raised %s **' % err)
-
+            return "** raised %s **" % err
 
     def do_hist(self, arg):
         """hist

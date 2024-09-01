@@ -13,6 +13,7 @@ from chatdbg.native_util.stacks import (
     _SkippedFramesEntry,
 )
 from chatdbg.util.config import chatdbg_config
+from chatdbg.native_util.safety import command_is_safe
 
 # The file produced by the panic handler if the Rust program is using the chatdbg crate.
 RUST_PANIC_LOG_FILENAME = "panic_log.txt"
@@ -290,7 +291,7 @@ class LLDBDialog(DBGDialog):
         """
         return None
 
-    def llm_debug(self, command: str) -> str:
+    def llm_debug(self, command: str):
         """
         {
             "name": "debug",
@@ -307,4 +308,6 @@ class LLDBDialog(DBGDialog):
             }
         }
         """
+        if not chatdbg_config.unsafe and not command_is_safe(command):
+            return command, f"Command `{command}` is not allowed."
         return command, self._run_one_command(command)

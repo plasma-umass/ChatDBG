@@ -285,7 +285,10 @@ class ChatDBG(ChatDBGSuper):
         Sandbox for evaluating expressions from the LLM.
         """
         try:
-            return sandbox_eval(arg, self.curframe.f_globals, self.curframe_locals)
+            if chatdbg_config.unsafe:
+                return super._getval(arg)
+            else:   
+                return sandbox_eval(arg, self.curframe.f_globals, self.curframe_locals)
         except NameError as e:
             self.error(f"NameError: {e}")
             return None

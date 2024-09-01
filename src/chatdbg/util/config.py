@@ -23,7 +23,7 @@ def _chatdbg_get_env(
     if type(default_value) == int:
         return int(v)
     elif type(default_value) == bool:
-        return v.lower() == "true"
+        return v.lower() == "true" or v.lower() == "1"
     else:
         return v
 
@@ -85,16 +85,21 @@ class ChatDBGConfig(Configurable):
 
     format = Unicode(
         _chatdbg_get_env("format", "md"),
-        help="The output format (text or md or md:simple or jupyter).",
+        help="The output format (text or md or md:simple or jupyter)",
     ).tag(config=True)
 
     instructions = Unicode(
         _chatdbg_get_env("instructions", ""),
-        help="The file for the initial instructions to the LLM, or '' for the default (possibly-model specific) version.",
+        help="The file for the initial instructions to the LLM, or '' for the default (possibly-model specific) version",
     ).tag(config=True)
 
     module_whitelist = Unicode(
         _chatdbg_get_env("module_whitelist", ""), help="The module whitelist file"
+    ).tag(config=True)
+
+    unsafe = Bool(
+        _chatdbg_get_env("unsafe", False),
+        help="Disable any protections against GPT running harmful code or commands",
     ).tag(config=True)
 
     _user_configurable = [
@@ -105,6 +110,7 @@ class ChatDBGConfig(Configurable):
         no_stream,
         format,
         module_whitelist,
+        unsafe,
     ]
 
     def _parser(self):

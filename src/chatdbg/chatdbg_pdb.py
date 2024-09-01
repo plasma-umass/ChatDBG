@@ -267,10 +267,10 @@ class ChatDBG(ChatDBGSuper):
             self.lastcmd = lastcmd
 
     def default(self, line):
-        if line[0] == "!":
+        if line[:1] == "!":
             super().default(line)
         else:
-            if line[0] == ":":
+            if line[:1] == ":":
                 line = line[1:].strip()
             self.do_chat(line)
 

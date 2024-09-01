@@ -267,10 +267,10 @@ class ChatDBG(ChatDBGSuper):
             self.lastcmd = lastcmd
 
     def default(self, line):
-        if line[:1] == "!":
+        if line[0] == "!":
             super().default(line)
         else:
-            if line[:1] == ":":
+            if line[0] == ":":
                 line = line[1:].strip()
             self.do_chat(line)
 
@@ -284,6 +284,9 @@ class ChatDBG(ChatDBGSuper):
         """
         Sandbox for evaluating expressions from the LLM.
         """
+        if chatdbg_config.unsafe:
+            return super._getval(arg)
+        
         try:
             return sandbox_eval(arg, self.curframe.f_globals, self.curframe_locals)
         except NameError as e:

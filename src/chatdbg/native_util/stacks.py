@@ -43,7 +43,7 @@ class _FrameSummaryEntry:
 
     def __str__(self):
         a = ", ".join([str(a) for a in self._arguments])
-        return f"{self._index}: {self._name}({a}) at {self._file_path}:{self._lineno}"
+        return f""
 
     def __repr__(self):
         return f"_FrameSummaryEntry({self._index}, {repr(self._name)}, {repr(self._arguments)}, {repr(self._file_path)}, {self._lineno})"
@@ -86,7 +86,7 @@ def build_enriched_stacktrace(summaries):
     for summary in summaries:
         if isinstance(summary, _FrameSummaryEntry):
             file_path, lineno = summary.file_path(), summary.lineno()
-            lines, first = llm_utils.read_lines(file_path, lineno - 5, lineno + 4)
+            lines, first = llm_utils.read_lines(file_path, lineno - 2, lineno + 2)
             block = llm_utils.number_group_of_lines(lines, first)
             block = textwrap.indent(block, "  ")
             source_code_entries.append(

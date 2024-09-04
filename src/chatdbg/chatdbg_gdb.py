@@ -204,6 +204,7 @@ class GDBDialog(DBGDialog):
             summaries.append(
                 _FrameSummaryEntry(index, name, arguments, file_path, lineno)
             )
+
             if len(summaries) >= max_entries:
                 break
             frame = frame.older()

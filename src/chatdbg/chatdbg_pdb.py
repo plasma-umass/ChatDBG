@@ -587,6 +587,7 @@ class ChatDBG(ChatDBGSuper):
         try:
             if self._assistant == None:
                 self._make_assistant()
+            print(full_prompt)
 
             stats = self._assistant.query(full_prompt, user_text=arg)
             self.message(stats["message"])

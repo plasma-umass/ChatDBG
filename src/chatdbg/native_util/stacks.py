@@ -98,8 +98,8 @@ def build_enriched_stacktrace(summaries):
 
     if source_code_entries:
         parts.append(
-            f"Here is the source code for the first {len(source_code_entries)} frames:\n\n"
-            + "\n\n".join(source_code_entries)
+            f"Here is the source code for the first {len(source_code_entries)} frames:"
+            + "\n".join(source_code_entries)
         )
     else:
         print("could not retrieve source code for any frames.")

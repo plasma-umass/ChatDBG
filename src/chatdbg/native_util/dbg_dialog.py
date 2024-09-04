@@ -36,6 +36,8 @@ class DBGDialog:
     def query_and_print(self, assistant, user_text, is_followup):
         prompt = self.build_prompt(user_text, is_followup)
 
+        print(prompt)
+
         self._history.clear()
         print(assistant.query(prompt, user_text)["message"])
 
@@ -186,10 +188,10 @@ class DBGDialog:
         )
 
     def _supported_functions(self):
-        functions = [self.llm_debug, self.llm_get_code_surrounding]
-        if clangd_lsp_integration.is_available():
-            functions += [self.llm_find_definition]
-        return functions
+        # functions = [self.llm_debug, self.llm_get_code_surrounding]
+        # if clangd_lsp_integration.is_available():
+            # functions += [self.llm_find_definition]
+        return []
 
     def _make_assistant(self) -> Assistant:
 

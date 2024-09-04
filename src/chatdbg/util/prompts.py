@@ -37,9 +37,9 @@ def build_initial_prompt(
     return _concat_prompt(
         _wrap_it("The program has this stack trace", stack),
         _wrap_it("The program encountered the following error", error, details),
-        _wrap_it("This was the command line", command_line),
-        _wrap_it("This was the program's input", inputs),
-        _wrap_it("This is the history of some debugger commands I ran", history),
+        # _wrap_it("This was the command line", command_line),
+        # _wrap_it("This was the program's input", inputs),
+        # _wrap_it("This is the history of some debugger commands I ran", history),
         _wrap_it("", extra),
         _user_text_it(user_text),
     )

@@ -34,7 +34,11 @@ def build_initial_prompt(
     extra: str = "",
     user_text: str = "",
 ) -> str:
+    with open('source_code.txt', 'r') as file:
+        code = file.read()
+
     return _concat_prompt(
+        "This is the source code of the program\n```", code + "\n```",
         _wrap_it("The program has this stack trace", stack),
         _wrap_it("The program encountered the following error", error, details),
         # _wrap_it("This was the command line", command_line),

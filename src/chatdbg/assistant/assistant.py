@@ -316,10 +316,6 @@ class Assistant:
         return litellm.completion(
             model=self._model,
             messages=self._conversation,
-            tools=[
-                {"type": "function", "function": f["schema"]}
-                for f in self._functions.values()
-            ],
             timeout=self._timeout,
             logger_fn=self._logger,
             stream=stream,

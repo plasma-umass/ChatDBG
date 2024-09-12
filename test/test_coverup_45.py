@@ -28,7 +28,6 @@ def test_completion_without_stream(assistant, monkeypatch):
     mock_completion.assert_called_once_with(
         model=assistant._model,
         messages=assistant._conversation,
-        tools=[{"type": "function", "function": f["schema"]} for f in assistant._functions.values()],
         timeout=assistant._timeout,
         logger_fn=assistant._logger,
         stream=False,
@@ -46,7 +45,6 @@ def test_completion_with_stream(assistant, monkeypatch):
     mock_stream_completion.assert_called_once_with(
         model=assistant._model,
         messages=assistant._conversation,
-        tools=[{"type": "function", "function": f["schema"]} for f in assistant._functions.values()],
         timeout=assistant._timeout,
         logger_fn=assistant._logger,
         stream=True,

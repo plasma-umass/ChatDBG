@@ -16,6 +16,7 @@ def command_is_safe(cmd: str) -> bool:
         "frame",
         "h",
         "help",
+        "info",
         "language",
         "l",
         "list",

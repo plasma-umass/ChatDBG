@@ -309,5 +309,6 @@ class LLDBDialog(DBGDialog):
         }
         """
         if not chatdbg_config.unsafe and not command_is_safe(command):
+            self._unsafe_cmd = True
             return command, f"Command `{command}` is not allowed."
         return command, self._run_one_command(command)

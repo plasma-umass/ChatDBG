@@ -28,6 +28,6 @@ def command_is_safe(cmd: str) -> bool:
 
     # Allowed conditionally.
     if command_name in ["p", "print"]:
-        return re.fullmatch(r"[a-zA-Z0-9_ *\.]*", cmd) is not None
+        return re.fullmatch(r"([a-zA-Z0-9_ *.]|->)*", cmd) is not None
 
     return False

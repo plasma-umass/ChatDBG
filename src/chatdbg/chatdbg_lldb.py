@@ -13,6 +13,7 @@ from chatdbg.native_util.stacks import (
     _SkippedFramesEntry,
 )
 from chatdbg.util.config import chatdbg_config
+from chatdbg.util.exit_message import print_exit_message
 from chatdbg.native_util.safety import command_is_safe
 
 # The file produced by the panic handler if the Rust program is using the chatdbg crate.
@@ -78,10 +79,9 @@ class LLDBDialog(DBGDialog):
         super().__init__(prompt)
         self._debugger = debugger
 
-    def _exit_message(self):
-        print(
-            f"Thank you for using ChatDBG!\nIf you've enjoyed your experience, feel free to share your success stories here: https://github.com/plasma-umass/ChatDBG/issues/53"
-        )
+    def dialog(self, user_text):
+        super().dialog(user_text)
+        print_exit_message()
 
     def _message_is_a_bad_command_error(self, message):
         return message.strip().endswith("is not a valid command.")

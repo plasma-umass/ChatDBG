@@ -29,6 +29,7 @@ from chatdbg.util.text import strip_ansi, truncate_proportionally
 from chatdbg.util.config import chatdbg_config
 from chatdbg.util.log import ChatDBGLog
 from chatdbg.util.history import CommandHistory
+from chatdbg.util.exit_message import print_exit_message
 
 
 def load_ipython_extension(ipython):
@@ -79,11 +80,7 @@ class ChatDBG(ChatDBGSuper):
         self._text_width = 120
         self._assistant = None
         atexit.register(lambda: self._close_assistant())
-        atexit.register(
-            lambda: print(
-                f"Thank you for using ChatDBG!\nIf you've enjoyed your experience, feel free to share your success stories here: https://github.com/plasma-umass/ChatDBG/issues/53"
-            )
-        )
+        atexit.register(print_exit_message)
 
         self._history = CommandHistory(self.prompt)
         self._error_message = ""

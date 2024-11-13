@@ -14,6 +14,7 @@ from chatdbg.native_util.stacks import (
 )
 from chatdbg.util.config import chatdbg_config
 from chatdbg.native_util.safety import command_is_safe
+from chatdbg.util.exit_message import print_exit_message
 
 # The file produced by the panic handler if the Rust program is using the chatdbg crate.
 RUST_PANIC_LOG_FILENAME = "panic_log.txt"
@@ -39,15 +40,8 @@ def stop_handler(event):
 
 gdb.events.stop.connect(stop_handler)
 
-
-def on_exit(event):
-    print(
-        f"Thank you for using ChatDBG!\nIf you've enjoyed your experience, feel free to share your success stories here: https://github.com/plasma-umass/ChatDBG/issues/53"
-    )
-
-
 # Register the exit event handler
-gdb.events.exited.connect(on_exit)
+gdb.events.exited.connect(print_exit_message)
 
 
 class Code(gdb.Command):

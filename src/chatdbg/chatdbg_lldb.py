@@ -78,6 +78,11 @@ class LLDBDialog(DBGDialog):
         super().__init__(prompt)
         self._debugger = debugger
 
+    def _exit_message(self):
+        print(
+            f"Thank you for using ChatDBG!\nIf you've enjoyed your experience, feel free to share your success stories here: https://github.com/plasma-umass/ChatDBG/issues/53"
+        )
+
     def _message_is_a_bad_command_error(self, message):
         return message.strip().endswith("is not a valid command.")
 

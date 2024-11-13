@@ -40,6 +40,16 @@ def stop_handler(event):
 gdb.events.stop.connect(stop_handler)
 
 
+def on_exit(event):
+    print(
+        f"Thank you for using ChatDBG!\nIf you've enjoyed your experience, feel free to share your success stories here: https://github.com/plasma-umass/ChatDBG/issues/53"
+    )
+
+
+# Register the exit event handler
+gdb.events.exited.connect(on_exit)
+
+
 class Code(gdb.Command):
 
     def __init__(self):

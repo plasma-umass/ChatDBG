@@ -74,6 +74,11 @@ class DBGDialog:
                 break
 
         assistant.close()
+        # Only implemented in LLDB
+        self._exit_message()
+
+    def _exit_message(self):
+        pass
 
     # Return string for valid command.  None if the command is not valid.
     def _run_one_command(self, command):

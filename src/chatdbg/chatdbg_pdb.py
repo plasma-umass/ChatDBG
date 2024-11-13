@@ -79,6 +79,11 @@ class ChatDBG(ChatDBGSuper):
         self._text_width = 120
         self._assistant = None
         atexit.register(lambda: self._close_assistant())
+        atexit.register(
+            lambda: print(
+                f"Thank you for using ChatDBG!\nIf you've enjoyed your experience, feel free to share your success stories here: https://github.com/plasma-umass/ChatDBG/issues/53"
+            )
+        )
 
         self._history = CommandHistory(self.prompt)
         self._error_message = ""
@@ -287,7 +292,7 @@ class ChatDBG(ChatDBGSuper):
         try:
             if chatdbg_config.unsafe:
                 return super._getval(arg)
-            else:   
+            else:
                 return sandbox_eval(arg, self.curframe.f_globals, self.curframe_locals)
         except NameError as e:
             self.error(f"NameError: {e}")

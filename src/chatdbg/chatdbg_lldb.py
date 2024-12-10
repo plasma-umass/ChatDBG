@@ -13,7 +13,9 @@ from chatdbg.native_util.stacks import (
     _SkippedFramesEntry,
 )
 from chatdbg.util.config import chatdbg_config
+from chatdbg.util.exit_message import chatdbg_was_called, print_exit_message
 from chatdbg.native_util.safety import command_is_safe
+
 
 # The file produced by the panic handler if the Rust program is using the chatdbg crate.
 RUST_PANIC_LOG_FILENAME = "panic_log.txt"
@@ -22,6 +24,7 @@ PROMPT = "(ChatDBG lldb) "
 
 def __lldb_init_module(debugger: lldb.SBDebugger, internal_dict: dict) -> None:
     debugger.HandleCommand(f"settings set prompt '{PROMPT}'")
+    debugger.SetDestroyCallback(print_exit_message)
     chatdbg_config.format = "md"
 
 
@@ -76,6 +79,7 @@ class LLDBDialog(DBGDialog):
 
     def __init__(self, prompt, debugger) -> None:
         super().__init__(prompt)
+        chatdbg_was_called()
         self._debugger = debugger
 
     def _message_is_a_bad_command_error(self, message):

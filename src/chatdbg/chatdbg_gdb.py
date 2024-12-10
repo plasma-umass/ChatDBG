@@ -14,7 +14,8 @@ from chatdbg.native_util.stacks import (
 )
 from chatdbg.util.config import chatdbg_config
 from chatdbg.native_util.safety import command_is_safe
-from chatdbg.util.exit_message import print_exit_message
+from chatdbg.util.exit_message import chatdbg_was_called, print_exit_message
+import atexit
 
 # The file produced by the panic handler if the Rust program is using the chatdbg crate.
 RUST_PANIC_LOG_FILENAME = "panic_log.txt"
@@ -25,6 +26,8 @@ gdb.prompt_hook = lambda current_prompt: PROMPT
 
 
 last_error_type = ""
+
+atexit.register(print_exit_message)
 
 
 def stop_handler(event):
@@ -39,8 +42,6 @@ def stop_handler(event):
 
 
 gdb.events.stop.connect(stop_handler)
-
-gdb.events.exited.connect(print_exit_message)
 
 
 class Code(gdb.Command):
@@ -108,6 +109,7 @@ gdb.execute("alias chat = why")
 class GDBDialog(DBGDialog):
 
     def __init__(self, prompt) -> None:
+        chatdbg_was_called()
         super().__init__(prompt)
 
     def _message_is_a_bad_command_error(self, message):

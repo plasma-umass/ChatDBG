@@ -29,7 +29,7 @@ from chatdbg.util.text import strip_ansi, truncate_proportionally
 from chatdbg.util.config import chatdbg_config
 from chatdbg.util.log import ChatDBGLog
 from chatdbg.util.history import CommandHistory
-from chatdbg.util.exit_message import print_exit_message
+from chatdbg.util.exit_message import chatdbg_was_called, print_exit_message
 
 
 def load_ipython_extension(ipython):
@@ -79,8 +79,8 @@ class ChatDBG(ChatDBGSuper):
         self._chat_prefix = "   "
         self._text_width = 120
         self._assistant = None
-        atexit.register(lambda: self._close_assistant())
         atexit.register(print_exit_message)
+        atexit.register(lambda: self._close_assistant())
 
         self._history = CommandHistory(self.prompt)
         self._error_message = ""
@@ -578,6 +578,7 @@ class ChatDBG(ChatDBGSuper):
         """chat
         Send a chat message.
         """
+        chatdbg_was_called()
         self.was_chat_or_renew = True
 
         full_prompt = self._build_prompt(arg, self._assistant != None)

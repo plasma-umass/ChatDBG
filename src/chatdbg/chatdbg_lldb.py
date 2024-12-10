@@ -13,7 +13,7 @@ from chatdbg.native_util.stacks import (
     _SkippedFramesEntry,
 )
 from chatdbg.util.config import chatdbg_config
-from chatdbg.util.exit_message import print_exit_message
+from chatdbg.util.exit_message import chatdbg_was_called, print_exit_message
 from chatdbg.native_util.safety import command_is_safe
 
 
@@ -79,10 +79,8 @@ class LLDBDialog(DBGDialog):
 
     def __init__(self, prompt, debugger) -> None:
         super().__init__(prompt)
+        chatdbg_was_called()
         self._debugger = debugger
-
-    def dialog(self, user_text):
-        super().dialog(user_text)
 
     def _message_is_a_bad_command_error(self, message):
         return message.strip().endswith("is not a valid command.")

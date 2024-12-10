@@ -16,6 +16,7 @@ from chatdbg.util.config import chatdbg_config
 from chatdbg.util.exit_message import print_exit_message
 from chatdbg.native_util.safety import command_is_safe
 
+
 # The file produced by the panic handler if the Rust program is using the chatdbg crate.
 RUST_PANIC_LOG_FILENAME = "panic_log.txt"
 PROMPT = "(ChatDBG lldb) "
@@ -23,6 +24,7 @@ PROMPT = "(ChatDBG lldb) "
 
 def __lldb_init_module(debugger: lldb.SBDebugger, internal_dict: dict) -> None:
     debugger.HandleCommand(f"settings set prompt '{PROMPT}'")
+    debugger.SetDestroyCallback(print_exit_message)
     chatdbg_config.format = "md"
 
 
@@ -81,7 +83,6 @@ class LLDBDialog(DBGDialog):
 
     def dialog(self, user_text):
         super().dialog(user_text)
-        print_exit_message()
 
     def _message_is_a_bad_command_error(self, message):
         return message.strip().endswith("is not a valid command.")

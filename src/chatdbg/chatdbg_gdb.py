@@ -40,7 +40,6 @@ def stop_handler(event):
 
 gdb.events.stop.connect(stop_handler)
 
-# Register the exit event handler
 gdb.events.exited.connect(print_exit_message)
 
 

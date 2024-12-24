@@ -4,7 +4,7 @@
 
 import pytest
 
-from chatdbg.pdb.text import make_arrow
+from chatdbg.custom_pdb.text import make_arrow
 
 def test_make_arrow_with_pad_greater_than_two():
     # Test with pad greater than 2

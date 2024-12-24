@@ -1,6 +1,5 @@
 import argparse
 import os
-from textwrap import TextWrapper
 
 from traitlets import Bool, Int, Unicode
 from traitlets.config import Configurable
@@ -9,7 +8,7 @@ from chatdbg.assistant.listeners import BaseAssistantListener
 from chatdbg.util.markdown import ChatDBGMarkdownPrinter
 from chatdbg.util.printer import ChatDBGPrinter
 
-from io import StringIO, TextIOWrapper
+from io import TextIOWrapper
 from types import *
 from typing import *
 
@@ -17,14 +16,14 @@ from chatdbg.util.jupyter import ChatDBGJupyterPrinter
 
 
 def _chatdbg_get_env(
-    option_name: str, default_value: Union[int, bool, str]
-) -> Union[int, bool, str]:
+    option_name: str, default_value: Union[bool, int, str]
+) -> Union[bool, int, str]:
     env_name = "CHATDBG_" + option_name.upper()
     v = os.getenv(env_name, str(default_value))
     if type(default_value) == int:
         return int(v)
     elif type(default_value) == bool:
-        return v.lower() == "true"
+        return v.lower() == "true" or v.lower() == "1"
     else:
         return v
 
@@ -38,9 +37,9 @@ class DBGParser(argparse.ArgumentParser):
 
 
 class ChatDBGConfig(Configurable):
-    model = Unicode(
-        _chatdbg_get_env("model", "gpt-4-1106-preview"), help="The LLM model"
-    ).tag(config=True)
+    model = Unicode(_chatdbg_get_env("model", "gpt-4o"), help="The LLM model").tag(
+        config=True
+    )
 
     debug = Bool(_chatdbg_get_env("debug", False), help="Log LLM calls").tag(
         config=True
@@ -53,6 +52,7 @@ class ChatDBGConfig(Configurable):
     tag = Unicode(_chatdbg_get_env("tag", ""), help="Any extra info for log file").tag(
         config=True
     )
+
     rc_lines = Unicode(
         _chatdbg_get_env("rc_lines", "[]"), help="lines to run at startup"
     ).tag(config=True)
@@ -85,15 +85,33 @@ class ChatDBGConfig(Configurable):
 
     format = Unicode(
         _chatdbg_get_env("format", "md"),
-        help="The output format (text or md or md:simple or jupyter).",
+        help="The output format (text or md or md:simple or jupyter)",
     ).tag(config=True)
 
     instructions = Unicode(
         _chatdbg_get_env("instructions", ""),
-        help="the File for the instructions, or '' for the default version.",
+        help="The file for the initial instructions to the LLM, or '' for the default (possibly-model specific) version",
     ).tag(config=True)
 
-    _user_configurable = [debug, log, model, no_stream, format]
+    module_whitelist = Unicode(
+        _chatdbg_get_env("module_whitelist", ""), help="The module whitelist file"
+    ).tag(config=True)
+
+    unsafe = Bool(
+        _chatdbg_get_env("unsafe", False),
+        help="Disable any protections against GPT running harmful code or commands",
+    ).tag(config=True)
+
+    _user_configurable = [
+        debug,
+        log,
+        model,
+        instructions,
+        no_stream,
+        format,
+        module_whitelist,
+        unsafe,
+    ]
 
     def _parser(self):
         parser = DBGParser(add_help=False)
@@ -125,6 +143,7 @@ class ChatDBGConfig(Configurable):
             "no_stream": self.no_stream,
             "format": self.format,
             "instructions": self.instructions,
+            "module_whitelist": self.module_whitelist,
         }
 
     def parse_user_flags(self, argv: List[str]) -> None:
@@ -179,6 +198,15 @@ class ChatDBGConfig(Configurable):
         else:
             print("*** Unknown format '{format}'.  Defaulting to 'text'", file=stdout)
             return ChatDBGPrinter(stdout, prompt, prefix, width)
+
+    def get_module_whitelist(self) -> str:
+        if self.module_whitelist == "":
+            file_path = os.path.join(os.path.dirname(__file__), f"module_whitelist.txt")
+        else:
+            file_path = self.module_whitelist
+
+        with open(file_path, "r") as file:
+            return [module.rstrip() for module in file if module.rstrip() != ""]
 
 
 chatdbg_config: ChatDBGConfig = ChatDBGConfig()

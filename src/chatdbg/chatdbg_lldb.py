@@ -13,6 +13,9 @@ from chatdbg.native_util.stacks import (
     _SkippedFramesEntry,
 )
 from chatdbg.util.config import chatdbg_config
+from chatdbg.util.exit_message import chatdbg_was_called, print_exit_message
+from chatdbg.native_util.safety import command_is_safe
+
 
 # The file produced by the panic handler if the Rust program is using the chatdbg crate.
 RUST_PANIC_LOG_FILENAME = "panic_log.txt"
@@ -21,6 +24,7 @@ PROMPT = "(ChatDBG lldb) "
 
 def __lldb_init_module(debugger: lldb.SBDebugger, internal_dict: dict) -> None:
     debugger.HandleCommand(f"settings set prompt '{PROMPT}'")
+    debugger.SetDestroyCallback(print_exit_message)
     chatdbg_config.format = "md"
 
 
@@ -41,7 +45,7 @@ def _function_definition(
     result: lldb.SBCommandReturnObject,
     internal_dict: dict,
 ) -> None:
-    result.AppendMessage(clangd_lsp_integration.lldb_definition(command))
+    result.AppendMessage(clangd_lsp_integration.native_definition(command))
 
 
 @lldb.command("chat")
@@ -59,23 +63,6 @@ def chat(
         result.SetError(str(e))
 
 
-# @lldb.command("test_prompt")
-# def test_prompt(
-#     debugger: lldb.SBDebugger,
-#     command: str,
-#     result: lldb.SBCommandReturnObject,
-#     internal_dict: dict,
-# ):
-#     try:
-#         # new dialog object, so no history...
-#         dialog = LLDBDialog(PROMPT, debugger)
-#         result.AppendMessage(dialog.initial_prompt_instructions())
-#         result.AppendMessage("-" * 80)
-#         result.AppendMessage(dialog.build_prompt(command, False))
-#     except Exception as e:
-#         result.SetError(str(e))
-
-
 @lldb.command("config")
 def config(
     debugger: lldb.SBDebugger,
@@ -88,13 +75,11 @@ def config(
     result.AppendMessage(message)
 
 
-####
-
-
 class LLDBDialog(DBGDialog):
 
     def __init__(self, prompt, debugger) -> None:
         super().__init__(prompt)
+        chatdbg_was_called()
         self._debugger = debugger
 
     def _message_is_a_bad_command_error(self, message):
@@ -138,14 +123,14 @@ class LLDBDialog(DBGDialog):
 
     def check_debugger_state(self):
         if not self._debugger.GetSelectedTarget():
-            self.fail("must be attached to a program to use `chat`.")
+            self.fail("Must be attached to a program to use `why` or `chat`.")
 
         elif not self._is_debug_build():
             self.fail(
-                "your program must be compiled with debug information (`-g`) to use `chat`."
+                "Your program must be compiled with debug information (`-g`) to use `why` or `chat`."
             )
 
-        thread = self.get_thread(self._debugger)
+        thread = self.get_thread()
         if not thread:
             self.fail("must run the code first to use `chat`.")
 
@@ -165,12 +150,14 @@ class LLDBDialog(DBGDialog):
         summaries: List[Union[_FrameSummaryEntry, _SkippedFramesEntry]] = []
 
         index = -1
+        # For each frame in thread
         for frame in thread:
             index += 1
             if not frame.GetDisplayFunctionName():
                 skipped += 1
                 continue
             name = frame.GetDisplayFunctionName().split("(")[0]
+            # Get function arguments, store as _ArgumentEntries
             arguments: List[_ArgumentEntry] = []
             for j in range(
                 frame.GetFunction().GetType().GetFunctionArgumentTypes().GetSize()
@@ -186,6 +173,7 @@ class LLDBDialog(DBGDialog):
                     _ArgumentEntry(arg.GetTypeName(), arg.GetName(), arg.GetValue())
                 )
 
+            # Look for paths to the function file. If there's no source, skip frame.
             line_entry = frame.GetLineEntry()
             file_path = line_entry.GetFileSpec().fullpath
             if file_path == None:
@@ -201,10 +189,12 @@ class LLDBDialog(DBGDialog):
                 skipped += 1
                 continue
 
+            # Add _SkippedFramesEntry onto summaries list
             if skipped > 0:
                 summaries.append(_SkippedFramesEntry(skipped))
                 skipped = 0
 
+            # Otherwise, add _FrameSummaryEntries until max_entries, then break
             summaries.append(
                 _FrameSummaryEntry(index, name, arguments, file_path, lineno)
             )
@@ -247,7 +237,7 @@ class LLDBDialog(DBGDialog):
         return target.process if target else None
 
     def _initial_prompt_error_message(self):
-        thread = self.get_thread(self._debugger)
+        thread = self.get_thread()
 
         error_message = thread.GetStopDescription(1024) if thread else None
         if error_message:
@@ -258,6 +248,7 @@ class LLDBDialog(DBGDialog):
 
     def _initial_prompt_command_line(self):
         executable = self._debugger.GetSelectedTarget().GetExecutable()
+
         executable_path = os.path.join(
             executable.GetDirectory(), executable.GetFilename()
         )
@@ -303,3 +294,25 @@ class LLDBDialog(DBGDialog):
         in followup prompts.
         """
         return None
+
+    def llm_debug(self, command: str):
+        """
+        {
+            "name": "debug",
+            "description": "The `debug` function runs an LLDB command on the stopped program and gets the response.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {
+                        "type": "string",
+                        "description": "The LLDB command to run, possibly with arguments."
+                    }
+                },
+                "required": [ "command" ]
+            }
+        }
+        """
+        if not chatdbg_config.unsafe and not command_is_safe(command):
+            self._unsafe_cmd = True
+            return command, f"Command `{command}` is not allowed."
+        return command, self._run_one_command(command)

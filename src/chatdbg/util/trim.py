@@ -1,6 +1,6 @@
 import copy
 import warnings
-from typing import Dict, List, Union
+from typing import Dict, List
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
@@ -62,10 +62,10 @@ def _chunkify(messages, model):
 
 
 def trim_messages(
-    messages: List[Dict],  # list of JSON objects encoded as dicts
+    messages: List[Dict[str, str]],  # list of JSON objects encoded as dicts
     model: str,
     trim_ratio: float = 0.75,
-) -> List[Dict]:
+) -> list:
     """
     Strategy:
     - chunk messages:
@@ -80,7 +80,7 @@ def trim_messages(
 
     messages = copy.deepcopy(messages)
 
-    max_tokens_for_model = litellm.model_cost[model]["max_tokens"]
+    max_tokens_for_model = litellm.model_cost[model]["max_input_tokens"]
     max_tokens = int(max_tokens_for_model * trim_ratio)
 
     if litellm.token_counter(model, messages=messages) < max_tokens:

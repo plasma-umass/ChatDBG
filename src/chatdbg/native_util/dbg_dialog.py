@@ -32,11 +32,18 @@ class DBGDialog:
     def __init__(self, prompt) -> None:
         self._prompt = prompt
         self._history = CommandHistory(self._prompt)
+        self._unsafe_cmd = False
 
     def query_and_print(self, assistant, user_text, is_followup):
         prompt = self.build_prompt(user_text, is_followup)
+
         self._history.clear()
         print(assistant.query(prompt, user_text)["message"])
+        if self._unsafe_cmd:
+            self.warn(
+                f"Warning: One or more debugger commands were blocked as potentially unsafe.\nWarning: You can disable sanitizing with `config --unsafe` and try again at your own risk."
+            )
+            self._unsafe_cmd = False
 
     def dialog(self, user_text):
         assistant = self._make_assistant()
@@ -45,8 +52,7 @@ class DBGDialog:
         self.query_and_print(assistant, user_text, False)
         while True:
             try:
-                command = input(">>> " + self._prompt).strip()
-
+                command = input("(ChatDBG chatting) ").strip()
                 if command in ["exit", "quit"]:
                     break
                 if command in ["chat", "why"]:
@@ -128,25 +134,8 @@ class DBGDialog:
                 self._prompt_history(), self._prompt_stack(), arg
             )
 
-    # TODO: Factor out the name of the debugger that's embedded in the doc string...
     def llm_debug(self, command: str) -> str:
-        """
-        {
-            "name": "debug",
-            "description": "The `debug` function runs an LLDB command on the stopped program and gets the response.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "command": {
-                        "type": "string",
-                        "description": "The LLDB command to run, possibly with arguments."
-                    }
-                },
-                "required": [ "command" ]
-            }
-        }
-        """
-        return command, self._run_one_command(command)
+        pass
 
     def llm_get_code_surrounding(self, filename: str, line_number: int) -> str:
         """
@@ -213,6 +202,11 @@ class DBGDialog:
         functions = self._supported_functions()
         instruction_prompt = self.initial_prompt_instructions()
 
+        # gdb overwrites sys.stdin to be a file object that doesn't seem
+        # to support colors or streaming.  So, just use the original stdout
+        # here for all subclasses.
+        printer = chatdbg_config.make_printer(sys.__stdout__, self._prompt, "   ", 80)
+
         assistant = Assistant(
             instruction_prompt,
             model=chatdbg_config.model,
@@ -220,7 +214,7 @@ class DBGDialog:
             functions=functions,
             stream=not chatdbg_config.no_stream,
             listeners=[
-                chatdbg_config.make_printer(sys.stdout, self._prompt, "   ", 80),
+                printer,
                 self._log,
             ],
         )

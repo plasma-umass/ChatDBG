@@ -1,5 +1,3 @@
-import os
-
 _intro = f"""\
 You are a debugging assistant. You will be given a Python stack trace for an
 error and answer questions related to the root cause of the error.

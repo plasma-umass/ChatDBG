@@ -1,9 +1,9 @@
+import types
 import ast
 import atexit
 import inspect
 import linecache
 import os
-import pdb
 import pydoc
 import sys
 import textwrap
@@ -13,6 +13,9 @@ from pathlib import Path
 
 import IPython
 
+import pdb
+
+from chatdbg.pdb_util.sandbox import sandbox_eval
 from chatdbg.util.prompts import (
     build_followup_prompt,
     build_initial_prompt,
@@ -26,6 +29,7 @@ from chatdbg.util.text import strip_ansi, truncate_proportionally
 from chatdbg.util.config import chatdbg_config
 from chatdbg.util.log import ChatDBGLog
 from chatdbg.util.history import CommandHistory
+from chatdbg.util.exit_message import chatdbg_was_called, print_exit_message
 
 
 def load_ipython_extension(ipython):
@@ -75,6 +79,7 @@ class ChatDBG(ChatDBGSuper):
         self._chat_prefix = "   "
         self._text_width = 120
         self._assistant = None
+        atexit.register(print_exit_message)
         atexit.register(lambda: self._close_assistant())
 
         self._history = CommandHistory(self.prompt)
@@ -133,8 +138,12 @@ class ChatDBG(ChatDBGSuper):
     def _is_user_file(self, file_name):
         if file_name.endswith(".pyx"):
             return False
-        elif file_name == "<string>":
+        elif file_name == "<string>" or file_name.startswith("<frozen"):
+            # synthetic entry point or frozen modules
             return False
+        elif file_name.startswith("<ipython"):
+            # stdin from ipython session
+            return True
 
         for path in self._library_paths:
             if os.path.commonpath([file_name, path]) == path:
@@ -273,6 +282,36 @@ class ChatDBG(ChatDBGSuper):
             line = super(IPython.core.debugger.Pdb, self).precmd(line)
         return line
 
+    def _getval(self, arg):
+        """
+        Sandbox for evaluating expressions from the LLM.
+        """
+        try:
+            if chatdbg_config.unsafe:
+                return super._getval(arg)
+            else:
+                return sandbox_eval(arg, self.curframe.f_globals, self.curframe_locals)
+        except NameError as e:
+            self.error(f"NameError: {e}")
+            return None
+        except ImportError as e:
+            self.error(f"ImportError: {e}")
+            return None
+
+    def _getval_except(self, arg, frame=None):
+        """
+        Sandbox in case an LLM ever tries to use the display features...
+        """
+        try:
+            if frame is None:
+                return sandbox_eval(arg, self.curframe.f_globals, self.curframe_locals)
+            else:
+                return sandbox_eval(arg, frame.f_globals, frame.f_locals)
+        except:
+            exc_info = sys.exc_info()[:2]
+            err = traceback.format_exception_only(*exc_info)[-1].strip()
+            return "** raised %s **" % err
+
     def do_hist(self, arg):
         """hist
         Print the history of user-issued commands since the last chat.
@@ -297,6 +336,7 @@ class ChatDBG(ChatDBGSuper):
         """info name
         Print the pydoc string (and source code, if available) for a name.
         """
+
         try:
             # try both given and unqualified form incase LLM biffs
             args_to_try = [arg, arg.split(".")[-1]]
@@ -309,10 +349,19 @@ class ChatDBG(ChatDBGSuper):
                     # fail silently, try the next name
                     pass
 
+            if obj == None:
+                # try again, using pydoc's logic...
+                obj = pydoc.locate(arg)
+
             # didn't find anything
             if obj == None:
                 self.message(f"No name `{arg}` is visible in the current frame.")
+            elif isinstance(obj, types.BuiltinFunctionType) or isinstance(
+                obj, types.BuiltinMethodType
+            ):
+                self.message(f"`{arg}` is a built-in.")
             elif self._is_user_file(inspect.getfile(obj)):
+                self.message(f"Source from file {inspect.getfile(obj)}:")
                 self.do_source(x)
             else:
                 self.do_pydoc(x)
@@ -529,6 +578,7 @@ class ChatDBG(ChatDBGSuper):
         """chat
         Send a chat message.
         """
+        chatdbg_was_called()
         self.was_chat_or_renew = True
 
         full_prompt = self._build_prompt(arg, self._assistant != None)

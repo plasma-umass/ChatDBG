@@ -148,12 +148,12 @@ class clangd:
         return _parse_lsp_response(self.id, self.process.stdout)
 
 
-def lldb_definition(command):
+def native_definition(command):
     if not is_available():
         return "`clangd` was not found. The `definition` function will not be made available."
     last_space_index = command.rfind(" ")
     if last_space_index == -1:
-        return "`clangd` was not found. The `definition` function will not be made available."
+        return "usage: definition <filename>:<lineno> <symbol>"
     filename_lineno = command[:last_space_index]
     symbol = command[last_space_index + 1 :]
     parts = filename_lineno.split(":")

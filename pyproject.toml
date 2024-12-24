@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ChatDBG"
-version = "0.5"
+version = "0.6.5"
 authors = [
   { name="Emery Berger", email="emery.berger@gmail.com" },
   { name="Stephen Freund", email="sfreund@williams.edu" },
@@ -13,20 +13,22 @@ authors = [
 ]
 dependencies = [
   "llm-utils>=0.2.8",
-  "openai>=1.6.1",
+  "openai>=1.29.0",
   "rich>=13.7.0",
   "ansicolors>=1.1.8",
   "traitlets>=5.14.1",
   "ipdb>=0.13.13",
   "ipython>=8.18.1",
-  "litellm>=1.34.12",
+  "litellm==1.55.9",
   "PyYAML>=6.0.1", 
   "ipyflow>=0.0.130",
-  "numpy>=1.26.3"
+  "numpy>=1.26.3",
+  "httpcore>=1.0.5",
+  "httpx>=0.27.0",
 ]
 description = "AI-assisted debugging. Uses AI to answer 'why'."
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.10"
 classifiers = [
   "Programming Language :: Python :: 3",
   "License :: OSI Approved :: Apache Software License",

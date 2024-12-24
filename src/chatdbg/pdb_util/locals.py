@@ -82,7 +82,9 @@ def _repr_if_defined(obj: Any) -> bool:
     return result
 
 
-def _format_limited(value: Any, limit: int = 10, depth: int = 3) -> str:
+def _format_limited(
+    value: Union[int, np.ndarray], limit: int = 10, depth: int = 3
+) -> str:
     def format_tuple(t, depth):
         return tuple([helper(x, depth) for x in t])
 

@@ -32,7 +32,7 @@ class Assistant:
     def __init__(
         self,
         instructions,
-        model="gpt-3.5-turbo-1106",
+        model="gpt-4o",
         timeout=30,
         listeners=[Printer()],
         functions=[],
@@ -195,15 +195,12 @@ class Assistant:
             call, result = function["function"](**args)
             result = remove_non_printable_chars(strip_ansi(result).expandtabs())
             self._broadcast("on_function_call", call, result)
-        except OSError as e:
-            # function produced some error -- move this to client???
-            # likely to be an exception from the code we ran, not a bug...
-            result = f"Error: {e}"
         except KeyboardInterrupt as e:
             raise e
         except Exception as e:
             # likely to be an exception from the code we ran, not a bug...
-            result = f"Ill-formed function call: {e}"
+            result = f"Exception in function call: {e}"
+            self._broadcast("on_warn", result)
         return result
 
     def _batch_query(self, prompt: str, user_text):
@@ -274,6 +271,9 @@ class Assistant:
             # has only tool calls, and skip this step
             response_message = completion.choices[0].message
             if response_message.content != None:
+                # fix: remove tool calls.  They get added below.
+                response_message = response_message.copy()
+                response_message["tool_calls"] = None                
                 self._conversation.append(response_message.json())
 
             if response_message.content != None:
@@ -289,7 +289,15 @@ class Assistant:
                 cost += litellm.completion_cost(tool_completion)
 
                 tool_message = tool_completion.choices[0].message
+
                 tool_json = tool_message.json()
+
+                # patch for litellm sometimes putting index fields in the tool calls it constructs
+                # in stream_chunk_builder.  gpt-4-turbo-2024-04-09 can't handle those index fields, so
+                # just remove them for the moment.
+                for tool_call in tool_json.get("tool_calls", []):
+                    _ = tool_call.pop("index", None)
+
                 tool_json["role"] = "assistant"
                 self._conversation.append(tool_json)
                 self._add_function_results_to_conversation(tool_message)

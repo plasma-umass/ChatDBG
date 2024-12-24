@@ -45,8 +45,7 @@ def test_make_call_oserror(monkeypatch):
     monkeypatch.setattr('chatdbg.assistant.assistant.strip_ansi', mock_strip_ansi)
 
     result = assistant._make_call(tool_call)
-    assert result == "Error: Simulated OSError"
-    assistant._broadcast.assert_not_called()
+    assert result == "Exception in function call: Simulated OSError"
 
 # Test function to cover the KeyboardInterrupt exception branch
 def test_make_call_keyboardinterrupt(monkeypatch):
@@ -101,5 +100,4 @@ def test_make_call_exception(monkeypatch):
     monkeypatch.setattr('chatdbg.assistant.assistant.strip_ansi', mock_strip_ansi)
 
     result = assistant._make_call(tool_call)
-    assert result == "Ill-formed function call: Simulated Exception"
-    assistant._broadcast.assert_not_called()
+    assert result == "Exception in function call: Simulated Exception"

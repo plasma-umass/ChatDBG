@@ -11,10 +11,10 @@ class _ArgumentEntry:
         self._value = value
 
     def __str__(self):
-        return f"({self._type}) {self._name} = {self._value if self._value else '[unknown]'}"
+        return f"({self._type}) {self._name} = {self._value if self._value is not None else '[unknown]'}"
 
     def __repr__(self):
-        return f"_ArgumentEntry({repr(self.type)}, {repr(self._name)}, {repr(self._value)})"
+        return f"_ArgumentEntry({repr(self._type)}, {repr(self._name)}, {repr(self._value) if self._value is not None else '[unknown]'})"
 
 
 class _FrameSummaryEntry:
@@ -42,7 +42,8 @@ class _FrameSummaryEntry:
         return self._lineno
 
     def __str__(self):
-        return f"{self._index}: {self._name}({', '.join([str(a) for a in self._arguments])}) at {self._file_path}:{self._lineno}"
+        a = ", ".join([str(a) for a in self._arguments])
+        return f"{self._index}: {self._name}({a}) at {self._file_path}:{self._lineno}"
 
     def __repr__(self):
         return f"_FrameSummaryEntry({self._index}, {repr(self._name)}, {repr(self._arguments)}, {repr(self._file_path)}, {self._lineno})"
@@ -66,6 +67,7 @@ def build_enriched_stacktrace(summaries):
     parts = []
     if not summaries:
         print("could not generate any frame summary.")
+        return
     else:
         frame_summary = "\n".join([str(s) for s in summaries])
         parts.append(frame_summary)
@@ -101,5 +103,4 @@ def build_enriched_stacktrace(summaries):
         )
     else:
         print("could not retrieve source code for any frames.")
-
     return "\n\n".join(parts)

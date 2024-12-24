@@ -9,9 +9,9 @@ from chatdbg.util.trim import trim_messages
 @pytest.fixture
 def mock_litellm(mocker):
     mock_model_cost = {
-        "small": {"max_tokens": 100},
-        "medium": {"max_tokens": 200},
-        "large": {"max_tokens": 300}
+        "small": {"max_input_tokens": 100},
+        "medium": {"max_input_tokens": 200},
+        "large": {"max_input_tokens": 300}
     }
     mocker.patch('chatdbg.util.trim.litellm.model_cost', mock_model_cost)
     mocker.patch('chatdbg.util.trim.litellm.token_counter', return_value=150)
@@ -46,4 +46,4 @@ def test_trim_messages_full_coverage(mock_litellm):
     # Check that the first user message is kept
     assert any(msg['role'] == 'user' for msg in trimmed)
     # Check that we do not exceed max_tokens
-    assert len(trimmed) <= int(mock_litellm[model]["max_tokens"] * trim_ratio)
+    assert len(trimmed) <= int(mock_litellm[model]["max_input_tokens"] * trim_ratio)

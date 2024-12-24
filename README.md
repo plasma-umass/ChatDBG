@@ -1,6 +1,6 @@
 # ChatDBG
 
-by [Emery Berger](https://emeryberger.com), [Stephen Freund](https://www.cs.williams.edu/~freund/index.html), [Kyla Levin](https://ravenblood000.github.io/KylaHLevin/index.html), [Nicolas van Kempen](https://nvankempen.com/) (ordered alphabetically)
+by [Emery Berger](https://emeryberger.com), [Stephen Freund](https://www.cs.williams.edu/~freund/index.html), [Kyla Levin](https://khlevin.github.io/KylaHLevin/index.html), [Nicolas van Kempen](https://nvankempen.com/) (ordered alphabetically)
 
 [![PyPI Latest Release](https://img.shields.io/pypi/v/chatdbg.svg)](https://pypi.org/project/chatdbg/)
 [![Downloads](https://static.pepy.tech/badge/chatdbg)](https://pepy.tech/project/chatdbg)
@@ -10,11 +10,16 @@ ChatDBG is an AI-based debugging assistant for C/C++/Python/Rust code that integ
 
 As far as we are aware, ChatDBG is the *first* debugger to automatically perform root cause analysis and to provide suggested fixes.
 
+**Watch ChatDBG in action!**
+| LLDB on [test-overflow.cpp](https://github.com/plasma-umass/ChatDBG/blob/main/samples/cpp/test-overflow.cpp) | GDB on [test-overflow.cpp](https://github.com/plasma-umass/ChatDBG/blob/main/samples/cpp/test-overflow.cpp)  | Pdb on [bootstrap.py](https://github.com/plasma-umass/ChatDBG/blob/main/samples/python/bootstrap.py) |
+|:-------------------------:|:-------------------------:|:-------------------------:|
+| <a href="https://asciinema.org/a/RsAGFFmsicIvMW8xgvPP6PW2f" target="_blank"><img src="https://raw.githubusercontent.com/plasma-umass/ChatDBG/main/media/lldb.svg" /></a>| <a href="https://asciinema.org/a/bMWOyyrh7WXWsTCFboyKpqwTq" target="_blank"><img src="https://raw.githubusercontent.com/plasma-umass/ChatDBG/main/media/gdb.svg" /></a>|<a href="https://asciinema.org/a/qulxiJTqwVRJPaMZ1hcBs6Clu" target="_blank"><img src="https://raw.githubusercontent.com/plasma-umass/ChatDBG/main/media/pdb.svg" /></a>|
+
 For technical details and a complete evaluation, see our arXiv paper, [_ChatDBG: An AI-Powered Debugging Assistant_](https://arxiv.org/abs/2403.16354) ([PDF](https://github.com/plasma-umass/ChatDBG/blob/main/ChatDBG-arxiv-2403.16354.pdf)).
 
 > [!NOTE]
 >
-> ChatDBG for `pdb` and `lldb` are feature-complete; we are currently backporting features for these debuggers into the other debuggers.
+> ChatDBG for `pdb`, `lldb`, and `gdb` are feature-complete; we are currently backporting features for these debuggers into the other debuggers.
 >
 
 ## Installation
@@ -57,8 +62,8 @@ If you encounter an error, you may be using an older version of LLVM. Update to 
 
 ```
 sudo apt install -y lsb-release wget software-properties-common gnupg
-curl -sSf https://apt.llvm.org/llvm.sh | sudo bash -s -- 17 all
-# LLDB now available as `lldb-17`.
+curl -sSf https://apt.llvm.org/llvm.sh | sudo bash -s -- 18 all
+# LLDB now available as `lldb-18`.
 ```
 
 #### Mac
@@ -128,7 +133,9 @@ ChatDBG is an extension of the standard Python debugger `pdb`. Like
 enter post mortem debugging mode.
 
 Unlike other debuggers, you can then use the `why` command to ask
-ChatDBG why your program failed and get a suggested fix.
+ChatDBG why your program failed and get a suggested fix.  After the LLM responds,
+you may issue additional debugging commands or continue the conversation by entering
+any other text.
 
 #### IPython and Jupyter Support
 
@@ -156,7 +163,9 @@ Inside Jupyter, run your notebook with the [ipyflow kernel](https://github.com/i
 
 ### Debugging native code (C, C++, or Rust with <TT>lldb</TT> / <TT>gdb</TT>)
 
-To use ChatDBG with `lldb` or `gdb`, just run native code (compiled with `-g` for debugging symbols) with your choice of debugger; when it crashes, ask `why`. This also works for post mortem debugging (when you load a core with the `-c` option).
+To use ChatDBG with `lldb` or `gdb`, just run native code (compiled with `-g` for debugging symbols) with your choice of debugger; when it crashes, ask `why`. This also works for post mortem debugging (when you load a core with the `-c` option).  
+
+The native debuggers work slightly differently than Pdb.  After the debugger responds to your question, you will enter into ChatDBG's command loop, as indicated by the `(ChatDBG chatting)` prompt.  You may continue issuing debugging commands and you may send additional messages to the LLM by starting those messages with "chat".  When you are done, type `quit` to return to the debugger's main command loop.
 
 <details>
 <summary>
@@ -170,7 +179,7 @@ To use ChatDBG with Rust, you need to do two steps: modify your
 
 ```toml
 [dependencies]
-chatdbg = "0.1.3"
+chatdbg = "0.6.2"
 
 [profile.dev]
 panic = "abort"

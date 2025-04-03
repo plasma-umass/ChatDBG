@@ -15,7 +15,7 @@ As far as we are aware, ChatDBG is the *first* debugger to automatically perform
 |:-------------------------:|:-------------------------:|:-------------------------:|
 | <a href="https://asciinema.org/a/RsAGFFmsicIvMW8xgvPP6PW2f" target="_blank"><img src="https://raw.githubusercontent.com/plasma-umass/ChatDBG/main/media/lldb.svg" /></a>| <a href="https://asciinema.org/a/bMWOyyrh7WXWsTCFboyKpqwTq" target="_blank"><img src="https://raw.githubusercontent.com/plasma-umass/ChatDBG/main/media/gdb.svg" /></a>|<a href="https://asciinema.org/a/qulxiJTqwVRJPaMZ1hcBs6Clu" target="_blank"><img src="https://raw.githubusercontent.com/plasma-umass/ChatDBG/main/media/pdb.svg" /></a>|
 
-For technical details and a complete evaluation, see our arXiv paper, [_ChatDBG: An AI-Powered Debugging Assistant_](https://arxiv.org/abs/2403.16354) ([PDF](https://github.com/plasma-umass/ChatDBG/blob/main/ChatDBG-arxiv-2403.16354.pdf)). To appear at FSE 2025.
+For technical details and a complete evaluation, see our paper (to appear at FSE 2025 :tada:), [_ChatDBG: An AI-Powered Debugging Assistant_](https://arxiv.org/abs/2403.16354) ([PDF](https://github.com/plasma-umass/ChatDBG/blob/main/ChatDBG-arxiv-2403.16354.pdf)).
 
 > [!NOTE]
 >

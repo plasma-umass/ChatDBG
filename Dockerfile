@@ -3,7 +3,7 @@
 
 FROM ubuntu
 
-ARG LLVM_VERSION=18
+ARG LLVM_VERSION=20
 
 RUN apt update \
     && DEBIAN_FRONTEND=noninteractive apt install -y tzdata \
@@ -23,10 +23,15 @@ ENV LANGUAGE=en_US:en
 ENV LC_ALL=en_US.UTF-8
 
 # LLVM/Clang.
-RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${LLVM_VERSION} 100 
-RUN update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${LLVM_VERSION} 100 
-RUN update-alternatives --install /usr/bin/clangd clangd /usr/bin/clangd-${LLVM_VERSION} 100 
-RUN update-alternatives --install /usr/bin/lldb lldb /usr/bin/lldb-${LLVM_VERSION} 100 
+RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${LLVM_VERSION} 100
+RUN update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${LLVM_VERSION} 100
+RUN update-alternatives --install /usr/bin/clangd clangd /usr/bin/clangd-${LLVM_VERSION} 100
+RUN update-alternatives --install /usr/bin/lldb lldb /usr/bin/lldb-${LLVM_VERSION} 100
+
+RUN update-alternatives --install /usr/bin/cc cc /usr/bin/clang 100
+RUN update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++ 100
+ENV CC=clang
+ENV CXX=clang++
 
 # ChatDBG.
 COPY . /root/ChatDBG
@@ -38,4 +43,5 @@ RUN python3 -c 'import chatdbg; print(f"source {chatdbg.__path__[0]}/chatdbg_gdb
 # BugBench.
 RUN cd /root/ChatDBG/samples/bugbench && make all
 
+ENV TERM=xterm-256color
 WORKDIR /root/ChatDBG

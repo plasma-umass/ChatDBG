@@ -1,4 +1,4 @@
-CFLAGS := -g -Og -fno-omit-frame-pointer
+CFLAGS := -g -Og -fno-omit-frame-pointer -fsanitize=address
 CXXFLAGS := $(CFLAGS)
 LLDB := lldb
 
@@ -81,9 +81,9 @@ else
 	cd libtiff-4.0.6 && CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" ./configure && bear -- make -j
 endif
 RUN-TIFF:
-	cd libtiff-4.0.6 && ./tools/.libs/rgb2ycbcr -c zip -r 0 -h 2 -v 0 ../_input/TIFF/plasma-globe.tiff $(shell mktemp)
+	cd libtiff-4.0.6 && LD_LIBRARY_PATH=./libtiff/.libs/ ./tools/.libs/rgb2ycbcr -c zip -r 0 -h 2 -v 0 ../_input/TIFF/plasma-globe.tiff $(shell mktemp)
 RUN-LLDB-TIFF:
-	cd libtiff-4.0.6 && $(LLDB) -o run -- ./tools/.libs/rgb2ycbcr -c zip -r 0 -h 2 -v 0 ../_input/TIFF/plasma-globe.tiff $(shell mktemp)
+	cd libtiff-4.0.6 && env LD_LIBRARY_PATH=./libtiff/.libs/ $(LLDB) -o run -- ./tools/.libs/rgb2ycbcr -c zip -r 0 -h 2 -v 0 ../_input/TIFF/plasma-globe.tiff $(shell mktemp)
 
 .PHONY: clean
 clean:

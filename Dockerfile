@@ -31,12 +31,11 @@ RUN update-alternatives --install /usr/bin/lldb lldb /usr/bin/lldb-${LLVM_VERSIO
 # ChatDBG.
 COPY . /root/ChatDBG
 RUN pip install --break-system-packages -e /root/ChatDBG
-RUN python3 -c 'mport chatdbg; print(f"command script import {chatdbg.__path__[0]}/chatdbg_lldb.py")' >> ~/.lldbinit
+RUN python3 -c 'import chatdbg; print(f"command script import {chatdbg.__path__[0]}/chatdbg_lldb.py")' >> ~/.lldbinit
 RUN echo 'settingsi set target.disable-aslr false' >> ~/.lldbinit
 RUN python3 -c 'import chatdbg; print(f"source {chatdbg.__path__[0]}/chatdbg_gdb.py")' >> ~/.gdbinit
 
 # BugBench.
-RUN git clone https://github.com/nicovank/bugbench.git /root/bugbench
-RUN cd /root/bugbench && make all
+RUN cd /root/ChatDBG/samples/bugbench && make all
 
 WORKDIR /root/ChatDBG

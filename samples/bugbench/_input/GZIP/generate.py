@@ -6,6 +6,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 TOTAL_LENGTH = 1024
 CHUNK_LENGTH = 128
 
+random.seed(13126)
 
 def random_name(size: int) -> str:
     return "".join(
@@ -20,6 +21,6 @@ while remaining > CHUNK_LENGTH:
     name = random_name(CHUNK_LENGTH)
     remaining -= CHUNK_LENGTH
     path = os.path.join(path, name)
-    os.mkdir(path)
+    os.makedirs(path, exist_ok=True)
 name = random_name(remaining)
 pathlib.Path(os.path.join(path, name)).touch()

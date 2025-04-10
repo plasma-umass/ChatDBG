@@ -1,0 +1,43 @@
+id	id
+107	107
+75	75
+id	count(t2.id)
+75	1
+107	1
+id	count(t2.id)
+75	1
+107	1
+id	catid	stateid	countyid
+27	2	12	11
+28	2	12	11
+29	2	12	25
+26	1	6	37
+id	catid	stateid	countyid
+26	1	6	37
+27	2	12	11
+28	2	12	11
+29	2	12	25
+a
+1
+2
+a	a	b
+2	2	3
+d	d
+2001-08-01	NULL
+0000-00-00	NULL
+d
+0000-00-00
+d
+2001-08-01
+0000-00-00
+COUNT(t1.Title)
+1
+COUNT(t1.Title)
+1
+t1_id	t2_id	type	cost_unit	min_value	max_value	t3_id	item_id	id	name
+22	1	Percent	Cost	100	-1	6	291	1	s1
+23	1	Percent	Cost	100	-1	21	291	1	s1
+rate_code	base_rate
+cust	20
+rate_code	base_rate
+cust	20

@@ -1,0 +1,82 @@
+VACUUM;
+--
+-- sanity check, if we don't have indices the test will take years to
+-- complete.  But skip TOAST relations since they will have varying
+-- names depending on the current OID counter.
+--
+SELECT relname, relhasindex
+   FROM pg_class
+   WHERE relhasindex AND relkind != 't'
+   ORDER BY relname;
+       relname       | relhasindex 
+---------------------+-------------
+ bt_f8_heap          | t
+ bt_i4_heap          | t
+ bt_name_heap        | t
+ bt_txt_heap         | t
+ fast_emp4000        | t
+ func_index_heap     | t
+ hash_f8_heap        | t
+ hash_i4_heap        | t
+ hash_name_heap      | t
+ hash_txt_heap       | t
+ ihighway            | t
+ num_exp_add         | t
+ num_exp_div         | t
+ num_exp_ln          | t
+ num_exp_log10       | t
+ num_exp_mul         | t
+ num_exp_power_10_ln | t
+ num_exp_sqrt        | t
+ num_exp_sub         | t
+ onek                | t
+ onek2               | t
+ pg_aggregate        | t
+ pg_am               | t
+ pg_amop             | t
+ pg_amproc           | t
+ pg_attrdef          | t
+ pg_attribute        | t
+ pg_cast             | t
+ pg_class            | t
+ pg_constraint       | t
+ pg_conversion       | t
+ pg_database         | t
+ pg_depend           | t
+ pg_description      | t
+ pg_group            | t
+ pg_index            | t
+ pg_inherits         | t
+ pg_language         | t
+ pg_largeobject      | t
+ pg_namespace        | t
+ pg_opclass          | t
+ pg_operator         | t
+ pg_proc             | t
+ pg_rewrite          | t
+ pg_shadow           | t
+ pg_statistic        | t
+ pg_trigger          | t
+ pg_type             | t
+ road                | t
+ shighway            | t
+ tenk1               | t
+ tenk2               | t
+(52 rows)
+
+--
+-- another sanity check: every system catalog that has OIDs should have
+-- a unique index on OID.  This ensures that the OIDs will be unique,
+-- even after the OID counter wraps around.
+-- We exclude non-system tables from the check by looking at nspname.
+--
+SELECT relname, nspname
+FROM pg_class c LEFT JOIN pg_namespace n ON n.oid = relnamespace
+WHERE relhasoids
+    AND ((nspname ~ '^pg_') IS NOT FALSE)
+    AND NOT EXISTS (SELECT 1 FROM pg_index i WHERE indrelid = c.oid
+                    AND indkey[0] = -2 AND indnatts = 1 AND indisunique);
+ relname | nspname 
+---------+---------
+(0 rows)
+

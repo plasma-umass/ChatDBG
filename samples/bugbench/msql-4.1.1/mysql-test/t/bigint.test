@@ -1,0 +1,70 @@
+#
+# Initialize
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# Test of reading of bigint values
+#
+select 0,256,00000000000000065536,2147483647,-2147483648,2147483648,+4294967296;
+select 9223372036854775807,-009223372036854775808;
+select +9999999999999999999,-9999999999999999999;
+select cast(9223372036854775808 as unsigned)+1;
+select 9223372036854775808+1;
+select -(0-3),round(-(0-3)), round(9999999999999999999);
+
+#
+# In 3.23 we have to disable the test of column to bigint as
+# this fails on AIX powerpc (the resolution for double is not good enough)
+# This will work on 4.0 as we then have internal handling of bigint variables.
+#
+
+create table t1 (a bigint unsigned not null, primary key(a));
+insert into t1 values (18446744073709551615), (0xFFFFFFFFFFFFFFFE), (18446744073709551613), (18446744073709551612);
+select * from t1;
+select * from t1 where a=18446744073709551615;
+# select * from t1 where a='18446744073709551615';
+delete from t1 where a=18446744073709551615;
+select * from t1;
+drop table t1;
+
+create table t1 ( a int not null default 1, big bigint );
+insert into t1 (big) values (-1),(12345678901234567),(9223372036854775807),(18446744073709551615);
+select min(big),max(big),max(big)-1 from t1;
+select min(big),max(big),max(big)-1 from t1 group by a;
+alter table t1 modify big bigint unsigned not null;
+select min(big),max(big),max(big)-1 from t1;
+select min(big),max(big),max(big)-1 from t1 group by a;
+alter table t1 add key (big);
+select min(big),max(big),max(big)-1 from t1;
+select min(big),max(big),max(big)-1 from t1 group by a;
+alter table t1 modify big bigint not null;
+select min(big),max(big),max(big)-1 from t1;
+select min(big),max(big),max(big)-1 from t1 group by a;
+drop table t1;
+
+#
+# Test problem with big values fir auto_increment
+#
+
+create table t1 (id bigint auto_increment primary key, a int) auto_increment=9999999999;
+insert into t1 values (null,1);
+select * from t1;
+select * from t1 limit 9999999999;
+drop table t1;
+
+#
+# Item_uint::save_to_field()
+# BUG#1845
+# This can't be fixed in MySQL 4.0 without loosing precisions for bigints
+#
+
+CREATE TABLE t1 ( quantity decimal(60,0));
+insert into t1 values (10000000000000000000);
+insert into t1 values (10000000000000000000.0);
+insert into t1 values ('10000000000000000000');
+select * from t1;
+drop table t1;
+

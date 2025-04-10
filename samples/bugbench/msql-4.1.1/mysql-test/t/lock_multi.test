@@ -1,0 +1,72 @@
+# This test doesn't work with the embedded version as this code
+# assumes that one query is running while we are doing queries on
+# a second connection.
+# This would work if mysqltest run would be threaded and handle each
+# connection in a separate thread.
+#
+-- source include/not_embedded.inc
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+# Test to see if select will get the lock ahead of low priority update
+
+connect (locker,localhost,root,,);
+connect (reader,localhost,root,,);
+connect (writer,localhost,root,,);
+
+connection locker;
+create table t1(n int);
+insert into t1 values (1);
+lock tables t1 write;
+connection writer;
+send update low_priority t1 set n = 4;
+connection reader;
+--sleep 2
+send select n from t1;
+connection locker;
+--sleep 2
+unlock tables;
+connection writer;
+reap;
+connection reader;
+reap;
+drop table t1;
+
+connection locker;
+create table t1(n int);
+insert into t1 values (1);
+lock tables t1 read;
+connection writer;
+send update low_priority t1 set n = 4;
+connection reader;
+--sleep 2
+send select n from t1;
+connection locker;
+--sleep 2
+unlock tables;
+connection writer;
+reap;
+connection reader;
+reap;
+drop table t1;
+
+#
+# Test problem when using locks on many tables and droping a table that
+# is to-be-locked by another thread
+#
+
+connection locker;
+create table t1 (a int);
+create table t2 (a int);
+lock table t1 write, t2 write;
+connection reader;
+send insert t1 select * from t2;
+connection locker;
+drop table t2;
+connection reader;
+--error 1146
+reap;
+connection locker;
+drop table t1;

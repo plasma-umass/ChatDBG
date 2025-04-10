@@ -1,0 +1,108 @@
+.\" -*- nroff -*-
+.TH MAKEDBM 8 "August 2001" "YP Server"
+.SH NAME
+makedbm - create or dump a ypserv database file
+.SH SYNOPSIS
+.B
+@YPBINDIR@/makedbm
+[
+.B \-a
+|
+.B \-r
+]
+[
+.B \-b
+] [
+.B \-c
+] [
+.B \-s
+] [
+.B \-l
+] [
+.BI \-i " YP_INPUT_NAME"
+] [
+.BI \-o " YP_OUTPUT_NAME"
+] [
+.BI \-m " YP_MASTER_NAME"
+]
+.I inputfile
+.I dbname
+.br
+.B
+@YPBINDIR@/makedbm
+.BI \-u " dbname"
+.br
+.B
+@YPBINDIR@/makedbm
+.B \-c
+.br
+.B
+@YPBINDIR@/makedbm
+.B \--version
+.SH DESCRIPTION
+.B makedbm
+takes the inputfile and converts it to a ypserv database file. In the
+moment, GDBM is used as database. Each line of the input file is converted
+to a single record. All characters up to the first TAB or SPACE are the key,
+and the rest of the line is the data.
+.B makedbm
+does not treat `#' as a special character.
+.SH OPTIONS
+.TP
+.B \-a
+Special support for mail aliases. We couldn't use sendmail for it, since
+sendmail uses db, but ypserv gdbm as database format.
+.TP
+.B \-b
+Insert the
+.B YP_INTERDOMAIN
+into the output.  This key causes
+.BR ypserv (8)
+to use
+.B DNS
+for host name and address lookups for hosts not found in the maps.
+.TP
+.B \-c
+send a
+.B YPPROC_CLEAR
+to the local
+.BR ypserv (8).
+This causes ypserv to invalidate all cached entries.
+.TP
+.B \-l
+Convert the keys of the given map to lower case.
+.TP
+.BI \-i " YP_INPUT_NAME"
+Create a special entry with the key
+.BR YP_INPUT_NAME .
+.TP
+.BI \-m " YP_MASTER_NAME"
+Create a special entry with the key
+.BR YP_MASTER_NAME .
+If no master host name is specified,
+.B YP_MASTER_NAME
+will be set to the local host name.
+.TP
+.BI \-o " YP_OUTPUT_NAME"
+Create a special entry with the key
+.BR YP_OUTPUT_NAME .
+.TP
+.B \-r
+Handle `#' as comment sign and remove the comment.
+.TP
+.B \-s
+Secure map. Accept connections from secure
+.B NIS
+networks only (reserved ports).
+.TP
+.BI \-u " dbname"
+Dump a ypserv database file. Prints out the file in text format, one entry
+per line, with a single space separating keys from values.
+.TP
+.BI \-\-no-limit-check
+Don't check for NIS key and data limit.
+.SH "SEE ALSO"
+.BR ypserv (8)
+.SH AUTHOR
+.B makedbm
+was written by Thorsten Kukuk <kukuk@suse.de>.

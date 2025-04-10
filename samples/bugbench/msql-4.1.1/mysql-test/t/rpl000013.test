@@ -1,0 +1,41 @@
+source include/master-slave.inc;
+save_master_pos;
+connection slave;
+sync_with_master;
+connection master;
+
+create table t2(n int);
+create temporary table t1 (n int);
+insert into t1 values(1),(2),(3);
+insert into t2 select * from t1;
+connection master1;
+create temporary table t1 (n int);
+insert into t1 values (4),(5);
+insert into t2 select * from t1 as t10;
+save_master_pos;
+disconnect master;
+connection slave;
+#add 1 to catch drop table
+sync_with_master 1;
+connection master1;
+insert into t2 values(6);
+save_master_pos;
+disconnect master1;
+connection slave;
+# same trick to go one more event
+sync_with_master 1;
+select * from t2;
+show status like 'Slave_open_temp_tables';
+#
+# Clean up
+#
+connect (master2,localhost,root,,);
+connection master2;
+
+# We will get a warning for t1 as this is a temporary table that doesn't
+# exist in this connection.
+
+drop table if exists t1,t2;
+save_master_pos;
+connection slave;
+sync_with_master;

@@ -1,0 +1,37 @@
+# $Header: /cvsroot/pgsql/src/makefiles/Makefile.cygwin,v 1.2 2003/05/22 17:20:44 petere Exp $
+DLLTOOL= dlltool
+DLLWRAP= dllwrap
+BE_DLLLIBS= -L$(top_builddir)/src/backend -lpostgres
+DLLINIT = $(top_builddir)/src/utils/dllinit.o
+
+# linking with -lm or -lc causes program to crash
+# (see http://sources.redhat.com/cygwin/faq/faq.html#SEC110)
+LIBS:=$(filter-out -lm -lc, $(LIBS))
+
+AROPT = crs
+DLSUFFIX = .dll
+CFLAGS_SL =
+
+%.dll: %.o
+	$(DLLTOOL) --export-all --output-def $*.def $<
+	$(DLLWRAP) -o $@ --def $*.def $< $(DLLINIT) $(SHLIB_LINK)
+	rm -f $*.def
+
+ifneq (,$(findstring backend,$(subdir)))
+ifeq (,$(findstring conversion_procs,$(subdir)))
+override CPPFLAGS+= -DBUILDING_DLL
+endif
+endif
+
+ifneq (,$(findstring ecpg/ecpglib,$(subdir)))
+override CPPFLAGS+= -DBUILDING_DLL
+endif
+
+# required by Python headers
+ifneq (,$(findstring src/pl/plpython,$(subdir)))
+override CPPFLAGS+= -DUSE_DL_IMPORT
+endif
+
+override javadir := '$(shell cygpath -w $(javadir))'
+
+sqlmansect = 7

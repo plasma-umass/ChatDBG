@@ -1,0 +1,22 @@
+<HTML><HEAD>
+<TITLE>VIGA: P&auml;ring URLile ei saa vastust</TITLE>
+</HEAD><BODY>
+<H1>VIGA</H1>
+<H2>P&auml;ring URLile ei saa vastust</H2>
+<HR>
+<P>
+Sooritades p&auml;ringut URLile
+<A HREF="%U">%U</A>
+<P>
+tekkis j&auml;rgnev viga:
+<UL>
+<LI>
+<STRONG>
+Juurdep&auml;&auml;s keelatud.
+</STRONG>
+<P>
+Juurdep&auml;&auml;su kontrolli konfiguratsioon blokeerib teie p&auml;ringut.
+Kui te arvate, et blokeering pole &otilde;ige, kontakteeruge palun teenuse pakkujaga.
+</UL>
+<P>Teie teenusepakkuja aadress on <A HREF="mailto:%w">%w</A>.
+

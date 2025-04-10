@@ -1,0 +1,951 @@
+<!--
+$Header: /cvsroot/pgsql/doc/src/sgml/client-auth.sgml,v 1.59.2.1 2003/11/04 09:45:29 petere Exp $
+-->
+
+<chapter id="client-authentication">
+ <title>Client Authentication</title>
+
+ <indexterm zone="client-authentication">
+  <primary>client authentication</primary>
+ </indexterm>
+
+ <para>
+  When a client application connects to the database server, it
+  specifies which <productname>PostgreSQL</productname> user name it
+  wants to connect as, much the same way one logs into a Unix computer
+  as a particular user. Within the SQL environment the active database
+  user name determines access privileges to database objects -- see
+  <xref linkend="user-manag"> for more information. Therefore, it is
+  essential to restrict which database users can connect.
+ </para>
+
+ <para>
+  <firstterm>Authentication</firstterm> is the process by which the
+  database server establishes the identity of the client, and by
+  extension determines whether the client application (or the user
+  who runs the client application) is permitted to connect with the
+  user name that was requested.
+ </para>
+
+ <para>
+  <productname>PostgreSQL</productname> offers a number of different
+  client authentication methods. The method used to authenticate a
+  particular client connection can be selected on the basis of
+  (client) host address, database, and user.
+ </para>
+
+ <para>
+  <productname>PostgreSQL</productname> user names are logically
+  separate from user names of the operating system in which the server
+  runs. If all the users of a particular server also have accounts on
+  the server's machine, it makes sense to assign database user names
+  that match their operating system user names. However, a server that
+  accepts remote connections may have many database users who have no local operating system
+  account, and in such cases there need be no connection between
+  database user names and OS user names.
+ </para>
+
+ <sect1 id="auth-pg-hba-conf">
+  <title>The <filename>pg_hba.conf</filename> file</title>
+
+  <indexterm zone="auth-pg-hba-conf">
+   <primary>pg_hba.conf</primary>
+  </indexterm>
+
+  <para>
+   Client authentication is controlled by the file
+   <filename>pg_hba.conf</filename> in the data directory, e.g.,
+   <filename>/usr/local/pgsql/data/pg_hba.conf</filename>.
+   (<acronym>HBA</> stands for host-based authentication.) A default
+   <filename>pg_hba.conf</filename> file is installed when the data
+   directory is initialized by <command>initdb</command>.
+  </para>
+
+  <para>
+   The general format of the <filename>pg_hba.conf</filename> file is
+   a set of records, one per line. Blank lines are ignored, as is any
+   text after the <literal>#</literal> comment character. A record is made
+   up of a number of fields which are separated by spaces and/or tabs.
+   Fields can contain white space if the field value is quoted. Records
+   cannot be continued across lines.
+  </para>
+
+  <para>
+   Each record specifies a connection type, a client IP address range
+   (if relevant for the connection type), a database name, a user name,
+   and the authentication method to be used for connections matching
+   these parameters. The first record with a matching connection type,
+   client address, requested database, and user name is used to perform
+   authentication. There is no <quote>fall-through</> or
+   <quote>backup</>: if one record is chosen and the authentication
+   fails, subsequent records are not considered. If no record matches,
+   access is denied.
+  </para>
+
+  <para>
+   A record may have one of the seven formats
+<synopsis>
+local      <replaceable>database</replaceable>  <replaceable>user</replaceable>  <replaceable>authentication-method</replaceable>  <optional><replaceable>authentication-option</replaceable></optional>
+host       <replaceable>database</replaceable>  <replaceable>user</replaceable>  <replaceable>IP-address</replaceable>  <replaceable>IP-mask</replaceable>  <replaceable>authentication-method</replaceable>  <optional><replaceable>authentication-option</replaceable></optional>
+hostssl    <replaceable>database</replaceable>  <replaceable>user</replaceable>  <replaceable>IP-address</replaceable>  <replaceable>IP-mask</replaceable>  <replaceable>authentication-method</replaceable>  <optional><replaceable>authentication-option</replaceable></optional>
+hostnossl  <replaceable>database</replaceable>  <replaceable>user</replaceable>  <replaceable>IP-address</replaceable>  <replaceable>IP-mask</replaceable>  <replaceable>authentication-method</replaceable>  <optional><replaceable>authentication-option</replaceable></optional>
+host       <replaceable>database</replaceable>  <replaceable>user</replaceable>  <replaceable>IP-address</replaceable>/<replaceable>IP-masklen</replaceable>  <replaceable>authentication-method</replaceable>  <optional><replaceable>authentication-option</replaceable></optional>
+hostssl    <replaceable>database</replaceable>  <replaceable>user</replaceable>  <replaceable>IP-address</replaceable>/<replaceable>IP-masklen</replaceable>  <replaceable>authentication-method</replaceable>  <optional><replaceable>authentication-option</replaceable></optional>
+hostnossl  <replaceable>database</replaceable>  <replaceable>user</replaceable>  <replaceable>IP-address</replaceable>/<replaceable>IP-masklen</replaceable>  <replaceable>authentication-method</replaceable>  <optional><replaceable>authentication-option</replaceable></optional>
+</synopsis>
+   The meaning of the fields is as follows:
+
+   <variablelist>
+    <varlistentry>
+     <term><literal>local</literal></term>
+     <listitem>
+      <para>
+       This record matches connection attempts using Unix-domain
+       sockets.  Without a record of this type, Unix-domain socket
+       connections are disallowed.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>host</literal></term>
+     <listitem>
+      <para>
+       This record matches connection attempts using TCP/IP networks.
+       Note that TCP/IP connections are disabled unless the server is
+       started with the <option>-i</option> option or the
+       <varname>tcpip_socket</> configuration parameter is enabled.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>hostssl</literal></term>
+     <listitem>
+      <para>
+       This record matches connection attempts using SSL over TCP/IP.
+       <literal>host</literal> records will match either SSL or
+       non-SSL connection attempts, but <literal>hostssl</literal>
+       records require SSL connections.
+      </para>
+
+      <para>
+       To make use of this option the server must be built
+       with SSL support enabled. Furthermore, SSL must be enabled by
+       enabling the <varname>ssl</varname> configuration parameter
+       (see <xref linkend="runtime-config"> for more information).
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><literal>hostnossl</literal></term>
+     <listitem>
+      <para>
+       This record is similar to <literal>hostssl</> but with the
+	   opposite logic: it matches only regular connection attempts not
+	   using SSL.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><replaceable>database</replaceable></term>
+     <listitem>
+      <para>
+       Specifies which databases this record matches.  The value
+       <literal>all</literal> specifies that it matches all databases.
+       The value <literal>sameuser</> specifies that the record
+       matches if the requested database has the same name as the
+       requested user.  The value <literal>samegroup</> specifies that
+       the requested user must a member of the group with the same
+       name as the requested database.  Otherwise, this is the name of
+       a specific <productname>PostgreSQL</productname> database.
+       Multiple database names can be supplied by separating them with
+       commas.  A file containing database names can be specified by
+       preceding the file name with <literal>@</>. The file must be in
+       the same directory as <filename>pg_hba.conf</>.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><replaceable>user</replaceable></term>
+     <listitem>
+      <para>
+       Specifies which <productname>PostgreSQL</> users this record
+       matches. The value <literal>all</literal> specifies that it
+       matches all users.  Otherwise, this is the name of a specific
+       <productname>PostgreSQL</productname> user. Multiple user names
+       can be supplied by separating them with commas. Group names can
+       be specified by preceding the group name with <literal>+</>. A
+       file containing user names can be specified by preceding the
+       file name with <literal>@</>. The file must be in the same
+       directory as <filename>pg_hba.conf</>.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><replaceable>IP-address</replaceable></term>
+     <term><replaceable>IP-mask</replaceable></term>
+     <listitem>
+      <para>
+       These two fields contain IP address and mask values in standard
+       dotted decimal notation. (IP addresses can only be specified
+       numerically, not as domain or host names.)  Taken together they
+       specify the client machine IP addresses that this record
+       matches.  The precise logic is that
+<programlisting>
+(<replaceable>actual-IP-address</replaceable> xor <replaceable>IP-address-field</replaceable>) and <replaceable>IP-mask-field</replaceable>
+</programlisting>
+       must be zero for the record to match.
+      </para>
+
+      <para>
+       An IP address given in IPv4 format will match IPv6 connections that
+       have the corresponding address, for example <literal>127.0.0.1</>
+       will match the IPv6 address <literal>::ffff:127.0.0.1</>.  An entry
+       given in IPv6 format will match only IPv6 connections, even if the
+       represented address is in the IPv4-in-IPv6 range.  Note that entries
+       in IPv6 format will be rejected if the system's C library does not have
+       support for IPv6 addresses.
+      </para>
+
+      <para>
+       These fields only apply to <literal>host</literal>,
+       <literal>hostssl</literal>, and <literal>hostnossl</> records.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><replaceable>IP-masklen</replaceable></term>
+     <listitem>
+      <para>
+       This field may be used as an alternative to the
+       <replaceable>IP-mask</replaceable> notation.  It is an integer
+       specifying the number of high-order bits to set in the mask.
+       The number must be between 0 and 32 (in the case of an IPv4
+       address) or 128 (in the case of an IPv6 address) inclusive. 0
+       will match any address, while 32 (or 128, respectively) will
+       match only the exact host specified.  The same matching logic
+       is used as for a dotted notation
+       <replaceable>IP-mask</replaceable>.
+      </para>
+
+      <para>
+       There must be no white space between the
+       <replaceable>IP-address</replaceable> and the
+       <literal>/</literal> or the <literal>/</literal> and the
+       <replaceable>IP-masklen</replaceable>, or the file will not be
+       parsed correctly.
+      </para>
+
+      <para>
+       This field only applies to <literal>host</literal>,
+       <literal>hostssl</literal>, and <literal>hostnossl</> records.
+      </para>
+     </listitem>
+    </varlistentry>  
+
+    <varlistentry>
+     <term><replaceable>authentication-method</replaceable></term>
+     <listitem>
+      <para>
+       Specifies the authentication method to use when connecting via
+       this record. The possible choices are summarized here; details
+       are in <xref linkend="auth-methods">.
+
+       <variablelist>
+        <varlistentry>
+         <term><literal>trust</></term>
+         <listitem>
+         <para>
+          The connection is allowed unconditionally. This method
+          allows anyone that can connect to the
+          <productname>PostgreSQL</productname> database server to login as
+          any <productname>PostgreSQL</productname> user they like,
+          without the need for a password.  See <xref
+          linkend="auth-trust"> for details.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>reject</></term>
+        <listitem>
+         <para>
+          The connection is rejected unconditionally. This is useful for
+          <quote>filtering out</> certain hosts from a group.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>md5</></term>
+        <listitem>
+         <para>
+          Requires the client to supply an MD5 encrypted password for
+          authentication. This is the only method that allows encrypted
+          passwords to be stored in <structname>pg_shadow</structname>.
+          See <xref linkend="auth-password"> for details.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>crypt</></term>
+        <listitem>
+         <para>
+          Like the <literal>md5</literal> method but uses older <function>crypt()</>
+          encryption, which is needed for pre-7.2 clients.
+          <literal>md5</literal> is preferred for 7.2 and later clients.
+          See <xref linkend="auth-password"> for details.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>password</></term>
+        <listitem>
+         <para>
+          Same as <literal>md5</>, but the password is sent in clear text over the
+          network. This should not be used on untrusted networks.
+          See <xref linkend="auth-password"> for details.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>krb4</></term>
+        <listitem>
+         <para>
+          Kerberos V4 is used to authenticate the user. This is only
+          available for TCP/IP connections.  See <xref
+          linkend="kerberos-auth"> for details.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>krb5</></term>
+        <listitem>
+         <para>
+          Kerberos V5 is used to authenticate the user. This is only
+          available for TCP/IP connections.  See <xref
+          linkend="kerberos-auth"> for details.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>ident</></term>
+        <listitem>
+         <para>
+          Obtain the operating system user name of the client (for
+          TCP/IP connections by contacting the ident server on the
+          client, for local connections by getting it from the
+          operating system) and check if the user is allowed to
+          connect as the requested database user by consulting the map
+          specified after the <literal>ident</literal> key word.
+         </para>
+
+         <para>
+          If you use the map <literal>sameuser</literal>, the user
+          names are required to be identical. If not, the map name is
+          looked up in the file <filename>pg_ident.conf</filename>
+          in the same directory as <filename>pg_hba.conf</filename>.
+          The connection is accepted if that file contains an
+          entry for this map name with the operating-system user name
+          and the requested <productname>PostgreSQL</productname> user
+          name.
+         </para>
+
+         <para>
+          For local connections, this only works on machines that
+          support Unix-domain socket credentials (currently
+          <systemitem class=osname>Linux</>, <systemitem
+          class=osname>FreeBSD</>, <systemitem class=osname>NetBSD</>,
+          <systemitem class=osname>OpenBSD</>, and 
+          <systemitem class=osname>BSD/OS</>).
+         </para>
+
+         <para>
+          See <xref linkend="auth-ident"> below for details.
+         </para>
+        </listitem>
+       </varlistentry>
+
+       <varlistentry>
+        <term><literal>pam</></term>
+        <listitem>
+         <para>
+          Authenticate using the Pluggable Authentication Modules
+          (PAM) service provided by the operating system.  See <xref
+          linkend="auth-pam"> for details.
+         </para>
+        </listitem>
+       </varlistentry>
+      </variablelist>
+
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><replaceable>authentication-option</replaceable></term>
+     <listitem>
+      <para>
+       The meaning of this optional field depends on the chosen
+       authentication method and is described in the next section.
+      </para>
+     </listitem>
+    </varlistentry>
+   </variablelist>
+  </para>
+
+  <para>
+   Since the <filename>pg_hba.conf</filename> records are examined
+   sequentially for each connection attempt, the order of the records is
+   significant. Typically, earlier records will have tight connection
+   match parameters and weaker authentication methods, while later
+   records will have looser match parameters and stronger authentication
+   methods. For example, one might wish to use <literal>trust</>
+   authentication for local TCP/IP connections but require a password for
+   remote TCP/IP connections. In this case a record specifying
+   <literal>trust</> authentication for connections from 127.0.0.1 would
+   appear before a record specifying password authentication for a wider
+   range of allowed client IP addresses.
+  </para>
+
+  <important>
+   <para>
+    Do not prevent the superuser from accessing the <literal>template1</literal>
+    database.  Various utility commands need access to <literal>template1</literal>.
+   </para>
+  </important>
+
+  <para>
+   The <filename>pg_hba.conf</filename> file is read on start-up and when
+   the main server process (<command>postmaster</>) receives a
+   <systemitem>SIGHUP</systemitem><indexterm><primary>SIGHUP</primary></indexterm>
+   signal. If you edit the file on an
+   active system, you will need to signal the <command>postmaster</>
+   (using <literal>pg_ctl reload</> or <literal>kill -HUP</>) to make it
+   re-read the file.
+  </para>
+
+  <para>
+   An example of a <filename>pg_hba.conf</filename> file is shown in
+   <xref linkend="example-pg-hba.conf">. See the next section for details on the
+   different authentication methods.
+  </para>
+
+   <example id="example-pg-hba.conf">
+    <title>An example <filename>pg_hba.conf</filename> file</title>
+<programlisting>
+# Allow any user on the local system to connect to any database under
+# any user name using Unix-domain sockets (the default for local
+# connections).
+#
+# TYPE  DATABASE    USER        IP-ADDRESS        IP-MASK           METHOD
+local   all         all                                             trust
+
+# The same using local loopback TCP/IP connections.
+#
+# TYPE  DATABASE    USER        IP-ADDRESS        IP-MASK           METHOD
+host    all         all         127.0.0.1         255.255.255.255   trust     
+
+# The same as the last line but using a CIDR mask
+#
+# TYPE  DATABASE    USER        IP-ADDRESS/CIDR-mask  METHOD
+host    all         all         127.0.0.1/32          trust     
+
+# Allow any user from any host with IP address 192.168.93.x to connect
+# to database "template1" as the same user name that ident reports for
+# the connection (typically the Unix user name).
+# 
+# TYPE  DATABASE    USER        IP-ADDRESS        IP-MASK           METHOD
+host    template1   all         192.168.93.0      255.255.255.0     ident sameuser
+
+# The same as the last line but using a CIDR mask
+#
+# TYPE  DATABASE    USER        IP-ADDRESS/CIDR-mask  METHOD
+host    template1   all         192.168.93.0/24       ident sameuser
+
+# Allow a user from host 192.168.12.10 to connect to database
+# "template1" if the user's password is correctly supplied.
+# 
+# TYPE  DATABASE    USER        IP-ADDRESS        IP-MASK           METHOD
+host    template1   all         192.168.12.10     255.255.255.255   md5
+
+# In the absence of preceding "host" lines, these two lines will
+# reject all connection from 192.168.54.1 (since that entry will be
+# matched first), but allow Kerberos V connections from anywhere else
+# on the Internet.  The zero mask means that no bits of the host IP
+# address are considered so it matches any host.
+# 
+# TYPE  DATABASE    USER        IP-ADDRESS        IP-MASK           METHOD
+host    all         all         192.168.54.1      255.255.255.255   reject
+host    all         all         0.0.0.0           0.0.0.0           krb5
+
+# Allow users from 192.168.x.x hosts to connect to any database, if
+# they pass the ident check.  If, for example, ident says the user is
+# "bryanh" and he requests to connect as PostgreSQL user "guest1", the
+# connection is allowed if there is an entry in pg_ident.conf for map
+# "omicron" that says "bryanh" is allowed to connect as "guest1".
+#
+# TYPE  DATABASE    USER        IP-ADDRESS        IP-MASK           METHOD
+host    all         all         192.168.0.0       255.255.0.0       ident omicron
+
+# If these are the only three lines for local connections, they will
+# allow local users to connect only to their own databases (databases
+# with the same name as their user name) except for administrators and
+# members of group "support" who may connect to all databases.  The file
+# $PGDATA/admins contains a list of user names.  Passwords are required in
+# all cases.
+#
+# TYPE  DATABASE    USER        IP-ADDRESS        IP-MASK           METHOD
+local   sameuser    all                                             md5
+local   all         @admins                                         md5
+local   all         +support                                        md5
+
+# The last two lines above can be combined into a single line:
+local   all         @admins,+support                                md5
+
+# The database column can also use lists and file names, but not groups:
+local   db1,db2,@demodbs  all                                       md5
+</programlisting>
+   </example>
+ </sect1>
+
+ <sect1 id="auth-methods">
+  <title>Authentication methods</title>
+  <para>
+   The following describes the authentication methods in more detail.
+  </para>
+
+  <sect2 id="auth-trust">
+   <title>Trust authentication</title>
+
+   <para>
+    When <literal>trust</> authentication is specified,
+    <productname>PostgreSQL</productname> assumes that anyone who can
+    connect to the server is authorized to access the database as
+    whatever database user he specifies (including the database superuser).
+    This method should only be used when there is adequate operating system-level
+    protection on connections to the server.
+   </para>
+
+   <para>
+    <literal>trust</> authentication is appropriate and very
+    convenient for local connections on a single-user workstation.  It
+    is usually <emphasis>not</> appropriate by itself on a multiuser
+    machine.  However, you may be able to use <literal>trust</> even
+    on a multiuser machine, if you restrict access to the server's
+    Unix-domain socket file using file-system permissions.  To do this, set the
+    <varname>unix_socket_permissions</varname> (and possibly
+    <varname>unix_socket_group</varname>) configuration parameters as
+    described in <xref linkend="runtime-config-connection">.  Or you
+    could set the <varname>unix_socket_directory</varname>
+    configuration parameter to place the socket file in a suitably
+    restricted directory.
+   </para>
+
+   <para>
+    Setting file-system permissions only helps for Unix-socket connections.
+    Local TCP/IP connections are not restricted by it; therefore, if you want
+    to use file-system permissions for local security, remove the <literal>host ...
+    127.0.0.1 ...</> line from <filename>pg_hba.conf</>, or change it to a
+    non-<literal>trust</> authentication method.
+   </para>
+
+   <para>
+    <literal>trust</> authentication is only suitable for TCP/IP connections
+    if you trust every user on every machine that is allowed to connect
+    to the server by the <filename>pg_hba.conf</> lines that specify
+    <literal>trust</>.  It is seldom reasonable to use <literal>trust</>
+    for any TCP/IP connections other than those from <systemitem>localhost</> (127.0.0.1).
+   </para>
+
+  </sect2>
+
+  <sect2 id="auth-password">
+   <title>Password authentication</title>
+
+   <indexterm>
+    <primary>MD5</>
+   </indexterm>
+   <indexterm>
+    <primary>crypt</>
+   </indexterm>
+   <indexterm>
+    <primary>password</primary>
+    <secondary>authentication</secondary>
+   </indexterm>
+
+   <para>
+    The password-based authentication methods are <literal>md5</>,
+    <literal>crypt</>, and <literal>password</>. These methods operate
+    similarly except for the way that the password is sent across the
+    connection. If you are at all concerned about password
+    <quote>sniffing</> attacks then <literal>md5</> is preferred, with
+    <literal>crypt</> a second choice if you must support pre-7.2
+    clients. Plain <literal>password</> should especially be avoided for
+    connections over the open Internet (unless you use SSL, SSH, or
+    other communications security wrappers around the connection).
+   </para>
+
+   <para>
+    <productname>PostgreSQL</productname> database passwords are
+    separate from operating system user passwords. The password for
+    each database user is stored in the <literal>pg_shadow</> system
+    catalog table. Passwords can be managed with the SQL
+    commands <command>CREATE USER</command> and <command>ALTER
+    USER</command>, e.g., <userinput>CREATE USER foo WITH PASSWORD
+    'secret';</userinput>. By default, that is, if no password has
+    been set up, the stored password is null and
+    password authentication will always fail for that user.
+   </para>
+
+   <para>
+    To restrict the set of users that are allowed to connect to
+    certain databases, list the users in the <replaceable>user</>
+    column of <filename>pg_hba.conf</filename>, as explained in the
+    previous section.
+   </para>
+
+  </sect2>
+
+  <sect2 id="kerberos-auth">
+   <title>Kerberos authentication</title>
+
+   <indexterm zone="kerberos-auth">
+    <primary>Kerberos</primary>
+   </indexterm>
+
+   <para>
+    <productname>Kerberos</productname> is an industry-standard secure
+    authentication system suitable for distributed computing over a public
+    network. A description of the <productname>Kerberos</productname> system
+    is far beyond the scope of this document; in all generality it can be
+    quite complex (yet powerful). The <ulink
+    url="http://www.nrl.navy.mil/CCS/people/kenh/kerberos-faq.html">Kerberos
+    <acronym>FAQ</></ulink> or <ulink url="ftp://athena-dist.mit.edu">MIT
+    Project Athena</ulink> can be a good starting point for exploration.
+    Several sources for <productname>Kerberos</> distributions exist.
+   </para>
+
+   <para>
+    While <productname>PostgreSQL</> supports both Kerberos 4 and 
+    Kerberos 5, only Kerberos 5 is recommended.  Kerberos 4 is
+    considered insecure and no longer recommended for general
+    use.
+   </para>
+
+   <para>
+    In order to use <productname>Kerberos</>, support for it must be
+    enabled at build time.  See <xref linkend="installation"> for more
+    information.  Both Kerberos 4 and 5 are supported, but only one
+    version can be supported in any one build.
+   </para>
+
+   <para>
+    <productname>PostgreSQL</> operates like a normal Kerberos service.
+    The name of the service principal is
+    <literal><replaceable>servicename</>/<replaceable>hostname</>@<replaceable>realm</></literal>, where
+    <replaceable>servicename</> is <literal>postgres</literal> (unless a
+    different service name was selected at configure time with
+    <literal>./configure --with-krb-srvnam=whatever</>).
+    <replaceable>hostname</> is the fully qualified host name of the
+    server machine. The service principal's realm is the preferred realm
+    of the server machine.
+   </para>
+
+   <para>
+    Client principals must have their <productname>PostgreSQL</> user
+    name as their first component, for example
+    <literal>pgusername/otherstuff@realm</>. At present the realm of
+    the client is not checked by <productname>PostgreSQL</>; so if you
+    have cross-realm authentication enabled, then any principal in any
+    realm that can communicate with yours will be accepted.
+   </para>
+
+   <para>
+    Make sure that your server key file is readable (and preferably only
+    readable) by the <productname>PostgreSQL</productname> server
+    account.  (See also <xref linkend="postgres-user">). The location of the
+    key file is specified with the <varname>krb_server_keyfile</> run-time
+    configuration parameter. (See also <xref
+    linkend="runtime-config">.) The default is <filename>/etc/srvtab</>
+    if you are using Kerberos 4 and
+    <filename>FILE:/usr/local/pgsql/etc/krb5.keytab</> (or whichever
+    directory was specified as <varname>sysconfdir</> at build time)
+    with Kerberos 5.
+   </para>
+
+   <para>
+    To generate the keytab file, use for example (with version 5)
+<screen>
+<prompt>kadmin% </><userinput>ank -randkey postgres/server.my.domain.org</>
+<prompt>kadmin% </><userinput>ktadd -k krb5.keytab postgres/server.my.domain.org</>
+</screen>
+    Read the <productname>Kerberos</> documentation for details.
+   </para>
+
+   <para>
+    When connecting to the database make sure you have a ticket for a
+    principal matching the requested database user name. An example: For
+    database user name <literal>fred</>, both principal
+    <literal>fred@EXAMPLE.COM</> and
+    <literal>fred/users.example.com@EXAMPLE.COM</> can be used to
+    authenticate to the database server.
+   </para>
+
+   <para>
+    If you use <application>mod_auth_kerb</application> from
+    <ulink url="http://modauthkerb.sf.net">http://modauthkerb.sf.net</ulink>
+    and <application>mod_perl</application> on your
+    <productname>Apache</productname> web server, you can use
+    <literal>AuthType KerberosV5SaveCredentials</literal> with a
+    <application>mod_perl</application> script. This gives secure
+    database access over the web, no extra passwords required.
+   </para>
+
+  </sect2>
+
+  <sect2 id="auth-ident">
+   <title>Ident-based authentication</title>
+
+   <indexterm>
+    <primary>ident</primary>
+   </indexterm>
+
+   <para>
+    The ident authentication method works by inspecting the client's
+    operating system user name and determining the allowed database
+    user names by using a map file that lists the permitted
+    corresponding user name pairs.  The determination of the client's
+    user name is the security-critical point, and it works differently
+    depending on the connection type.
+   </para>
+
+   <sect3>
+    <title>Ident Authentication over TCP/IP</title>
+
+   <para>
+    The <quote>Identification Protocol</quote> is described in
+    <citetitle>RFC 1413</citetitle>. Virtually every Unix-like
+    operating system ships with an ident server that listens on TCP
+    port 113 by default. The basic functionality of an ident server
+    is to answer questions like <quote>What user initiated the
+    connection that goes out of your port <replaceable>X</replaceable>
+    and connects to my port <replaceable>Y</replaceable>?</quote>.
+    Since <productname>PostgreSQL</> knows both <replaceable>X</> and
+    <replaceable>Y</> when a physical connection is established, it
+    can interrogate the ident server on the host of the connecting
+    client and could theoretically determine the operating system user
+    for any given connection this way.
+   </para>
+
+   <para>
+    The drawback of this procedure is that it depends on the integrity
+    of the client: if the client machine is untrusted or compromised
+    an attacker could run just about any program on port 113 and
+    return any user name he chooses. This authentication method is
+    therefore only appropriate for closed networks where each client
+    machine is under tight control and where the database and system
+    administrators operate in close contact. In other words, you must
+    trust the machine running the ident server.
+    Heed the warning:
+    <blockquote>
+     <attribution>RFC 1413</attribution>
+     <para>
+      The Identification Protocol is not intended as an authorization
+      or access control protocol.
+     </para>
+    </blockquote>
+   </para>
+   </sect3>
+
+   <sect3>
+    <title>Ident Authentication over Local Sockets</title>
+
+   <para>
+    On systems supporting <symbol>SO_PEERCRED</symbol> requests for
+    Unix-domain sockets (currently <systemitem
+    class="osname">Linux</>, <systemitem class="osname">FreeBSD</>,
+    <systemitem class="osname">NetBSD</>, <systemitem class=osname>OpenBSD</>, 
+    and <systemitem class="osname">BSD/OS</>), ident authentication can also 
+    be applied to local connections. In this case, no security risk is added by
+    using ident authentication; indeed it is a preferable choice for
+    local connections on such systems.
+   </para>
+
+    <para>
+     On systems without <symbol>SO_PEERCRED</> requests, ident
+     authentication is only available for TCP/IP connections. As a
+     work around, it is possible to specify the <systemitem
+     class="systemname">localhost</> address <systemitem
+     class="systemname">127.0.0.1</> and make connections to this
+     address.
+    </para>
+    </sect3>
+
+   <sect3>
+    <title>Ident Maps</title>
+
+   <para>
+    When using ident-based authentication, after having determined the
+    name of the operating system user that initiated the connection,
+    <productname>PostgreSQL</productname> checks whether that user is
+    allowed to connect as the database user he is requesting to connect
+    as. This is controlled by the ident map argument that follows the
+    <literal>ident</> key word in the <filename>pg_hba.conf</filename>
+    file. There is a predefined ident map <literal>sameuser</literal>,
+    which allows any operating system user to connect as the database
+    user of the same name (if the latter exists). Other maps must be
+    created manually.
+   </para>
+
+   <para>
+    Ident maps
+    other than <literal>sameuser</literal> are defined in the file
+    <filename>pg_ident.conf</filename><indexterm><primary>pg_ident.conf</primary></indexterm>
+    in the data directory, which contains lines of the general form:
+<synopsis>
+<replaceable>map-name</> <replaceable>ident-username</> <replaceable>database-username</>
+</synopsis>
+    Comments and whitespace are handled in the usual way. The
+    <replaceable>map-name</> is an arbitrary name that will be used to
+    refer to this mapping in <filename>pg_hba.conf</filename>. The other
+    two fields specify which operating system user is allowed to connect
+    as which database user. The same <replaceable>map-name</> can be
+    used repeatedly to specify more user-mappings within a single map.
+    There is no restriction regarding how many database users a given
+    operating system user may correspond to and vice versa.
+   </para>
+
+  <para>
+   The <filename>pg_ident.conf</filename> file is read on start-up and
+   when the main server process (<command>postmaster</>) receives a
+   <systemitem>SIGHUP</systemitem><indexterm><primary>SIGHUP</primary></indexterm>
+   signal. If you edit the file on an
+   active system, you will need to signal the <command>postmaster</>
+   (using <literal>pg_ctl reload</> or <literal>kill -HUP</>) to make it
+   re-read the file.
+  </para>
+
+   <para>
+    A <filename>pg_ident.conf</filename> file that could be used in
+    conjunction with the <filename>pg_hba.conf</> file in <xref
+    linkend="example-pg-hba.conf"> is shown in <xref
+    linkend="example-pg-ident.conf">. In this example setup, anyone
+    logged in to a machine on the 192.168 network that does not have the
+    Unix user name <literal>bryanh</>, <literal>ann</>, or
+    <literal>robert</> would not be granted access. Unix user
+    <literal>robert</> would only be allowed access when he tries to
+    connect as <productname>PostgreSQL</> user <literal>bob</>, not
+    as <literal>robert</> or anyone else. <literal>ann</> would
+    only be allowed to connect as <literal>ann</>. User
+    <literal>bryanh</> would be allowed to connect as either
+    <literal>bryanh</> himself or as <literal>guest1</>.
+   </para>
+
+   <example id="example-pg-ident.conf">
+    <title>An example <filename>pg_ident.conf</> file</title>
+<programlisting>
+# MAPNAME     IDENT-USERNAME    PG-USERNAME
+
+omicron       bryanh            bryanh
+omicron       ann               ann
+# bob has user name robert on these machines
+omicron       robert            bob
+# bryanh can also connect as guest1
+omicron       bryanh            guest1
+</programlisting>
+   </example>
+   </sect3>
+  </sect2>
+
+  <sect2 id="auth-pam">
+   <title>PAM Authentication</title>
+
+   <indexterm zone="auth-pam">
+    <primary>PAM</primary>
+   </indexterm>
+
+   <para>
+    This authentication method operates similarly to
+    <literal>password</literal> except that it uses PAM (Pluggable
+    Authentication Modules) as the authentication mechanism. The
+    default PAM service name is <literal>postgresql</literal>. You can
+    optionally supply you own service name after the <literal>pam</>
+    key word in the file <filename>pg_hba.conf</filename>. For more information about PAM, please read
+    the <ulink
+    url="http://www.kernel.org/pub/linux/libs/pam/"><productname>Linux-PAM</>
+    Page</ulink> and the <ulink
+    url="http://www.sun.com/software/solaris/pam/"><systemitem
+    class="osname">Solaris</> PAM Page</ulink>.
+   </para>
+  </sect2>
+ </sect1>
+
+  <sect1 id="client-authentication-problems">
+   <title>Authentication problems</title>
+
+   <para>
+    Genuine authentication failures and related problems generally
+    manifest themselves through error messages like the following.
+   </para>
+
+   <para>
+<ProgramListing>
+FATAL:  no pg_hba.conf entry for host "123.123.123.123", user "andym", database "testdb"
+</ProgramListing>
+    This is what you are most likely to get if you succeed in contacting
+    the server, but it does not want to talk to you. As the message
+    suggests, the server refused the connection request because it found
+    no authorizing entry in its <filename>pg_hba.conf</filename>
+    configuration file.
+   </para>
+
+   <para>
+<ProgramListing>
+FATAL:  Password authentication failed for user "andym"
+</ProgramListing>
+    Messages like this indicate that you contacted the server, and it is
+    willing to talk to you, but not until you pass the authorization
+    method specified in the <filename>pg_hba.conf</filename> file. Check
+    the password you are providing, or check your Kerberos or ident
+    software if the complaint mentions one of those authentication
+    types.
+   </para>
+
+   <para>
+<ProgramListing>
+FATAL:  user "andym" does not exist
+</ProgramListing>
+    The indicated user name was not found.
+   </para>
+
+   <para>
+<ProgramListing>
+FATAL:  database "testdb" does not exist
+</ProgramListing>
+    The database you are trying to connect to does not exist. Note that
+    if you do not specify a database name, it defaults to the database
+    user name, which may or may not be the right thing.
+   </para>
+
+   <tip>
+   <para>
+    The server log may contain more information about an
+    authentication failure than is reported to the client. If you are
+    confused about the reason for a failure, check the log.
+   </para>
+   </tip>
+  </sect1>
+
+ </chapter>

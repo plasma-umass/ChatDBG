@@ -1,0 +1,26 @@
+#
+# Test of truncate
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (a integer, b integer,c1 CHAR(10));
+insert into t1 (a) values (1),(2);
+truncate table t1;
+select count(*) from t1;
+insert into t1 values(1,2,"test");
+select count(*) from t1;
+delete from t1;
+select * from t1;
+drop table t1;
+# The following should fail
+--error 1146
+select count(*) from t1;
+create temporary table t1 (n int);
+insert into t1 values (1),(2),(3);
+truncate table t1;
+select * from t1;
+drop table t1;
+--error 1146
+truncate non_existing_table;

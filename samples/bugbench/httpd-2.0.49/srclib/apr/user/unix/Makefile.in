@@ -1,0 +1,13 @@
+srcdir = @srcdir@
+VPATH = @srcdir@
+
+TARGETS = userinfo.lo groupinfo.lo
+
+# bring in rules.mk for standard functionality
+@INCLUDE_RULES@
+
+INCDIR=../../include
+DEFOSDIR=$(INCDIR)/arch/@DEFAULT_OSDIR@
+INCLUDES=-I$(INCDIR) -I$(DEFOSDIR)
+
+# DO NOT REMOVE

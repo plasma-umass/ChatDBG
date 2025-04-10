@@ -1,0 +1,23 @@
+source include/master-slave.inc;
+connection master;
+use test;
+drop table if exists t1;
+create table t1 (n int);
+insert into t1 values(1);
+save_master_pos;
+connection slave;
+sync_with_master; 
+slave stop;
+slave start;
+connection master;
+insert into t1 values(2);
+save_master_pos;
+connection slave;
+#let slave catch up
+sync_with_master;
+select * from t1;
+connection master;
+drop table t1;
+save_master_pos;
+connection slave;
+sync_with_master;

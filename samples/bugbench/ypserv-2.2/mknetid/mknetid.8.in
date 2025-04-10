@@ -1,0 +1,101 @@
+.\" -*- nroff -*-
+.TH MKNETID 8 "August 2001" "YP Server" "Reference Manual"
+.SH NAME
+mknetid \- generate data for netid map
+.SH SYNOPSIS
+.B @YPBINDIR@/mknetid
+[
+.B \-q
+]
+[
+.B \-h hosts
+]
+[
+.B \-p passwd
+]
+[
+.B \-g group
+]
+[
+.B \-d domain
+]
+[
+.B \-n netid
+]
+.LP
+.B @YPBINDIR@/mknetid
+.B \-\-version
+.LP
+.SH DESCRIPTION
+.LP
+.B mknetid
+generates the \fInetid.byname\fP NIS map from the contents of the
+group(5), passwd(5), hosts(5) and netid files. It checks for multiple
+entrys of netids and warn for them or filters them out. It is only
+called by
+.B @YPMAPDIR@/Makefile
+when rebuilding the NIS map.
+.SH OPTIONS
+.TP
+.B \-q
+This flag turns on 'quiet' mode, don't print a warning message when
+finding an duplicate netid entry.
+.TP
+.BI \-h " hosts"
+The
+.B \-h
+flag can be used to specify the use of another hosts file
+than the default \fI/etc/hosts\fP.
+.TP
+.BI \-p " passwd"
+The
+.B \-p
+flag can be used to specify the use of another passwd file
+than the default \fI/etc/passwd\fP.
+.TP
+.BI \-g " group"
+The
+.B \-g
+flag can be used to specify the use of another group file
+than the default \fI/etc/group\fP.
+.TP
+.BI \-n " netid"
+The
+.B \-n
+flag can be used to specify the use of another netid file
+than the default \fI/etc/netid\fP.
+.TP
+.BI \-d " domain"
+The
+.B mknetid
+command uses the system domainname by default. If it is not set
+or you whish to override it, you must use the
+.B \-d
+parameter.
+.TP
+.B \-\-version
+Prints the version number
+.SH FILES
+.PD 0
+.TP 20
+.B /etc/group
+groups file
+.TP
+.B /etc/hosts
+hosts database
+.TP
+.B /etc/netid
+netname database
+.TP
+.B /etc/passwd
+password file
+.PD
+.SH "SEE ALSO"
+.BR passwd (8),
+.BR group (5),
+.BR hosts (5),
+.BR passwd (5)
+.LP
+.SH AUTHOR
+.B mknetid
+was written by Thorsten Kukuk <kukuk@suse.de>.

@@ -1,0 +1,423 @@
+drop table if exists t1,t2,t3;
+drop database if exists test_$1;
+create table t1 (b char(0));
+insert into t1 values (""),(null);
+select * from t1;
+b
+
+NULL
+drop table if exists t1;
+create table t1 (b char(0) not null);
+create table if not exists t1 (b char(0) not null);
+insert into t1 values (""),(null);
+Warnings:
+Warning	1262	Data truncated, NULL supplied to NOT NULL column 'b' at row 2
+select * from t1;
+b
+
+
+drop table t1;
+create table t1 (a int not null auto_increment,primary key (a)) type=heap;
+drop table t1;
+create table t2 type=heap select * from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+create table t2 select auto+1 from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+drop table if exists t1,t2;
+Warnings:
+Note	1051	Unknown table 't1'
+Note	1051	Unknown table 't2'
+create table t1 (b char(0) not null, index(b));
+ERROR 42000: The used storage engine can't index column 'b'
+create table t1 (a int not null,b text) type=heap;
+ERROR 42000: The used table type doesn't support BLOB/TEXT columns
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
+create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) type=heap;
+ERROR 42000: Incorrect table definition; There can only be one auto column and it must be defined as a key
+create table not_existing_database.test (a int);
+Got one of the listed errors
+create table `a/a` (a int);
+ERROR 42000: Incorrect table name 'a/a'
+create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa int);
+ERROR 42000: Incorrect table name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+create table a (`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` int);
+ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+create table 1ea10 (1a20 int,1e int);
+insert into 1ea10 values(1,1);
+select 1ea10.1a20,1e+ 1e+10 from 1ea10;
+1a20	1e+ 1e+10
+1	10000000001
+drop table 1ea10;
+create table t1 (t1.index int);
+drop table t1;
+drop database if exists test_$1;
+Warnings:
+Note	1008	Can't drop database 'test_$1'; database doesn't exist
+create database test_$1;
+create table test_$1.$test1 (a$1 int, $b int, c$ int);
+insert into test_$1.$test1 values (1,2,3);
+select a$1, $b, c$ from test_$1.$test1;
+a$1	$b	c$
+1	2	3
+create table test_$1.test2$ (a int);
+drop table test_$1.test2$;
+drop database test_$1;
+create table `` (a int);
+ERROR 42000: Incorrect table name ''
+drop table if exists ``;
+ERROR 42000: Incorrect table name ''
+create table t1 (`` int);
+ERROR 42000: Incorrect column name ''
+create table t1 (i int, index `` (i));
+ERROR 42000: Incorrect index name ''
+create table t1 (a int auto_increment not null primary key, B CHAR(20));
+insert into t1 (b) values ("hello"),("my"),("world");
+create table t2 (key (b)) select * from t1;
+explain select * from t2 where b="world";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	B	B	21	const	1	Using where
+select * from t2 where b="world";
+a	B
+3	world
+drop table t1,t2;
+create table t1(x varchar(50) );
+create table t2 select x from t1 where 1=2;
+describe t1;
+Field	Type	Null	Key	Default	Extra
+x	varchar(50)	YES		NULL	
+describe t2;
+Field	Type	Null	Key	Default	Extra
+x	varchar(50)	YES		NULL	
+drop table t2;
+create table t2 select now() as a , curtime() as b, curdate() as c , 1+1 as d , 1.0 + 1 as e , 33333333333333333 + 3 as f;
+describe t2;
+Field	Type	Null	Key	Default	Extra
+a	datetime			0000-00-00 00:00:00	
+b	time			00:00:00	
+c	date			0000-00-00	
+d	bigint(17)			0	
+e	double(18,1)			0.0	
+f	bigint(17)			0	
+drop table t2;
+create table t2 select CAST("2001-12-29" AS DATE) as d, CAST("20:45:11" AS TIME) as t, CAST("2001-12-29  20:45:11" AS DATETIME) as dt;
+describe t2;
+Field	Type	Null	Key	Default	Extra
+d	date			0000-00-00	
+t	time			00:00:00	
+dt	datetime			0000-00-00 00:00:00	
+drop table t1,t2;
+create table t1 (a tinyint);
+create table t2 (a int) select * from t1;
+describe t1;
+Field	Type	Null	Key	Default	Extra
+a	tinyint(4)	YES		NULL	
+describe t2;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+drop table if exists t2;
+create table t2 (a int, a float) select * from t1;
+ERROR 42S21: Duplicate column name 'a'
+drop table if exists t2;
+Warnings:
+Note	1051	Unknown table 't2'
+create table t2 (a int) select a as b, a+1 as b from t1;
+ERROR 42S21: Duplicate column name 'b'
+drop table if exists t2;
+Warnings:
+Note	1051	Unknown table 't2'
+create table t2 (b int) select a as b, a+1 as b from t1;
+ERROR 42S21: Duplicate column name 'b'
+drop table if exists t1,t2;
+Warnings:
+Note	1051	Unknown table 't2'
+CREATE TABLE t1 (a int not null);
+INSERT INTO t1 values (1),(2),(1);
+CREATE TABLE t2 (primary key(a)) SELECT * FROM t1;
+ERROR 23000: Duplicate entry '1' for key 1
+SELECT * from t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+DROP TABLE t1;
+DROP TABLE IF EXISTS t2;
+Warnings:
+Note	1051	Unknown table 't2'
+create table t1 (a int not null, b int, primary key(a), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL default '0',
+  `b` int(11) default NULL,
+  PRIMARY KEY  (`a`),
+  KEY `b` (`b`),
+  KEY `b_2` (`b`),
+  KEY `b_3` (`b`),
+  KEY `b_4` (`b`),
+  KEY `b_5` (`b`),
+  KEY `b_6` (`b`),
+  KEY `b_7` (`b`),
+  KEY `b_8` (`b`),
+  KEY `b_9` (`b`),
+  KEY `b_10` (`b`),
+  KEY `b_11` (`b`),
+  KEY `b_12` (`b`),
+  KEY `b_13` (`b`),
+  KEY `b_14` (`b`),
+  KEY `b_15` (`b`),
+  KEY `b_16` (`b`),
+  KEY `b_17` (`b`),
+  KEY `b_18` (`b`),
+  KEY `b_19` (`b`),
+  KEY `b_20` (`b`),
+  KEY `b_21` (`b`),
+  KEY `b_22` (`b`),
+  KEY `b_23` (`b`),
+  KEY `b_24` (`b`),
+  KEY `b_25` (`b`),
+  KEY `b_26` (`b`),
+  KEY `b_27` (`b`),
+  KEY `b_28` (`b`),
+  KEY `b_29` (`b`),
+  KEY `b_30` (`b`),
+  KEY `b_31` (`b`)
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 select if(1,'1','0'), month("2002-08-02");
+drop table t1;
+create table t1 select if('2002'='2002','Y','N');
+select * from t1;
+if('2002'='2002','Y','N')
+Y
+drop table if exists t1;
+SET SESSION table_type="heap";
+SELECT @@table_type;
+@@table_type
+HEAP
+CREATE TABLE t1 (a int not null);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL default '0'
+) TYPE=HEAP DEFAULT CHARSET=latin1
+drop table t1;
+SET SESSION table_type="gemini";
+SELECT @@table_type;
+@@table_type
+GEMINI
+CREATE TABLE t1 (a int not null);
+Warnings:
+Warning	1265	Using storage engine MYISAM for table 't1'
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL default '0'
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+SET SESSION table_type=default;
+drop table t1;
+create table t1 ( k1 varchar(2), k2 int, primary key(k1,k2));
+insert into t1 values ("a", 1), ("b", 2);
+insert into t1 values ("c", NULL);
+ERROR 23000: Column 'k2' cannot be null
+insert into t1 values (NULL, 3);
+ERROR 23000: Column 'k1' cannot be null
+insert into t1 values (NULL, NULL);
+ERROR 23000: Column 'k1' cannot be null
+drop table t1;
+create table t1 select x'4132';
+drop table t1;
+create table t1 select 1,2,3;
+create table if not exists t1 select 1,2;
+create table if not exists t1 select 1,2,3,4;
+ERROR 21S01: Column count doesn't match value count at row 1
+create table if not exists t1 select 1;
+select * from t1;
+1	2	3
+1	2	3
+0	1	2
+0	0	1
+drop table t1;
+create table t1 select 1,2,3;
+create table if not exists t1 select 1,2;
+create table if not exists t1 select 1,2,3,4;
+ERROR 21S01: Column count doesn't match value count at row 1
+create table if not exists t1 select 1;
+select * from t1;
+1	2	3
+1	2	3
+0	1	2
+0	0	1
+drop table t1;
+create table t1 (a int not null, b int, primary key (a));
+insert into t1 values (1,1);
+create table if not exists t1 select 2;
+select * from t1;
+a	b
+1	1
+0	2
+create table if not exists t1 select 3 as 'a',4 as 'b';
+create table if not exists t1 select 3 as 'a',3 as 'b';
+ERROR 23000: Duplicate entry '3' for key 1
+select * from t1;
+a	b
+1	1
+0	2
+3	4
+drop table t1;
+create table t1 (a int, key(a));
+create table t2 (b int, foreign key(b) references t1(a), key(b));
+drop table if exists t1,t2;
+create table t1(id int not null, name char(20));
+insert into t1 values(10,'mysql'),(20,'monty- the creator');
+create table t2(id int not null);
+insert into t2 values(10),(20);
+create table t3 like t1;
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `id` int(11) NOT NULL default '0',
+  `name` char(20) default NULL
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+select * from t3;
+id	name
+create table if not exists t3 like t1;
+Warnings:
+Warning	1050	Table 't3' already exists
+select @@warning_count;
+@@warning_count
+1
+create temporary table t3 like t2;
+show create table t3;
+Table	Create Table
+t3	CREATE TEMPORARY TABLE `t3` (
+  `id` int(11) NOT NULL default '0'
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+select * from t3;
+id
+drop table t3;
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `id` int(11) NOT NULL default '0',
+  `name` char(20) default NULL
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+select * from t3;
+id	name
+drop table t2, t3;
+create database test_$1;
+create table test_$1.t3 like t1;
+create temporary table t3 like test_$1.t3;
+show create table t3;
+Table	Create Table
+t3	CREATE TEMPORARY TABLE `t3` (
+  `id` int(11) NOT NULL default '0',
+  `name` char(20) default NULL
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+create table t2 like t3;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(11) NOT NULL default '0',
+  `name` char(20) default NULL
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+select * from t2;
+id	name
+create table t3 like t1;
+create table t3 like test_$1.t3;
+ERROR 42S01: Table 't3' already exists
+create table non_existing_database.t1 like t1;
+Got one of the listed errors
+create table t3 like non_existing_table;
+ERROR 42S02: Unknown table 'non_existing_table'
+create temporary table t3 like t1;
+ERROR 42S01: Table 't3' already exists
+create table t3 like `a/a`;
+ERROR 42000: Incorrect table name 'a/a'
+drop table t1, t2, t3;
+drop table t3;
+drop database test_$1;
+SET SESSION table_type="heap";
+SELECT @@table_type;
+@@table_type
+HEAP
+CREATE TABLE t1 (a int not null);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL default '0'
+) TYPE=HEAP DEFAULT CHARSET=latin1
+drop table t1;
+SET SESSION table_type="gemini";
+SELECT @@table_type;
+@@table_type
+GEMINI
+CREATE TABLE t1 (a int not null);
+Warnings:
+Warning	1265	Using storage engine MYISAM for table 't1'
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL default '0'
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+SET SESSION table_type=default;
+drop table t1;
+create table t1(a int,b int,c int unsigned,d date,e char,f datetime,g time,h blob);
+insert into t1(a)values(1);
+insert into t1(a,b,c,d,e,f,g,h)
+values(2,-2,2,'1825-12-14','a','2003-1-1 3:2:1','4:3:2','binary data');
+select * from t1;
+a	b	c	d	e	f	g	h
+1	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+2	-2	2	1825-12-14	a	2003-01-01 03:02:01	04:03:02	binary data
+select a, 
+ifnull(b,cast(-7 as signed)) as b, 
+ifnull(c,cast(7 as unsigned)) as c, 
+ifnull(d,cast('2000-01-01' as date)) as d, 
+ifnull(e,cast('b' as char)) as e,
+ifnull(f,cast('2000-01-01' as datetime)) as f, 
+ifnull(g,cast('5:4:3' as time)) as g,
+ifnull(h,cast('yet another binary data' as binary)) as h,
+addtime(cast('1:0:0' as time),cast('1:0:0' as time)) as dd 
+from t1;
+a	b	c	d	e	f	g	h	dd
+1	-7	7	2000-01-01	b	2000-01-01 00:00:00	05:04:03	yet another binary data	02:00:00
+2	-2	2	1825-12-14	a	2003-01-01 03:02:01	04:03:02	binary data	02:00:00
+create table t2
+select
+a, 
+ifnull(b,cast(-7                        as signed))   as b,
+ifnull(c,cast(7                         as unsigned)) as c,
+ifnull(d,cast('2000-01-01'              as date))     as d,
+ifnull(e,cast('b'                       as char))     as e,
+ifnull(f,cast('2000-01-01'              as datetime)) as f,
+ifnull(g,cast('5:4:3'                   as time))     as g,
+ifnull(h,cast('yet another binary data' as binary))   as h,
+addtime(cast('1:0:0' as time),cast('1:0:0' as time))  as dd
+from t1;
+explain t2;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	bigint(11)			0	
+c	bigint(10)			0	
+d	date			0000-00-00	
+e	char(1)				
+f	datetime			0000-00-00 00:00:00	
+g	time			00:00:00	
+h	longblob				
+dd	time			00:00:00	
+select * from t2;
+a	b	c	d	e	f	g	h	dd
+1	-7	7	2000-01-01	b	2000-01-01 00:00:00	05:04:03	yet another binary data	02:00:00
+2	-2	2	1825-12-14	a	2003-01-01 03:02:01	04:03:02	binary data	02:00:00
+drop table t1, t2;
+create database test_$1;
+use test_$1;
+select database();
+database()
+test_$1
+drop database test_$1;
+select database();
+database()
+NULL
+select database();
+database()
+NULL

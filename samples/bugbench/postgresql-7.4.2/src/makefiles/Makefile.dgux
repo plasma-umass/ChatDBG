@@ -1,0 +1,8 @@
+AROPT = crs
+DLSUFFIX = .so
+CFLAGS_SL = -fpic
+
+%.so: %.o
+	$(CC) -shared -o $@ $<
+
+sqlmansect = 5

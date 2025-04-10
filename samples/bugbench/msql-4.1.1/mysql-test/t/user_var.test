@@ -1,0 +1,73 @@
+# Initialise
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+--error 1054
+set @a := foo;
+set @a := connection_id() + 3;
+select @a - connection_id();
+
+set @b := 1;
+select @b;
+
+# Check using and setting variables with SELECT DISTINCT
+
+CREATE TABLE t1 ( i int not null, v int not null,index (i));
+insert into t1 values (1,1),(1,3),(2,1); 
+create table t2 (i int not null, unique (i));
+insert into t2 select distinct i from t1;
+select * from t2; 
+select distinct t2.i,@vv1:=if(sv1.i,1,0),@vv2:=if(sv2.i,1,0),@vv3:=if(sv3.i,1,0), @vv1+@vv2+@vv3 from t2 left join t1 as sv1 on sv1.i=t2.i and sv1.v=1 left join t1 as sv2 on sv2.i=t2.i and sv2.v=2 left join t1 as sv3 on sv3.i=t2.i and sv3.v=3;
+explain select * from t1 where i=@vv1;
+explain select * from t1 where @vv1:=@vv1+1 and i=@vv1;
+explain select @vv1:=i from t1 where i=@vv1;
+explain select * from t1 where i=@vv1;
+drop table t1,t2;
+
+# Check types of variables
+set @a=0,@b=0;
+select @a:=10,   @b:=1,   @a > @b, @a < @b;
+# Note that here a and b will be avaluated as number
+select @a:="10", @b:="1", @a > @b, @a < @b;
+# Note that here a and b will be avaluated as strings
+select @a:=10,   @b:=2,   @a > @b, @a < @b;
+select @a:="10", @b:="2", @a > @b, @a < @b;
+
+# Fixed bug #1194
+select @a:=1;
+select @a, @a:=1;
+
+create table t1 (id int, d double, c char(10));
+insert into t1 values (1,2.0, "test");
+select @c:=0;
+update t1 SET id=(@c:=@c+1);
+select @c;
+select @c:=0;
+update t1 set id=(@c:=@c+1);
+select @c;
+select @c:=0;
+select @c:=@c+1;
+select @d,(@d:=id),@d from t1;
+select @e,(@e:=d),@e from t1;
+select @f,(@f:=c),@f from t1;
+set @g=1;
+select @g,(@g:=c),@g from t1;
+select @c, @d, @e, @f;
+select @d:=id, @e:=id, @f:=id, @g:=@id from t1;
+select @c, @d, @e, @f, @g;
+drop table t1;
+
+# just for fun :)
+select @a:=10, @b:=2, @a>@b, @a:="10", @b:="2", @a>@b, @a:=10, @b:=2, @a>@b, @a:="10", @b:="2", @a>@b;
+
+#
+# bug#1739
+# Item_func_set_user_var sets update_query_id, Item_func_get_user_var checks it
+#
+create table t1 (i int not null);
+insert t1 values (1),(2),(2),(3),(3),(3);
+select @a:=0; select @a, @a:=@a+count(*), count(*), @a from t1 group by i;
+select @a:=0; select @a+0, @a:=@a+0+count(*), count(*), @a+0 from t1 group by i;
+drop table t1;
+

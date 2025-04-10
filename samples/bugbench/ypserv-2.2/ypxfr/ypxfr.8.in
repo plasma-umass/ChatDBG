@@ -1,0 +1,194 @@
+.\" Copyright (c) 1996, 1997, 1999, 2001 Thorsten Kukuk <kukuk@suse.de>
+.TH YPSERV 8 "August 2001" "YP Server" ""
+.SH NAME
+ypxfr - transfer NIS database from remote server to local host
+.SH SYNOPSIS
+.B @YPBINDIR@/ypxfr
+[
+.B \-f
+]
+[
+.B \-c
+]
+[
+.B \-d
+.I target domain
+]
+.if n .ti +5n
+[
+.B \-h
+.I source host
+]
+[
+.B \-s
+.I source domain
+]
+.if n .ti +5n
+[
+.B \-C
+.I taskid
+.I program-number
+.I ipaddr port
+]
+.if n .ti +5n
+[
+.B \-p
+.I yp_path
+]
+mapname ...
+
+.SH DESCRIPTION
+.B ypxfr
+copies an NIS database from one NIS server to the local host by
+using the NIS service.
+.B ypxfr
+is generally invoked by
+.B ypinit
+or by
+.B ypserv,
+when
+.B ypserv
+receives a map transfer request from
+.B yppush.
+It creates a temporary map in the directory
+.B @YPMAPDIR@/domain
+(this  directory  must already  exist;
+.I domain
+is the default domainname for the local host), fills it by getting
+the map's entries and fetches the map parameters (master and order number).
+If the transfer was successful, the old version of the map will be
+deleted and the temporary copy will be moved into its place.
+Then,
+.B ypxfr
+will attempt to send a "clear current map" request to the local
+.B ypserv.
+
+If  run interactively,
+.B ypxfr
+writes its output to stderr.
+However, if it is invoked without a controlling terminal, it will
+log the output to syslog.
+
+.B ypxfr
+is used primarily in environments where several NIS servers are in use.
+For all maps, you have a NIS master server, which  maintains a canonical
+copy of the NIS map, and all the other servers, the NIS slaves, copy
+the new version of the map from the master whenever a update was made.
+Normally, you have one NIS master for all maps.
+
+In order to maintain consistency across all NIS servers,
+.B ypxfr
+can be run periodically in a
+.B cron
+job. Maps which change infrequently need only be updated once a day
+(preferably late at night when system usage is lowest), where those
+with frequent changes (such as
+.I passwd.byname
+and
+.I passwd.byuid )
+should be updated perhaps once every hour.
+Examples are in
+.B @YPBINDIR@: ypxfr_1perday, ypxfr_2perday,
+and
+.B ypxfr_1perhour.
+They can serve as reasonable first cuts.
+
+Normally all updates should be propagated by
+.B yppush
+when
+.B @YPMAPDIR@/Makefile
+is run on the NIS master server, however it is a good practice
+on large networks where possible outages could cause NIS slaves to
+fall out of sync with the master.
+
+
+.SH OPTIONS
+The following options are supported:
+.TP
+.B \-f
+Force a map transfer. Normally,
+.B ypxfr
+will not transfer a map if it determines that the NIS master's copy
+is not newer than the existing copy already on the local host. This
+flag forces a transfer regardless of which server's version is more
+recent.
+.TP
+.B \-c
+Do not send a "clear current map" request to the
+.B ypserv
+process running on the local host. This flag is normally used when
+invoking
+.B ypxfr
+by
+.B ypinit
+or if
+.B ypserv
+is not  running  locally  at  the time you are running
+.B ypxfr.
+Otherwise,
+.B ypxfr
+will complain that it cannot talk to the local
+.B ypserv,
+and the transfer will fail.
+.TP
+.BI \-d " domain"
+Specify a domain other than the default NIS domain.
+.TP
+.BI \-h " source host"
+Get the map from
+.IR host ,
+regardless of what the map says the master is.  If
+.I host
+is not specified,
+.B ypxfr
+asks the
+.SM NIS
+service for the name of the master, and tries to get the
+map from there. This option is used to insure that ypxfr only copies
+maps from the NIS master server.
+.TP
+.BI \-s " source domain"
+Specify a source domain from which to transfer a map that should be the same
+across domains.
+.TP
+.BI \-C  " taskid progam-number ipaddr port"
+This option is
+.B only
+for use by
+.B ypserv .
+When
+.B ypserv
+invokes
+.BR ypxfr ,
+it specifies that
+.B ypxfr
+should call back a
+.B yppush
+process at the host with
+.SM IP
+address
+.IR ipaddr ,
+registered as program number
+.IR progam-number ,
+listening on port
+.IR port ,
+and waiting for a response to transaction
+.IR taskid .
+.TP
+.BI \-p " yp_path"
+Change the directory for the maps to
+\fIyp_path/[domainname]/\fP, the default
+is \fI@YPMAPDIR@/[domainname]\fP.
+.TP
+.I mapname
+One or more names of the map to transfer.
+.SH FILES
+@YPMAPDIR@/[domainname]/[maps]
+.SH "SEE ALSO"
+.BR ypserv (8),
+.BR yppush (8),
+.BR ypinit (8),
+.BR cron (8),
+.BR crontab (5)
+.SH AUTHOR
+Thorsten Kukuk <kukuk@suse.de>

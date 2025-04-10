@@ -1,0 +1,85 @@
+(N)compress version 4.2.4
+	o Fix '-c' flag.
+	o Fix utime error.
+	o Added AMIGA support (Sascha Wildner).
+	o Div. remarks added.
+
+(N)compress version 4.2.3
+	o Comp.source.reveiwed release.
+
+(N)compress version 4.2.2
+	Minor changes after the reviewes from comp.sources.reviewed
+	o Change the name to ncompress because of version problems.
+	o Start all scripts with ':'
+	o Added libary options to buidl script.
+	o Install zmore zcmp zdiff and manuals.
+	o Added patchlevel.h
+	o Updated README file. Created LZW.INFO
+	o a complete grammatical go-round
+	o Use utime.h if availble
+	o Change de default input/output buffer size to BUFSIZ. Because
+	  of performance problems with read a head on systems.
+	o Build generates a makefile.
+
+compress version 4.2.1 improvements
+	o Change the name to ncompress because of version problems.
+	o Completly rewrite of the compress and decompress functions.
+	  compress speedup 25-50% (user cpu time).
+	  decompress speedup 20-30% (user cpu time).
+    o Add special fast compress hash algorithm.
+	o Fix some minor things.
+	o use #include <utime.h> if availble.
+	o Cleanup the source code (I think so).
+	o Test if filename is not to long. This is done on runtime no fix length
+      size any more.
+	o Powerfull build script (test almost every thing).
+
+Modifications for version 4.1: 
+	o Added -r command line flag to allow recursive compression/
+	  decompression of directory trees. As a side-effect, compress
+	  no longer tries to compress/decompress anything that isn't
+	  a regular file. In particular, it ignores symbolic links.
+	o zcat no longer cares whether a filename ends in .Z or
+	  not - it relies on the magic number in the file. If zcat
+	  is given a filename that doesn't end with .Z and the file
+	  referenced doesn't exist, zcat will append a .Z and try
+	  to open that instead.
+	o compress -f will now compress multiply hardlinked files.
+	  Uncompress does not recreate the hard link, it creates
+	  a new file.
+	o Removed compressdir/uncompressdir - no longer needed.
+	o Removed atob/btoa/tarmail/untarmail - my versions are
+	  based on btoa 5.2 which is not compatible with the atob
+	  included with compress4.0.
+
+Compress version 4.0 improvements:
+	o compress() speedup (10-50%) by changing division hash to xor
+	o decompress() speedup (5-10%)
+	o Memory requirements reduced (3-30%)
+	o Stack requirements reduced to less than 4kb
+	o Removed 'Big+Fast' compress code (FBITS) because of compress speedup
+	o Portability mods for Z8000 and PC/XT (but not zeus 3.2)
+	o Default to 'quiet' mode
+	o Unification of 'force' flags
+	o Manual page overhaul
+	o Portability enhancement for M_XENIX
+	o Removed text on #else and #endif
+	o Added "-V" switch to print version and options
+	o Added #defines for SIGNED_COMPARE_SLOW
+	o Added Makefile and "usermem" program
+	o Removed all floating point computations
+	o New programs:
+		compressdir - compress all files on a directory
+		uncompressdir - uncompress all files on a directory
+		zcmp - cmp compressed files
+		zdiff - diff compressed files
+	  The following are with thanks to philabs!per:
+		btoa - convert binary to ascii for mailing
+		atob - convert ascii to binary with checksum
+		tarmail - tar, compress, btoa, and mail files
+		untarmail - restore "tarmail" files
+
+		WARNING: These last few programs are not compatible 
+		with the original ones from the net.  The encoding
+		has changed.  See btoa.c for more info.
+

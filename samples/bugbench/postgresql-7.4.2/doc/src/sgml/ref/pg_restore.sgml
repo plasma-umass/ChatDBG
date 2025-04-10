@@ -1,0 +1,679 @@
+<!-- $Header: /cvsroot/pgsql/doc/src/sgml/ref/pg_restore.sgml,v 1.43 2003/09/23 22:48:53 tgl Exp $ -->
+
+<refentry id="APP-PGRESTORE">
+ <refmeta>
+  <refentrytitle>pg_restore</refentrytitle>
+  <manvolnum>1</manvolnum>
+  <refmiscinfo>Application</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>pg_restore</refname>
+
+  <refpurpose>
+   restore a <productname>PostgreSQL</productname> database from an archive file created by pg_dump
+  </refpurpose>
+ </refnamediv>
+
+ <indexterm zone="app-pgrestore">
+  <primary>pg_restore</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+  <cmdsynopsis>
+   <command>pg_restore</command>
+   <arg rep="repeat"><replaceable>option</replaceable></arg>
+   <arg><replaceable>filename</replaceable></arg>
+  </cmdsynopsis>
+ </refsynopsisdiv>
+
+
+ <refsect1 id="app-pgrestore-description">
+  <title>Description</title>
+
+  <para>
+   <application>pg_restore</application> is a utility for restoring a
+   <productname>PostgreSQL</productname> database from an archive
+   created by <xref linkend="app-pgdump"> in one of the non-plain-text
+   formats.  It will issue the commands necessary to reconstruct the
+   database to the state it was in at the time it was saved.  The
+   archive files also allow <application>pg_restore</application> to
+   be selective about what is restored, or even to reorder the items
+   prior to being restored. The archive files are designed to be
+   portable across architectures.
+  </para>
+
+  <para>
+   <application>pg_restore</application> can operate in two modes: If
+   a database name is specified, the archive is restored directly into
+   the database.  (Large objects can only be restored by using such a direct
+   database connection.)  Otherwise, a script containing the SQL
+   commands necessary to rebuild the database is created (and written
+   to a file or standard output), similar to the ones created by the
+   <application>pg_dump</application> plain text format.  Some of the
+   options controlling the script output are therefore analogous to
+   <application>pg_dump</application> options.
+  </para>
+
+  <para>
+   Obviously, <application>pg_restore</application> cannot restore information
+   that is not present in the archive file.  For instance, if the
+   archive was made using the <quote>dump data as
+   <command>INSERT</command> commands</quote> option,
+   <application>pg_restore</application> will not be able to load the data
+   using <command>COPY</command> statements.
+  </para>
+ </refsect1>
+
+ <refsect1 id="app-pgrestore-options">
+  <title>Options</title>
+
+   <para>
+    <application>pg_restore</application> accepts the following command
+    line arguments.
+
+    <variablelist>
+     <varlistentry>
+      <term><replaceable class="parameter">filename</replaceable></term>
+      <listitem>
+       <para>
+       Specifies the location of the archive file to be restored.
+       If not specified, the standard input is used.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-a</option></term>
+      <term><option>--data-only</option></term>
+      <listitem>
+       <para>
+	Restore only the data, not the schema (data definitions).
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-c</option></term>
+      <term><option>--clean</option></term>
+      <listitem>
+       <para>
+	Clean (drop) database objects before recreating them.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-C</option></term>
+      <term><option>--create</option></term>
+      <listitem>
+       <para>
+        Create the database before restoring into it.  (When this
+        option is used, the database named with <option>-d</option> is
+        used only to issue the initial <literal>CREATE DATABASE</>
+        command.  All data is restored into the database name that
+        appears in the archive.)
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-d <replaceable class="parameter">dbname</replaceable></option></term>
+      <term><option>--dbname=<replaceable class="parameter">dbname</replaceable></option></term>
+      <listitem>
+       <para>
+        Connect to database <replaceable
+        class="parameter">dbname</replaceable> and restore directly
+        into the database.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-f <replaceable>filename</replaceable></option></term>
+      <term><option>--file=<replaceable>filename</replaceable></option></term>
+      <listitem>
+       <para>
+        Specify output file for generated script, or for the listing
+        when used with <option>-l</option>. Default is the standard
+        output.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-F <replaceable class="parameter">format</replaceable></option></term>
+      <term><option>--format=<replaceable class="parameter">format</replaceable></option></term>
+      <listitem>
+       <para>
+	Specify format of the archive.  It is not necessary to specify
+	the format, since <application>pg_restore</application> will
+	determine the format automatically. If specified, it can be
+	one of the following:
+
+       <variablelist>
+        <varlistentry>
+         <term><literal>t</></term>
+         <listitem>
+          <para>
+           The archive is a <command>tar</command> archive. Using this
+           archive format allows reordering and/or exclusion of schema
+           elements at the time the database is restored. It is also
+           possible to limit which data is reloaded at restore time.
+          </para>
+         </listitem>
+        </varlistentry>
+
+        <varlistentry>
+         <term><literal>c</></term>
+         <listitem>
+          <para>
+           The archive is in the custom format of
+           <application>pg_dump</application>. This is the most
+           flexible format in that it allows reordering of data load
+           as well as schema elements.  This format is also compressed
+           by default.
+          </para>
+         </listitem>
+        </varlistentry>
+       </variablelist>
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-i</option></term>
+      <term><option>--ignore-version</option></term>
+      <listitem>
+       <para>
+	Ignore database version checks.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-I <replaceable class="parameter">index</replaceable></option></term>
+      <term><option>--index=<replaceable class="parameter">index</replaceable></option></term>
+      <listitem>
+       <para>
+	Restore definition of named index only.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-l</option></term>
+      <term><option>--list</option></term>
+      <listitem>
+       <para>
+        List the contents of the archive. The output of this operation
+        can be used with the <option>-L</option> option to restrict
+        and reorder the items that are restored.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-L <replaceable class="parameter">list-file</replaceable></option></term>
+      <term><option>--use-list=<replaceable class="parameter">list-file</replaceable></option></term>
+      <listitem>
+       <para>
+        Restore elements in <REPLACEABLE
+        CLASS="PARAMETER">list-file</REPLACEABLE> only, and in the
+        order they appear in the file. Lines can be moved and may also
+        be commented out by placing a <literal>;</literal> at the
+        start of the line.  (See below for examples.)
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-N</option></term>
+      <term><option>--orig-order</option></term>
+      <listitem>
+       <para>
+        Restore items in the order they were originally generated within
+        <application>pg_dump</application>.  This option has no known
+	practical use, since <application>pg_dump</application> generates
+	the items in an order convenient to it, which is unlikely to be a
+	safe order for restoring them.  (This is <emphasis>not</> the order
+	in which the items are ultimately listed in the archive's table of
+	contents.)  See also <option>-r</>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-o</option></term>
+      <term><option>--oid-order</option></term>
+      <listitem>
+       <para>
+        Restore items in order by OID.  This option is of limited usefulness,
+	since OID is only an approximate indication of original creation
+	order.  This option overrides <option>-N</> if both are specified.
+	See also <option>-r</>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-O</option></term>
+      <term><option>--no-owner</option></term>
+      <listitem>
+       <para>
+        Do not output commands to set
+	ownership of objects to match the original database.
+	By default, <application>pg_restore</application> issues
+	<command>SET SESSION AUTHORIZATION</command>
+	statements to set ownership of created schema elements.
+	These statements will fail unless the initial connection to the
+	database is made by a superuser
+	(or the same user that owns all of the objects in the script).
+	With <option>-O</option>, any user name can be used for the
+	initial connection, and this user will own all the created objects.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-P <replaceable class="parameter">function-name(argtype [, ...])</replaceable></option></term>
+      <term><option>--function=<replaceable class="parameter">function-name(argtype [, ...])</replaceable></option></term>
+      <listitem>
+       <para>
+        Restore the named function only.  Be careful to spell the function
+	name and arguments exactly as they appear in the dump file's table
+	of contents.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-r</option></term>
+      <term><option>--rearrange</option></term>
+      <listitem>
+       <para>
+        Rearrange items by object type (this occurs after the sorting
+	specified by <option>-N</option> or <option>-o</option>, if
+	given).  The rearrangement is intended to give the best possible
+	restore performance.
+       </para>
+
+       <para>
+        When none of <option>-N</option>, <option>-o</option>, and
+	<option>-r</> appear, <application>pg_restore</application> restores
+	items in the order they appear in the dump's table of contents,
+	or in the order they appear in the  <REPLACEABLE
+        CLASS="PARAMETER">list-file</REPLACEABLE> if <option>-L</> is
+	given.  The combination of <option>-o</> and <option>-r</>
+	duplicates the sorting done by <application>pg_dump</application>
+	before creating the dump's table of contents,
+	and so it is normally unnecessary to specify it.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-R</option></term>
+      <term><option>--no-reconnect</option></term>
+      <listitem>
+       <para>
+        This option is obsolete but still accepted for backwards
+	compatibility.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-s</option></term>
+      <term><option>--schema-only</option></term>
+      <listitem>
+       <para>
+        Restore only the schema (data definitions), not the data.
+        Sequence values will be reset.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-S <replaceable class="parameter">username</replaceable></option></term>
+      <term><option>--superuser=<replaceable class="parameter">username</replaceable></option></term>
+      <listitem>
+       <para>
+        Specify the superuser user name to use when disabling triggers.
+	This is only relevant if <option>--disable-triggers</> is used.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-t <replaceable class="parameter">table</replaceable></option></term>
+      <term><option>--table=<replaceable class="parameter">table</replaceable></option></term>
+      <listitem>
+       <para>
+        Restore definition and/or data of named table only.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-T <replaceable class="parameter">trigger</replaceable></option></term>
+      <term><option>--trigger=<replaceable class="parameter">trigger</replaceable></option></term>
+      <listitem>
+       <para>
+        Restore named trigger only.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-v</option></term>
+      <term><option>--verbose</option></term>
+      <listitem>
+       <para>
+	Specifies verbose mode.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-x</option></term>
+      <term><option>--no-privileges</option></term>
+      <term><option>--no-acl</option></term>
+      <listitem>
+       <para>
+	Prevent restoration of access privileges (grant/revoke commands).
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-X use-set-session-authorization</option></term>
+      <term><option>--use-set-session-authorization</option></term>
+      <listitem>
+       <para>
+        This option is obsolete but still accepted for backwards
+	compatibility.
+        <application>pg_restore</application> now always behaves in the
+	way formerly selected by this option.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-X disable-triggers</></term>
+      <term><option>--disable-triggers</></term>
+      <listitem>
+       <para>
+        This option is only relevant when performing a data-only restore.
+	It instructs <application>pg_restore</application> to execute commands
+	to temporarily disable triggers on the target tables while
+	the data is reloaded.  Use this if you have referential
+	integrity checks or other triggers on the tables that you
+	do not want to invoke during data reload.
+       </para>
+
+       <para>
+        Presently, the commands emitted for
+	<option>--disable-triggers</> must be done as superuser.  So, you
+	should also specify a superuser name with <option>-S</>, or
+	preferably run <application>pg_restore</application> as a
+	<productname>PostgreSQL</> superuser.
+       </para>
+      </listitem>
+     </varlistentry>
+
+    </variablelist>
+   </para>
+
+   <para>
+    <application>pg_restore</application> also accepts
+    the following command line arguments for connection parameters:
+
+    <variablelist>
+     <varlistentry>
+      <term><option>-h <replaceable class="parameter">host</replaceable></option></term>
+      <term><option>--host=<replaceable class="parameter">host</replaceable></option></term>
+      <listitem>
+       <para>
+	Specifies the host name of the machine on which the server is
+	running.  If the value begins with a slash, it is used as the
+	directory for the Unix domain socket. The default is taken
+	from the <envar>PGHOST</envar> environment variable, if set,
+	else a Unix domain socket connection is attempted.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-p <replaceable class="parameter">port</replaceable></option></term>
+      <term><option>--port=<replaceable class="parameter">port</replaceable></option></term>
+      <listitem>
+       <para>
+	Specifies the TCP port or local Unix domain socket file
+	extension on which the server is listening for connections.
+	Defaults to the <envar>PGPORT</envar> environment variable, if
+	set, or a compiled-in default.
+        </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-U <replaceable>username</replaceable></option></term>
+      <listitem>
+       <para>
+        Connect as the given user
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-W</option></term>
+      <listitem>
+       <para>
+        Force a password prompt.  This should happen automatically if
+        the server requires password authentication.
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+   </para>
+ </refsect1>
+
+
+ <refsect1>
+  <title>Environment</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><envar>PGHOST</envar></term>
+    <term><envar>PGPORT</envar></term>
+    <term><envar>PGUSER</envar></term>
+
+    <listitem>
+     <para>
+      Default connection parameters
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+
+ <refsect1 id="app-pgrestore-diagnostics">
+  <title>Diagnostics</title>
+
+  <para>
+   When a direct database connection is specified using the
+   <option>-d</option> option, <application>pg_restore</application>
+   internally executes <acronym>SQL</acronym> statements. If you have
+   problems running <application>pg_restore</application>, make sure
+   you are able to select information from the database using, for
+   example, <application>psql</application>.
+  </para>
+ </refsect1>
+
+
+ <refsect1 id="app-pgrestore-notes">
+  <title>Notes</title>
+
+  <para>
+   If your installation has any local additions to the
+   <literal>template1</> database, be careful to load the output of
+   <application>pg_restore</application> into a truly empty database;
+   otherwise you are likely to get errors due to duplicate definitions
+   of the added objects.  To make an empty database without any local
+   additions, copy from <literal>template0</> not <literal>template1</>, for example:
+<programlisting>
+CREATE DATABASE foo WITH TEMPLATE template0;
+</programlisting>
+  </para>
+
+  <para>
+   The limitations of <application>pg_restore</application> are detailed below.
+
+   <itemizedlist>
+    <listitem>
+     <para>
+      When restoring data to a pre-existing table and the option
+      <option>--disable-triggers</> is used,
+      <application>pg_restore</application> emits commands
+      to disable triggers on user tables before inserting the data then emits commands to
+      re-enable them after the data has been inserted.  If the restore is stopped in the
+      middle, the system catalogs may be left in the wrong state.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      <application>pg_restore</application> will not restore large objects for a single table. If
+      an archive contains large objects, then all large objects will be restored.
+     </para>
+    </listitem>
+
+   </itemizedlist>
+  </para>
+
+  <para>
+   See also the <xref linkend="app-pgdump"> documentation for details on
+   limitations of <application>pg_dump</application>.
+  </para>
+
+  <para>
+   Once restored, it is wise to run <command>ANALYZE</> on each
+   restored table so the optimizer has useful statistics.
+  </para>
+
+ </refsect1>
+
+
+ <refsect1 id="app-pgrestore-examples">
+  <title>Examples</title>
+
+  <para>
+   To dump a database called <literal>mydb</> that contains
+   large objects to a <filename>tar</filename> file:
+
+<screen>
+<prompt>$</prompt> <userinput>pg_dump -Ft -b mydb &gt; db.tar</userinput>
+</screen>
+  </para>
+
+  <para>
+   To reload this database (with large objects) to an
+   existing database called <literal>newdb</>:
+
+<screen>
+<prompt>$</prompt> <userinput>pg_restore -d newdb db.tar</userinput>
+</screen>
+  </para>
+
+  <para>
+   To reorder database items, it is first necessary to dump the table of
+   contents of the archive:
+<screen>
+<prompt>$</prompt> <userinput>pg_restore -l archive.file &gt; archive.list</userinput>
+</screen>
+   The listing file consists of a header and one line for each item, e.g.,
+<programlisting>
+;
+; Archive created at Fri Jul 28 22:28:36 2000
+;     dbname: birds
+;     TOC Entries: 74
+;     Compression: 0
+;     Dump Version: 1.4-0
+;     Format: CUSTOM
+;
+;
+; Selected TOC Entries:
+;
+2; 145344 TABLE species postgres
+3; 145344 ACL species
+4; 145359 TABLE nt_header postgres
+5; 145359 ACL nt_header
+6; 145402 TABLE species_records postgres
+7; 145402 ACL species_records
+8; 145416 TABLE ss_old postgres
+9; 145416 ACL ss_old
+10; 145433 TABLE map_resolutions postgres
+11; 145433 ACL map_resolutions
+12; 145443 TABLE hs_old postgres
+13; 145443 ACL hs_old
+</programlisting>
+   Semicolons start a comment, and the numbers at the start of lines refer to the
+   internal archive ID assigned to each item.
+  </para>
+
+  <para>
+   Lines in the file can be commented out, deleted, and reordered. For example,
+<programlisting>
+10; 145433 TABLE map_resolutions postgres
+;2; 145344 TABLE species postgres
+;4; 145359 TABLE nt_header postgres
+6; 145402 TABLE species_records postgres
+;8; 145416 TABLE ss_old postgres
+</programlisting>
+   could be used as input to <application>pg_restore</application> and would only restore
+   items 10 and 6, in that order:
+<screen>
+<prompt>$</prompt> <userinput>pg_restore -L archive.list archive.file</userinput>
+</screen>
+  </para>
+
+ </refsect1>
+
+ <refsect1>
+  <title>History</title>
+
+  <para>
+   The <application>pg_restore</application> utility first appeared in
+   <productname>PostgreSQL</productname> 7.1.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>See Also</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="app-pgdump"></member>
+   <member><xref linkend="app-pg-dumpall"></member>
+   <member><xref linkend="app-psql"></member>
+  </simplelist>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

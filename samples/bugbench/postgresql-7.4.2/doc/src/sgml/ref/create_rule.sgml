@@ -1,0 +1,244 @@
+<!--
+$Header: /cvsroot/pgsql/doc/src/sgml/ref/create_rule.sgml,v 1.41 2003/09/09 18:28:52 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-CREATERULE">
+ <refmeta>
+  <refentrytitle id="sql-createrule-title">CREATE RULE</refentrytitle>
+  <refmiscinfo>SQL - Language Statements</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>CREATE RULE</refname>
+  <refpurpose>define a new rewrite rule</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-createrule">
+  <primary>CREATE RULE</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+CREATE [ OR REPLACE ] RULE <replaceable class="parameter">name</replaceable> AS ON <replaceable class="parameter">event</replaceable>
+    TO <replaceable class="parameter">table</replaceable> [ WHERE <replaceable class="parameter">condition</replaceable> ]
+    DO [ INSTEAD ] { NOTHING | <replaceable class="parameter">command</replaceable> | ( <replaceable class="parameter">command</replaceable> ; <replaceable class="parameter">command</replaceable> ... ) }
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Description</title>
+
+  <para>
+   <command>CREATE RULE</command> defines a new rule applying to a specified
+   table or view.
+   <command>CREATE OR REPLACE RULE</command> will either create a
+   new rule, or replace an existing rule of the same name for the same
+   table.
+  </para>
+
+  <para>
+   The <productname>PostgreSQL</productname> rule system allows one to
+   define an alternate action to be performed on insertions, updates,
+   or deletions in database tables.  Roughly speaking, a rule causes
+   additional commands to be executed when a given command on a given
+   table is executed.  Alternatively, a rule can replace a given
+   command by another, or cause a command not to be executed at all.
+   Rules are used to implement table views as well.  It is important
+   to realize that a rule is really a command transformation
+   mechanism, or command macro.  The transformation happens before the
+   execution of the commands starts.  If you actually want an
+   operation that fires independently for each physical row, you
+   probably want to use a trigger, not a rule.  More information about
+   the rules system is in <xref linkend="rules">.
+  </para>
+  
+  <para>
+   Presently, <literal>ON SELECT</literal> rules must be unconditional
+   <literal>INSTEAD</literal> rules and must have actions that consist
+   of a single <command>SELECT</command> command.  Thus, an
+   <literal>ON SELECT</literal> rule effectively turns the table into
+   a view, whose visible contents are the rows returned by the rule's
+   <command>SELECT</command> command rather than whatever had been
+   stored in the table (if anything).  It is considered better style
+   to write a <command>CREATE VIEW</command> command than to create a
+   real table and define an <literal>ON SELECT</literal> rule for it.
+  </para>
+
+  <para>
+   You can create the illusion of an updatable view by defining
+   <literal>ON INSERT</literal>, <literal>ON UPDATE</literal>, and
+   <literal>ON DELETE</literal> rules (or any subset of those that's
+   sufficient for your purposes) to replace update actions on the view
+   with appropriate updates on other tables.
+  </para>
+
+  <para>
+   There is a catch if you try to use conditional rules for view
+   updates: there <emphasis>must</> be an unconditional
+   <literal>INSTEAD</literal> rule for each action you wish to allow
+   on the view.  If the rule is conditional, or is not
+   <literal>INSTEAD</literal>, then the system will still reject
+   attempts to perform the update action, because it thinks it might
+   end up trying to perform the action on the dummy table of the view
+   in some cases.  If you want to handle all the useful cases in
+   conditional rules, you can; just add an unconditional <literal>DO
+   INSTEAD NOTHING</literal> rule to ensure that the system
+   understands it will never be called on to update the dummy table.
+   Then make the conditional rules not <literal>INSTEAD</literal>; in
+   the cases where they are applied, they add to the default
+   <literal>INSTEAD NOTHING</literal> action.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parameters</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">name</replaceable></term>
+    <listitem>
+     <para>
+      The name of a rule to create.  This must be distinct from the
+      name of any other rule for the same table.  Multiple rules on
+      the same table and same event type are applied in alphabetical
+      name order.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">event</replaceable></term>
+    <listitem>
+     <para>
+      The even is one of <literal>SELECT</literal>,
+      <literal>INSERT</literal>, <literal>UPDATE</literal>, or
+      <literal>DELETE</literal>.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">table</replaceable></term>
+    <listitem>
+     <para>
+      The name (optionally schema-qualified) of the table or view the
+      rule applies to.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">condition</replaceable></term>
+    <listitem>
+     <para>
+      Any SQL conditional expression (returning <type>boolean</type>).
+      The condition expression may not refer to any tables except
+      <literal>NEW</literal> and <literal>OLD</literal>, and may not
+      contain aggregate functions.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">command</replaceable></term>
+    <listitem>
+     <para>
+      The command or commands that make up the rule action.  Valid
+      commands are <literal>SELECT</literal>,
+      <literal>INSERT</literal>, <literal>UPDATE</literal>,
+      <literal>DELETE</literal>, or <literal>NOTIFY</literal>.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+
+  <para>
+   Within <replaceable class="parameter">condition</replaceable> and
+   <replaceable class="parameter">command</replaceable>, the special
+   table names <literal>NEW</literal> and <literal>OLD</literal> may
+   be used to refer to values in the referenced table.
+   <literal>NEW</literal> is valid in <literal>ON INSERT</literal> and
+   <literal>ON UPDATE</literal> rules to refer to the new row being
+   inserted or updated.  <literal>OLD</literal> is valid in
+   <literal>ON UPDATE</literal> and <literal>ON DELETE</literal> rules
+   to refer to the existing row being updated or deleted.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Notes</title>
+
+  <para>
+   You must have the privilege <literal>RULE</literal> on a table to
+   be allowed to define a rule on it.
+  </para>
+
+  <para>
+   It is very important to take care to avoid circular rules.  For
+   example, though each of the following two rule definitions are
+   accepted by <productname>PostgreSQL</productname>, the
+   <command>SELECT</command> command would cause
+   <productname>PostgreSQL</productname> to report an error because
+   the query cycled too many times:
+
+<programlisting>
+CREATE RULE "_RETURN" AS
+    ON SELECT TO t1
+    DO INSTEAD 
+	SELECT * FROM t2;
+
+CREATE RULE "_RETURN" AS
+    ON SELECT TO t2
+    DO INSTEAD 
+	SELECT * FROM t1;
+
+SELECT * FROM t1;
+</programlisting>
+  </para>
+
+  <para>
+   Presently, if a rule action contains a <command>NOTIFY</command>
+   command, the <command>NOTIFY</command> command will be executed
+   unconditionally, that is, the <command>NOTIFY</command> will be
+   issued even if there are not any rows that the rule should apply
+   to.  For example, in
+<programlisting>
+CREATE RULE notify_me AS ON UPDATE TO mytable DO NOTIFY mytable;
+
+UPDATE mytable SET name = 'foo' WHERE id = 42;
+</programlisting>
+   one <command>NOTIFY</command> event will be sent during the
+   <command>UPDATE</command>, whether or not there are any rows with
+   <literal>id = 42</literal>.  This is an implementation restriction
+   that may be fixed in future releases.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibility</title>
+
+  <para>
+   <command>CREATE RULE</command> is a
+   <productname>PostgreSQL</productname> language extension, as is the
+   entire rules system.
+  </para>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

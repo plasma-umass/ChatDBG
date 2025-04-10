@@ -1,0 +1,18 @@
+srcdir = @srcdir@
+VPATH = @srcdir@
+
+TARGETS = \
+	proc.lo \
+	thread.lo \
+	threadpriv.lo \
+	signals.lo
+
+# bring in rules.mk for standard functionality
+@INCLUDE_RULES@
+
+INCDIR=../../include
+OSDIR=$(INCDIR)/arch/@OSDIR@
+DEFOSDIR=$(INCDIR)/arch/@DEFAULT_OSDIR@
+INCLUDES=-I$(INCDIR) -I$(OSDIR) -I$(DEFOSDIR)
+
+# DO NOT REMOVE

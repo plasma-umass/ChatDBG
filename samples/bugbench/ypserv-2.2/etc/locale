@@ -1,0 +1,12 @@
+#
+# locale       The locale file. Entries look like this:
+#
+#                 locale  NIS-domain
+#
+#              So for example a locale for nis.domain could be:
+#
+#                 en_US  nis.domain
+#
+# This file is not used by Linux, only for other Unix like Solaris
+
+# en_US  nis.domain

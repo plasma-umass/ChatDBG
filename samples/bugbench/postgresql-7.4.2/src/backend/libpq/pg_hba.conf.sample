@@ -1,0 +1,62 @@
+# PostgreSQL Client Authentication Configuration File
+# ===================================================
+#
+# Refer to the PostgreSQL Administrator's Guide, chapter "Client
+# Authentication" for a complete description.  A short synopsis
+# follows.
+#
+# This file controls: which hosts are allowed to connect, how clients
+# are authenticated, which PostgreSQL user names they can use, which
+# databases they can access.  Records take one of seven forms:
+#
+# local      DATABASE  USER  METHOD  [OPTION]
+# host       DATABASE  USER  IP-ADDRESS  IP-MASK   METHOD  [OPTION]
+# hostssl    DATABASE  USER  IP-ADDRESS  IP-MASK   METHOD  [OPTION]
+# hostnossl  DATABASE  USER  IP-ADDRESS  IP-MASK   METHOD  [OPTION]
+# host       DATABASE  USER  IP-ADDRESS/CIDR-MASK  METHOD  [OPTION]
+# hostssl    DATABASE  USER  IP-ADDRESS/CIDR-MASK  METHOD  [OPTION]
+# hostnossl  DATABASE  USER  IP-ADDRESS/CIDR-MASK  METHOD  [OPTION]
+#
+# (The uppercase quantities should be replaced by actual values.)
+# The first field is the connection type: "local" is a Unix-domain socket,
+# "host" is either a plain or SSL-encrypted TCP/IP socket, "hostssl" is an
+# SSL-encrypted TCP/IP socket, and "hostnossl" is a plain TCP/IP socket.
+# DATABASE can be "all", "sameuser", "samegroup", a database name (or
+# a comma-separated list thereof), or a file name prefixed with "@".
+# USER can be "all", an actual user name or a group name prefixed with
+# "+" or a list containing either.  IP-ADDRESS and IP-MASK specify the
+# set of hosts the record matches.  CIDR-MASK is an integer between 0
+# and 32 (IPv6) or 128(IPv6) inclusive, that specifies the number of
+# significant bits in the mask, so an IPv4 CIDR-MASK of 8 is equivalent
+# to an IP-MASK of 255.0.0.0, and an IPv6 CIDR-MASK of 64 is equivalent
+# to an IP-MASK of ffff:ffff:ffff:ffff::. METHOD can be "trust", "reject",
+# "md5", "crypt", "password", "krb4", "krb5", "ident", or "pam".  Note
+# that "password" uses clear-text passwords; "md5" is preferred for
+# encrypted passwords.  OPTION is the ident map or the name of the PAM
+# service.
+#
+# This file is read on server startup and when the postmaster receives
+# a SIGHUP signal.  If you edit the file on a running system, you have
+# to SIGHUP the postmaster for the changes to take effect, or use
+# "pg_ctl reload".
+
+# Put your actual configuration here
+# ----------------------------------
+#
+# CAUTION: The default configuration allows any local user to connect
+# using any PostgreSQL user name, including the superuser, over either
+# Unix-domain sockets or TCP/IP.  If you are on a multiple-user
+# machine, the default configuration is probably too liberal for you.
+# Change it to use something other than "trust" authentication.
+#
+# If you want to allow non-local connections, you need to add more
+# "host" records.  Also, remember TCP/IP connections are only enabled
+# if you enable "tcpip_socket" in postgresql.conf.
+
+# TYPE  DATABASE    USER        IP-ADDRESS        IP-MASK           METHOD
+
+local   all         all                                             trust
+# IPv4-style local connections:
+host    all         all         127.0.0.1         255.255.255.255   trust
+# IPv6-style local connections:
+host    all         all         ::1               ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff        trust

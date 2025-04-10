@@ -1,0 +1,406 @@
+drop table if exists t1,t2;
+set @`test`=1,@TEST=3,@select=2,@t5=1.23456;
+select @test,@`select`,@TEST,@not_used;
+@test	@`select`	@TEST	@not_used
+1	2	3	NULL
+set @test_int=10,@test_double=1e-10,@test_string="abcdeghi",@test_string2="abcdefghij",@select=NULL;
+select @test_int,@test_double,@test_string,@test_string2,@select;
+@test_int	@test_double	@test_string	@test_string2	@select
+10	1e-10	abcdeghi	abcdefghij	NULL
+set @test_int="hello",@test_double="hello",@test_string="hello",@test_string2="hello";
+select @test_int,@test_double,@test_string,@test_string2;
+@test_int	@test_double	@test_string	@test_string2
+hello	hello	hello	hello
+set @test_int="hellohello",@test_double="hellohello",@test_string="hellohello",@test_string2="hellohello";
+select @test_int,@test_double,@test_string,@test_string2;
+@test_int	@test_double	@test_string	@test_string2
+hellohello	hellohello	hellohello	hellohello
+set @test_int=null,@test_double=null,@test_string=null,@test_string2=null;
+select @test_int,@test_double,@test_string,@test_string2;
+@test_int	@test_double	@test_string	@test_string2
+NULL	NULL	NULL	NULL
+select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
+@t1:=(@t2:=1)+@t3:=4	@t1	@t2	@t3
+5	5	1	4
+explain extended select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select high_priority no_cache (@t1:=((@t2:=1) + (@t3:=4))) AS `@t1:=(@t2:=1)+@t3:=4`,(@t1) AS `@t1`,(@t2) AS `@t2`,(@t3) AS `@t3`
+select @t5;
+@t5
+1.23456
+CREATE TABLE t1 (c_id INT(4) NOT NULL, c_name CHAR(20), c_country CHAR(3), PRIMARY KEY(c_id));
+INSERT INTO t1 VALUES (1,'Bozo','USA'),(2,'Ronald','USA'),(3,'Kinko','IRE'),(4,'Mr. Floppy','GB');
+SELECT @min_cid:=min(c_id), @max_cid:=max(c_id) from t1;
+@min_cid:=min(c_id)	@max_cid:=max(c_id)
+1	4
+SELECT * FROM t1 WHERE c_id=@min_cid OR c_id=@max_cid;
+c_id	c_name	c_country
+1	Bozo	USA
+4	Mr. Floppy	GB
+SELECT * FROM t1 WHERE c_id=@min_cid OR c_id=@max_cid OR c_id=666;
+c_id	c_name	c_country
+1	Bozo	USA
+4	Mr. Floppy	GB
+ALTER TABLE t1 DROP PRIMARY KEY;
+select * from t1 where c_id=@min_cid OR c_id=@max_cid;
+c_id	c_name	c_country
+1	Bozo	USA
+4	Mr. Floppy	GB
+drop table t1;
+set max_join_size=100;
+show variables like 'max_join_size';
+Variable_name	Value
+max_join_size	100
+show global variables like 'max_join_size';
+Variable_name	Value
+max_join_size	10
+set GLOBAL max_join_size=2000;
+show global variables like 'max_join_size';
+Variable_name	Value
+max_join_size	2000
+set max_join_size=DEFAULT;
+show variables like 'max_join_size';
+Variable_name	Value
+max_join_size	2000
+set GLOBAL max_join_size=DEFAULT;
+show global variables like 'max_join_size';
+Variable_name	Value
+max_join_size	HA_POS_ERROR
+set @@max_join_size=1000, @@global.max_join_size=2000;
+select @@local.max_join_size, @@global.max_join_size;
+@@session.max_join_size	@@global.max_join_size
+1000	2000
+select @@identity,  length(@@version)>0;
+@@identity	length(@@version)>0
+0	1
+select @@VERSION=version();
+@@VERSION=version()
+1
+select last_insert_id(345);
+last_insert_id(345)
+345
+explain extended select last_insert_id(345);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select high_priority no_cache last_insert_id(345) AS `last_insert_id(345)`
+select @@IDENTITY,last_insert_id(), @@identity;
+@@IDENTITY	last_insert_id()	@@identity
+345	345	345
+explain extended select @@IDENTITY,last_insert_id(), @@identity;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select high_priority no_cache 345 AS `@@IDENTITY`,345 AS `last_insert_id()`,345 AS `@@identity`
+set big_tables=OFF, big_tables=ON, big_tables=0, big_tables=1, big_tables="OFF", big_tables="ON";
+set global concurrent_insert=ON;
+show variables like 'concurrent_insert';
+Variable_name	Value
+concurrent_insert	ON
+set global concurrent_insert=1;
+show variables like 'concurrent_insert';
+Variable_name	Value
+concurrent_insert	ON
+set global concurrent_insert=0;
+show variables like 'concurrent_insert';
+Variable_name	Value
+concurrent_insert	OFF
+set global concurrent_insert=OFF;
+show variables like 'concurrent_insert';
+Variable_name	Value
+concurrent_insert	OFF
+set global concurrent_insert=DEFAULT;
+show variables like 'concurrent_insert';
+Variable_name	Value
+concurrent_insert	ON
+set table_type=MYISAM, table_type="HEAP", global table_type="INNODB";
+show local variables like 'table_type';
+Variable_name	Value
+table_type	HEAP
+show global variables like 'table_type';
+Variable_name	Value
+table_type	INNODB
+set GLOBAL query_cache_size=100000;
+set GLOBAL myisam_max_sort_file_size=2000000;
+show global variables like 'myisam_max_sort_file_size';
+Variable_name	Value
+myisam_max_sort_file_size	1048576
+set GLOBAL myisam_max_sort_file_size=default;
+show variables like 'myisam_max_sort_file_size';
+Variable_name	Value
+myisam_max_sort_file_size	FILE_SIZE
+set global net_retry_count=10, session net_retry_count=10;
+set global net_buffer_length=1024, net_write_timeout=200, net_read_timeout=300;
+set session net_buffer_length=2048, net_write_timeout=500, net_read_timeout=600;
+show global variables like 'net_%';
+Variable_name	Value
+net_buffer_length	1024
+net_read_timeout	300
+net_retry_count	10
+net_write_timeout	200
+show session variables like 'net_%';
+Variable_name	Value
+net_buffer_length	2048
+net_read_timeout	600
+net_retry_count	10
+net_write_timeout	500
+set session net_buffer_length=8000, global net_read_timeout=900, net_write_timeout=1000;
+show global variables like 'net_%';
+Variable_name	Value
+net_buffer_length	1024
+net_read_timeout	900
+net_retry_count	10
+net_write_timeout	1000
+show session variables like 'net_%';
+Variable_name	Value
+net_buffer_length	7168
+net_read_timeout	600
+net_retry_count	10
+net_write_timeout	500
+set net_buffer_length=1;
+show variables like 'net_buffer_length';
+Variable_name	Value
+net_buffer_length	1024
+set net_buffer_length=2000000000;
+show variables like 'net_buffer_length';
+Variable_name	Value
+net_buffer_length	1048576
+set character set cp1251_koi8;
+show variables like "character_set_client";
+Variable_name	Value
+character_set_client	cp1251
+select @@timestamp>0;
+@@timestamp>0
+1
+set @@rand_seed1=10000000,@@rand_seed2=1000000;
+select ROUND(RAND(),5);
+ROUND(RAND(),5)
+0.02887
+show variables like '%alloc%';
+Variable_name	Value
+query_alloc_block_size	8192
+query_prealloc_size	8192
+range_alloc_block_size	2048
+transaction_alloc_block_size	8192
+transaction_prealloc_size	4096
+set @@range_alloc_block_size=1024*16;
+set @@query_alloc_block_size=1024*17+2;
+set @@query_prealloc_size=1024*18;
+set @@transaction_alloc_block_size=1024*20-1;
+set @@transaction_prealloc_size=1024*21-1;
+select @@query_alloc_block_size;
+@@query_alloc_block_size
+17408
+show variables like '%alloc%';
+Variable_name	Value
+query_alloc_block_size	17408
+query_prealloc_size	18432
+range_alloc_block_size	16384
+transaction_alloc_block_size	19456
+transaction_prealloc_size	20480
+set @@range_alloc_block_size=default;
+set @@query_alloc_block_size=default, @@query_prealloc_size=default;
+set transaction_alloc_block_size=default, @@transaction_prealloc_size=default;
+show variables like '%alloc%';
+Variable_name	Value
+query_alloc_block_size	8192
+query_prealloc_size	8192
+range_alloc_block_size	2048
+transaction_alloc_block_size	8192
+transaction_prealloc_size	4096
+set big_tables=OFFF;
+ERROR 42000: Variable 'big_tables' can't be set to the value of 'OFFF'
+set big_tables="OFFF";
+ERROR 42000: Variable 'big_tables' can't be set to the value of 'OFFF'
+set unknown_variable=1;
+ERROR HY000: Unknown system variable 'unknown_variable'
+set max_join_size="hello";
+ERROR 42000: Wrong argument type to variable 'max_join_size'
+set table_type=UNKNOWN_TABLE_TYPE;
+ERROR 42000: Variable 'table_type' can't be set to the value of 'UNKNOWN_TABLE_TYPE'
+set table_type=INNODB, big_tables=2;
+ERROR 42000: Variable 'big_tables' can't be set to the value of '2'
+show local variables like 'table_type';
+Variable_name	Value
+table_type	HEAP
+set SESSION query_cache_size=10000;
+ERROR HY000: Variable 'query_cache_size' is a GLOBAL variable and should be set with SET GLOBAL
+set GLOBAL table_type=DEFAULT;
+ERROR 42000: Variable 'table_type' doesn't have a default value
+set character_set_client=UNKNOWN_CHARACTER_SET;
+ERROR 42000: Unknown character set: 'UNKNOWN_CHARACTER_SET'
+set collation_connection=UNKNOWN_COLLATION;
+ERROR HY000: Unknown collation: 'UNKNOWN_COLLATION'
+set global autocommit=1;
+ERROR HY000: Variable 'autocommit' is a LOCAL variable and can't be used with SET GLOBAL
+select @@global.timestamp;
+ERROR HY000: Variable 'timestamp' is a LOCAL variable and can't be used with SET GLOBAL
+set @@version='';
+ERROR HY000: Unknown system variable 'version'
+set @@concurrent_insert=1;
+ERROR HY000: Variable 'concurrent_insert' is a GLOBAL variable and should be set with SET GLOBAL
+set @@global.sql_auto_is_null=1;
+ERROR HY000: Variable 'sql_auto_is_null' is a LOCAL variable and can't be used with SET GLOBAL
+select @@global.sql_auto_is_null;
+ERROR HY000: Variable 'sql_auto_is_null' is a LOCAL variable and can't be used with SET GLOBAL
+set myisam_max_sort_file_size=100;
+ERROR HY000: Variable 'myisam_max_sort_file_size' is a GLOBAL variable and should be set with SET GLOBAL
+set myisam_max_extra_sort_file_size=100;
+ERROR HY000: Variable 'myisam_max_extra_sort_file_size' is a GLOBAL variable and should be set with SET GLOBAL
+set @@SQL_WARNINGS=NULL;
+ERROR 42000: Variable 'sql_warnings' can't be set to the value of 'NULL'
+set autocommit=1;
+set big_tables=1;
+select @@autocommit, @@big_tables;
+@@autocommit	@@big_tables
+1	1
+set global binlog_cache_size=100;
+set bulk_insert_buffer_size=100;
+set character set cp1251_koi8;
+set character set default;
+set @@global.concurrent_insert=1;
+set global connect_timeout=100;
+select @@delay_key_write;
+@@delay_key_write
+ON
+set global delay_key_write="OFF";
+select @@delay_key_write;
+@@delay_key_write
+OFF
+set global delay_key_write=ALL;
+select @@delay_key_write;
+@@delay_key_write
+ALL
+set global delay_key_write=1;
+select @@delay_key_write;
+@@delay_key_write
+ON
+set global delayed_insert_limit=100;
+set global delayed_insert_timeout=100;
+set global delayed_queue_size=100;
+set global flush=1;
+set global flush_time=100;
+set insert_id=1;
+set interactive_timeout=100;
+set join_buffer_size=100;
+set last_insert_id=1;
+set global local_infile=1;
+set long_query_time=100;
+set low_priority_updates=1;
+set max_allowed_packet=100;
+set global max_binlog_cache_size=100;
+set global max_binlog_size=100;
+set global max_connect_errors=100;
+set global max_connections=100;
+set global max_delayed_threads=100;
+set max_heap_table_size=100;
+set max_join_size=100;
+set max_sort_length=100;
+set max_tmp_tables=100;
+set global max_user_connections=100;
+select @@max_user_connections;
+@@max_user_connections
+100
+set global max_write_lock_count=100;
+set global myisam_max_extra_sort_file_size=100;
+select @@myisam_max_extra_sort_file_size;
+@@myisam_max_extra_sort_file_size
+100
+set global myisam_max_sort_file_size=100;
+set myisam_sort_buffer_size=100;
+set net_buffer_length=100;
+set net_read_timeout=100;
+set net_write_timeout=100;
+set global query_cache_limit=100;
+set global query_cache_size=100;
+set global query_cache_type=demand;
+set read_buffer_size=100;
+set read_rnd_buffer_size=100;
+set global rpl_recovery_rank=100;
+set global server_id=100;
+set global slave_net_timeout=100;
+set global slow_launch_time=100;
+set sort_buffer_size=100;
+set sql_auto_is_null=1;
+select @@sql_auto_is_null;
+@@sql_auto_is_null
+1
+set @@sql_auto_is_null=0;
+select @@sql_auto_is_null;
+@@sql_auto_is_null
+0
+set sql_big_selects=1;
+set sql_big_tables=1;
+set sql_buffer_result=1;
+set sql_log_bin=1;
+set sql_log_off=1;
+set sql_log_update=1;
+set sql_low_priority_updates=1;
+set sql_max_join_size=200;
+select @@sql_max_join_size,@@max_join_size;
+@@sql_max_join_size	@@max_join_size
+200	200
+set sql_quote_show_create=1;
+set sql_safe_updates=1;
+set sql_select_limit=1;
+set global sql_slave_skip_counter=100;
+set sql_warnings=1;
+set global table_cache=100;
+set table_type=myisam;
+set global thread_cache_size=100;
+set timestamp=1, timestamp=default;
+set tmp_table_size=100;
+set tx_isolation="READ-COMMITTED";
+set wait_timeout=100;
+set log_warnings=1;
+create table t1 (a int not null auto_increment, primary key(a));
+create table t2 (a int not null auto_increment, primary key(a));
+insert into t1 values(null),(null),(null);
+insert into t2 values(null),(null),(null);
+set global key_buffer_size=100000;
+select @@key_buffer_size;
+@@key_buffer_size
+98304
+select * from t1 where a=2;
+a
+2
+select * from t2 where a=3;
+a
+3
+check table t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+test.t2	check	status	OK
+select max(a) +1, max(a) +2 into @xx,@yy from t1;
+drop table t1,t2;
+select @@xxxxxxxxxx;
+ERROR HY000: Unknown system variable 'xxxxxxxxxx'
+select 1;
+1
+1
+select @@global.max_user_connections,@@local.max_join_size;
+@@global.max_user_connections	@@session.max_join_size
+100	200
+set @svc=@@global.max_user_connections, @svj=@@local.max_join_size;
+select @@global.max_user_connections,@@local.max_join_size;
+@@global.max_user_connections	@@session.max_join_size
+100	200
+set @@global.max_user_connections=111,@@local.max_join_size=222;
+select @@global.max_user_connections,@@local.max_join_size;
+@@global.max_user_connections	@@session.max_join_size
+111	222
+set @@global.max_user_connections=@@local.max_join_size,@@local.max_join_size=@@global.max_user_connections;
+select @@global.max_user_connections,@@local.max_join_size;
+@@global.max_user_connections	@@session.max_join_size
+222	111
+set @@global.max_user_connections=@svc, @@local.max_join_size=@svj;
+select @@global.max_user_connections,@@local.max_join_size;
+@@global.max_user_connections	@@session.max_join_size
+100	200
+set @a=1, @b=2;
+set @a=@b, @b=@a;
+select @a, @b;
+@a	@b
+2	1

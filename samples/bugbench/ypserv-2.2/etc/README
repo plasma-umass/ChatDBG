@@ -1,0 +1,5 @@
+You should edit this files and install "securenets" in
+YPMAPDIR (normally /var/yp)  and "ypserv.conf" in CONFDIR
+(normally /etc or /usr/etc).
+If you don't have a /etc/locale, /etc/netgroup file, /etc/netmasks or
+/etc/timezone file, copy this versions to /etc.

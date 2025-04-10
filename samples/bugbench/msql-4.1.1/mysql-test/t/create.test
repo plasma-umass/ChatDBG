@@ -1,0 +1,338 @@
+#
+# Check some special create statements.
+#
+
+--disable_warnings
+drop table if exists t1,t2,t3;
+drop database if exists test_$1;
+--enable_warnings
+
+create table t1 (b char(0));
+insert into t1 values (""),(null);
+select * from t1;
+drop table if exists t1;
+
+create table t1 (b char(0) not null);
+create table if not exists t1 (b char(0) not null);
+insert into t1 values (""),(null);
+select * from t1;
+drop table t1;
+
+create table t1 (a int not null auto_increment,primary key (a)) type=heap;
+drop table t1;
+
+#
+# Test of some CREATE TABLE'S that should fail
+#
+
+--error 1146
+create table t2 type=heap select * from t1;
+--error 1146
+create table t2 select auto+1 from t1;
+drop table if exists t1,t2;
+--error 1167
+create table t1 (b char(0) not null, index(b));
+--error 1163
+create table t1 (a int not null,b text) type=heap;
+drop table if exists t1;
+
+--error 1075
+create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) type=heap;
+
+-- error 1044,1
+create table not_existing_database.test (a int);
+--error 1103
+create table `a/a` (a int);
+--error 1103
+create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa int);
+--error 1059
+create table a (`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` int);
+
+#
+# test of dummy table names
+#
+
+create table 1ea10 (1a20 int,1e int);
+insert into 1ea10 values(1,1);
+select 1ea10.1a20,1e+ 1e+10 from 1ea10;
+drop table 1ea10;
+create table t1 (t1.index int);
+drop table t1;
+# Test that we get warning for this
+drop database if exists test_$1;
+create database test_$1;
+create table test_$1.$test1 (a$1 int, $b int, c$ int);
+insert into test_$1.$test1 values (1,2,3);
+select a$1, $b, c$ from test_$1.$test1;
+create table test_$1.test2$ (a int);
+drop table test_$1.test2$;
+drop database test_$1;
+
+--error 1103
+create table `` (a int);
+--error 1103
+drop table if exists ``;
+--error 1166
+create table t1 (`` int);
+--error 1279
+create table t1 (i int, index `` (i)); 
+
+#
+# Test of CREATE ... SELECT with indexes
+#
+
+create table t1 (a int auto_increment not null primary key, B CHAR(20));
+insert into t1 (b) values ("hello"),("my"),("world");
+create table t2 (key (b)) select * from t1;
+explain select * from t2 where b="world";
+select * from t2 where b="world";
+drop table t1,t2;
+
+#
+# Test types after CREATE ... SELECT
+#
+
+create table t1(x varchar(50) );
+create table t2 select x from t1 where 1=2;
+describe t1;
+describe t2;
+drop table t2;
+create table t2 select now() as a , curtime() as b, curdate() as c , 1+1 as d , 1.0 + 1 as e , 33333333333333333 + 3 as f;
+describe t2;
+drop table t2;
+create table t2 select CAST("2001-12-29" AS DATE) as d, CAST("20:45:11" AS TIME) as t, CAST("2001-12-29  20:45:11" AS DATETIME) as dt;
+describe t2;
+drop table t1,t2;
+
+#
+# Test of CREATE ... SELECT with duplicate fields
+#
+
+create table t1 (a tinyint);
+create table t2 (a int) select * from t1;                        
+describe t1;
+describe t2;
+drop table if exists t2;
+--error 1060
+create table t2 (a int, a float) select * from t1;               
+drop table if exists t2;
+--error 1060
+create table t2 (a int) select a as b, a+1 as b from t1;         
+drop table if exists t2;
+--error 1060
+create table t2 (b int) select a as b, a+1 as b from t1;         
+drop table if exists t1,t2;
+
+#
+# Test CREATE ... SELECT when insert fails
+#
+
+CREATE TABLE t1 (a int not null);
+INSERT INTO t1 values (1),(2),(1);
+--error 1062
+CREATE TABLE t2 (primary key(a)) SELECT * FROM t1;
+--error 1146
+SELECT * from t2;
+DROP TABLE t1;
+DROP TABLE IF EXISTS t2;
+
+#
+# Test of primary key with 32 index
+#
+
+create table t1 (a int not null, b int, primary key(a), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b));
+show create table t1;
+drop table t1;
+create table t1 select if(1,'1','0'), month("2002-08-02");
+drop table t1;
+create table t1 select if('2002'='2002','Y','N');
+select * from t1;
+drop table if exists t1;
+
+#
+# Test default table type
+#
+SET SESSION table_type="heap";
+SELECT @@table_type;
+CREATE TABLE t1 (a int not null);
+show create table t1;
+drop table t1;
+# Test what happens when using a non existing table type
+SET SESSION table_type="gemini";
+SELECT @@table_type;
+CREATE TABLE t1 (a int not null);
+show create table t1;
+SET SESSION table_type=default;
+drop table t1;
+
+
+#
+# ISO requires that primary keys are implicitly NOT NULL
+#
+create table t1 ( k1 varchar(2), k2 int, primary key(k1,k2));
+insert into t1 values ("a", 1), ("b", 2);
+--error 1048
+insert into t1 values ("c", NULL);
+--error 1048
+insert into t1 values (NULL, 3);
+--error 1048
+insert into t1 values (NULL, NULL);
+drop table t1;
+
+#
+# Bug # 801
+#
+
+create table t1 select x'4132';
+drop table t1;
+
+#
+# bug #1434
+#
+
+create table t1 select 1,2,3;
+create table if not exists t1 select 1,2;
+--error 1136
+create table if not exists t1 select 1,2,3,4;
+create table if not exists t1 select 1;
+select * from t1;
+drop table t1;
+create table t1 select 1,2,3;
+create table if not exists t1 select 1,2;
+--error 1136
+create table if not exists t1 select 1,2,3,4;
+create table if not exists t1 select 1;
+select * from t1;
+drop table t1;
+
+#
+# Test create table if not exists with duplicate key error
+#
+
+create table t1 (a int not null, b int, primary key (a));
+insert into t1 values (1,1);
+create table if not exists t1 select 2;
+select * from t1;
+create table if not exists t1 select 3 as 'a',4 as 'b';
+--error 1062
+create table if not exists t1 select 3 as 'a',3 as 'b';
+select * from t1;
+drop table t1;
+
+#
+# Test create with foreign keys
+#
+
+create table t1 (a int, key(a));
+create table t2 (b int, foreign key(b) references t1(a), key(b));
+drop table if exists t1,t2;
+
+#
+# Test for CREATE TABLE .. LIKE ..
+#
+
+create table t1(id int not null, name char(20));
+insert into t1 values(10,'mysql'),(20,'monty- the creator');
+create table t2(id int not null);
+insert into t2 values(10),(20);
+create table t3 like t1;
+show create table t3;
+select * from t3;
+create table if not exists t3 like t1;
+select @@warning_count;
+create temporary table t3 like t2;
+show create table t3;
+select * from t3;
+drop table t3;
+show create table t3;
+select * from t3;
+drop table t2, t3;
+create database test_$1;
+create table test_$1.t3 like t1;
+create temporary table t3 like test_$1.t3;
+show create table t3;
+create table t2 like t3;
+show create table t2;
+select * from t2;
+create table t3 like t1;
+--error 1050
+create table t3 like test_$1.t3;
+--error 1044,1
+create table non_existing_database.t1 like t1;
+--error 1051
+create table t3 like non_existing_table;
+--error 1050
+create temporary table t3 like t1;
+--error 1103
+create table t3 like `a/a`;
+drop table t1, t2, t3;
+drop table t3;
+drop database test_$1;
+
+#
+# Test default table type
+#
+SET SESSION table_type="heap";
+SELECT @@table_type;
+CREATE TABLE t1 (a int not null);
+show create table t1;
+drop table t1;
+# Test what happens when using a non existing table type
+SET SESSION table_type="gemini";
+SELECT @@table_type;
+CREATE TABLE t1 (a int not null);
+show create table t1;
+SET SESSION table_type=default;
+drop table t1;
+
+#
+# Test types of data for create select with functions
+#
+
+create table t1(a int,b int,c int unsigned,d date,e char,f datetime,g time,h blob);
+insert into t1(a)values(1);
+insert into t1(a,b,c,d,e,f,g,h)
+values(2,-2,2,'1825-12-14','a','2003-1-1 3:2:1','4:3:2','binary data');
+select * from t1;
+select a, 
+    ifnull(b,cast(-7 as signed)) as b, 
+    ifnull(c,cast(7 as unsigned)) as c, 
+    ifnull(d,cast('2000-01-01' as date)) as d, 
+    ifnull(e,cast('b' as char)) as e,
+    ifnull(f,cast('2000-01-01' as datetime)) as f, 
+    ifnull(g,cast('5:4:3' as time)) as g,
+    ifnull(h,cast('yet another binary data' as binary)) as h,
+    addtime(cast('1:0:0' as time),cast('1:0:0' as time)) as dd 
+from t1;
+
+create table t2
+select
+    a, 
+    ifnull(b,cast(-7                        as signed))   as b,
+    ifnull(c,cast(7                         as unsigned)) as c,
+    ifnull(d,cast('2000-01-01'              as date))     as d,
+    ifnull(e,cast('b'                       as char))     as e,
+    ifnull(f,cast('2000-01-01'              as datetime)) as f,
+    ifnull(g,cast('5:4:3'                   as time))     as g,
+    ifnull(h,cast('yet another binary data' as binary))   as h,
+    addtime(cast('1:0:0' as time),cast('1:0:0' as time))  as dd
+from t1;
+explain t2;
+			
+select * from t2;
+
+drop table t1, t2;
+
+#
+# Bug #1209
+#
+
+create database test_$1;
+use test_$1;
+select database();
+drop database test_$1;
+select database();
+
+# Connect without a database
+connect (user4,localhost,mysqltest_1,,*NO-ONE*);
+select database();

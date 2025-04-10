@@ -1,0 +1,12 @@
+#! /bin/sh
+
+path=`dirname $0`
+. "$path/SETUP.sh"
+
+extra_flags="$pentium_cflags $fast_cflags"
+extra_configs="$pentium_configs --without-server"
+
+make=no
+strip=yes
+
+. "$path/FINISH.sh"

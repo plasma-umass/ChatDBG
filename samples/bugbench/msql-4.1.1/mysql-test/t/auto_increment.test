@@ -1,0 +1,143 @@
+#
+# Test of auto_increment;  The test for BDB tables is in bdb.test
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+SET SQL_WARNINGS=1;
+
+create table t1 (a int not null auto_increment,b int, primary key (a)) type=myisam auto_increment=3;
+insert into t1 values (1,1),(NULL,3),(NULL,4);
+delete from t1 where a=4;
+insert into t1 values (NULL,5),(NULL,6);
+select * from t1;
+delete from t1 where a=6;
+#show table status like "t1";
+replace t1 values (3,1);
+ALTER TABLE t1 add c int;
+replace t1 values (3,3,3);
+insert into t1 values (NULL,7,7);
+update t1 set a=8,b=b+1,c=c+1 where a=7;
+insert into t1 values (NULL,9,9);
+select * from t1;
+drop table t1;
+
+create table t1 (
+  skey tinyint unsigned NOT NULL auto_increment PRIMARY KEY,
+  sval char(20)
+);
+insert into t1 values (NULL, "hello");
+insert into t1 values (NULL, "hey");
+select * from t1;
+select _rowid,t1._rowid,skey,sval from t1;
+drop table t1;
+
+#
+# Test auto_increment on sub key
+#
+create table t1 (a char(10) not null, b int not null auto_increment, primary key(a,b));
+insert into t1 values ("a",1),("b",2),("a",2),("c",1);
+insert into t1 values ("a",NULL),("b",NULL),("c",NULL),("e",NULL);
+insert into t1 (a) values ("a"),("b"),("c"),("d");
+insert into t1 (a) values ('k'),('d');
+insert into t1 (a) values ("a");
+insert into t1 values ("d",last_insert_id());
+select * from t1;
+drop table t1;
+
+create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ordid), index(ord,ordid)); 
+insert into t1 (ordid,ord) values (NULL,'sdj'),(NULL,'sdj');
+select * from t1;
+drop table t1;
+
+create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid));
+insert into t1 values (NULL,'sdj'),(NULL,'sdj'),(NULL,"abc"),(NULL,'abc'),(NULL,'zzz'),(NULL,'sdj'),(NULL,'abc');
+select * from t1;
+drop table t1;
+
+create table t1 (sid char(5), id int(2) NOT NULL auto_increment, key(sid,  id));
+create table t2 (sid char(20), id int(2));
+insert into t2 values ('skr',NULL),('skr',NULL),('test',NULL);
+insert into t1 select * from t2;
+select * from t1;
+drop table t1,t2;
+
+#
+# Test of auto_increment columns when they are set to 0
+#
+
+create table t1 (a int not null primary key auto_increment);
+insert into t1 values (0);
+update t1 set a=0;
+select * from t1;
+check table t1;
+drop table t1;
+
+#
+# last_insert_id() madness
+#
+create table t1 (i tinyint unsigned not null auto_increment primary key);
+insert into t1 set i = 254;
+insert into t1 set i = null;
+select last_insert_id();
+explain extended select last_insert_id();
+--error 1062
+insert into t1 set i = 254;
+select last_insert_id();
+--error 1062
+insert into t1 set i = null;
+select last_insert_id();
+drop table t1;
+
+create table t1 (i tinyint unsigned not null auto_increment, key (i));
+insert into t1 set i = 254;
+insert into t1 set i = null;
+select last_insert_id();
+insert into t1 set i = null;
+select last_insert_id();
+drop table t1;
+
+create table t1 (i tinyint unsigned not null auto_increment primary key, b int, unique (b));
+insert into t1 values (NULL, 10);
+select last_insert_id();
+insert into t1 values (NULL, 15);
+select last_insert_id();
+--error 1062
+insert into t1 values (NULL, 10);
+select last_insert_id();
+
+drop table t1;
+
+create table t1(a int auto_increment,b int null,primary key(a));
+SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+insert into t1(a,b)values(NULL,1);
+insert into t1(a,b)values(200,2);
+insert into t1(a,b)values(0,3);
+insert into t1(b)values(4);
+insert into t1(b)values(5);
+insert into t1(b)values(6);
+insert into t1(b)values(7);
+select * from t1 order by b;
+delete from t1 where a=0;
+update t1 set a=0 where b=5;
+select * from t1 order by b;
+delete from t1 where a=0;
+update t1 set a=NULL where b=6;
+update t1 set a=300 where b=7;
+SET SQL_MODE='';
+insert into t1(a,b)values(NULL,8);
+insert into t1(a,b)values(400,9);
+insert into t1(a,b)values(0,10);
+insert into t1(b)values(11);
+insert into t1(b)values(12);
+insert into t1(b)values(13);
+insert into t1(b)values(14);
+select * from t1 order by b;
+delete from t1 where a=0;
+update t1 set a=0 where b=12;
+select * from t1 order by b;
+delete from t1 where a=0;
+update t1 set a=NULL where b=13;
+update t1 set a=500 where b=14;
+select * from t1 order by b;
+drop table t1;

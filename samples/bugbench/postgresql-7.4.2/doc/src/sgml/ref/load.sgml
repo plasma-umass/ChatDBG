@@ -1,0 +1,83 @@
+<!--
+$Header: /cvsroot/pgsql/doc/src/sgml/ref/load.sgml,v 1.19 2003/09/11 21:42:20 momjian Exp $
+-->
+
+<refentry id="SQL-LOAD">
+ <refmeta>
+  <refentrytitle id="SQL-LOAD-TITLE">LOAD</refentrytitle>
+  <refmiscinfo>SQL - Language Statements</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>LOAD</refname>
+  <refpurpose>load or reload a shared library file</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-load">
+  <primary>LOAD</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+LOAD '<replaceable class="PARAMETER">filename</replaceable>'
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1 id="sql-load-description">
+  <title>Description</title>
+
+  <para>
+   This command loads a shared library file into the <productname>PostgreSQL</>
+   server's address space.  If the file had been loaded previously,
+   it is first unloaded.  This command is primarily useful to unload
+   and reload a shared library file that has been changed since the
+   server first loaded it.  To make use of the shared library,
+   function(s) in it need to be declared using the <xref
+   linkend="sql-createfunction" endterm="sql-createfunction-title">
+   command.
+  </para>
+
+  <para>
+   The file name is specified in the same way as for shared library
+   names in <xref linkend="sql-createfunction" endterm="sql-createfunction-title">; in particular, one
+   may rely on a search path and automatic addition of the system's standard
+   shared library file name extension.  See <xref linkend="xfunc"> for
+   more information on this topic.
+  </para>
+ </refsect1>
+
+ <refsect1 id="sql-load-compat">
+  <title>Compatibility</title>
+
+  <para>
+   <command>LOAD</command> is a <productname>PostgreSQL</productname>
+   extension.
+  </para>
+ </refsect1>
+
+
+ <refsect1>
+  <title>See Also</title>
+
+  <para>
+   <xref linkend="sql-createfunction" endterm="sql-createfunction-title">
+  </para>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

@@ -1,0 +1,12 @@
+.deps
+.libs
+Makefile
+*.lo
+*.la
+ascii_tag
+long_tag
+rewrite
+short_tag
+strip_rw
+*.log
+o-*

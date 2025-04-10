@@ -1,0 +1,44 @@
+Changes to polymorph:
+=======================================
+
+v0.4.0 --
+        fixed all the Windows clean-up bugs I could find.
+	no manpage yet.  I hate manpages.  'polymorph -h' is your friend
+	
+v0.3.1 --
+	name changed to 'polymorph' after sourceforge.net and 
+	freshmeat.net lost the original 'golem' name and gave it to a new 
+	windowmanager.  I'm not bitter.  I'll just rename and keep going.
+	If you like windowmanagers, golem is kind of pretty...
+	
+	bugfix release.  There were a bunch of warnings that got cleaned
+	up in llist.c and rcfile.c, mostly having to do with linked list
+	type casting.
+
+	polymorph now works, although without recursion...  I'm working on
+	it, as well as a manpage.
+	
+v0.3 --
+       added the -c command line switch.  This will make polymorph rename
+       the target file to just the portion of it's current name after the
+       last backslash character.
+
+v0.2 --
+       added the -a command line switch.  Tried running polymorph in my
+       home directory and converted my .Xdefaults to lowercase by
+       accident.  Now, you can make polymorph convert hidden files
+       specifically, but it's going to ignore them if left to its own
+       devices.
+
+       added the -t command line switch to 'track' symlinks.  Now, with
+       the -t switch, polymorph will track a symlink to it's destination
+       file and change it's name.
+
+       added more documentation
+
+v0.1 --
+       initial implementation
+
+=======================================
+Gerall Kahla	<kahlage@chromebob.com>
+=======================================

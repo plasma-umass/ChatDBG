@@ -1,0 +1,36 @@
+#!/usr/bin/awk -f
+#
+# create_printcap
+#
+# Converts a printcap into a format suitable for loading into the NIS
+# printcap map. Use the match_printcap script to extract printer
+# information from NIS.
+#
+# Copyright (C) 2000  Massimo Dal Zotto <dz@cs.unitn.it>
+# This file is distributed under the GNU General Public License version 2 
+
+BEGIN       { FS=":"; OFS="\t"; delim="_"; space="^B"; cont=1 }
+/^[\t ]*#/  { next }
+/^[^\t ]/   { if (!cont) print_entry() }
+	    { sub("^[\t ]+", ":"); cont = sub("\\\\$", ""); entry = entry $0 }
+END	    { print_entry(); print_all() }
+
+function print_entry() {
+    gsub(":+", ":", entry); sub(":*$", "", entry)
+    split(entry, fields, ":"); n = split(fields[1], names, "|")
+    for (i=1; i<=n; i++) {
+	if (!(name=names[i])) { continue }
+	if (i==1 && !match(name,"^[._@]") && !p[name]++) { all = all "," name }
+	suffix = delim(++count[name])
+	gsub("[ \t]", space, name)
+	print name suffix, name suffix "|" entry
+    }
+    entry = ""
+}
+
+function print_all() {
+    sub("^,", "", all)
+    if (all) { print "all" delim "1", "all" delim "1|all:all=" all }
+}
+
+# end of file

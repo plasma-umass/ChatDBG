@@ -1,0 +1,88 @@
+# Initialise
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# Testing of NULL in a lot of different places
+#
+
+select null,\N,isnull(null),isnull(1/0),isnull(1/0 = null),ifnull(null,1),ifnull(null,"TRUE"),ifnull("TRUE","ERROR"),1/0 is null,1 is not null;
+explain extended select null,\N,isnull(null),isnull(1/0),isnull(1/0 = null),ifnull(null,1),ifnull(null,"TRUE"),ifnull("TRUE","ERROR"),1/0 is null,1 is not null;
+select 1 | NULL,1 & NULL,1+NULL,1-NULL;
+select NULL=NULL,NULL<>NULL,IFNULL(NULL,1.1)+0,IFNULL(NULL,1) | 0;
+select strcmp("a",NULL),(1<NULL)+0.0,NULL regexp "a",null like "a%","a%" like null;
+select concat("a",NULL),replace(NULL,"a","b"),replace("string","i",NULL),replace("string",NULL,"i"),insert("abc",1,1,NULL),left(NULL,1);
+select repeat("a",0),repeat("ab",5+5),repeat("ab",-1),reverse(NULL);
+select field(NULL,"a","b","c");
+select 2 between null and 1,2 between 3 AND NULL,NULL between 1 and 2,2 between NULL and 3, 2 between 1 AND null;
+explain extended select 2 between null and 1,2 between 3 AND NULL,NULL between 1 and 2,2 between NULL and 3, 2 between 1 AND null;
+SELECT NULL AND NULL, 1 AND NULL, NULL AND 1, NULL OR NULL, 0 OR NULL, NULL OR 0;
+SELECT (NULL OR NULL) IS NULL;
+select NULL AND 0, 0 and NULL;
+select inet_ntoa(null),inet_aton(null),inet_aton("122.256"),inet_aton("122.226."),inet_aton("");
+explain extended select inet_ntoa(null),inet_aton(null),inet_aton("122.256"),inet_aton("122.226."),inet_aton("");
+
+create table t1 (x int);
+insert into t1 values (null);
+select * from t1 where x != 0;
+drop table t1;
+
+#
+# Test problem med index on NULL columns and testing with =NULL;
+#
+
+CREATE TABLE t1 (
+  indexed_field int default NULL,
+  KEY indexed_field (indexed_field)
+);
+INSERT INTO t1 VALUES (NULL),(NULL);
+SELECT * FROM t1 WHERE indexed_field=NULL;
+SELECT * FROM t1 WHERE indexed_field IS NULL;
+SELECT * FROM t1 WHERE indexed_field<=>NULL;
+DROP TABLE t1;
+
+#
+# Testing of IFNULL
+#
+create table t1 (a int, b int) type=myisam;
+insert into t1 values(20,null);
+select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
+t2.b=t3.a;
+select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
+t2.b=t3.a order by 1;
+insert into t1 values(10,null);
+select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
+t2.b=t3.a order by 1;
+drop table t1;
+
+#
+# Test inserting and updating with NULL
+#
+CREATE TABLE t1 (a varchar(16) NOT NULL, b smallint(6) NOT NULL, c datetime NOT NULL, d smallint(6) NOT NULL);
+INSERT INTO t1 SET a = "", d= "2003-01-14 03:54:55";
+UPDATE t1 SET d=1/NULL;
+UPDATE t1 SET d=NULL;
+--error 1048
+INSERT INTO t1 (a) values (null);
+--error 1048
+INSERT INTO t1 (a) values (1/null);
+INSERT INTO t1 (a) values (null),(null);
+--error 1048
+INSERT INTO t1 (b) values (null);
+--error 1048
+INSERT INTO t1 (b) values (1/null);
+INSERT INTO t1 (b) values (null),(null);
+--error 1048
+INSERT INTO t1 (c) values (null);
+--error 1048
+INSERT INTO t1 (c) values (1/null);
+INSERT INTO t1 (c) values (null),(null);
+--error 1048
+INSERT INTO t1 (d) values (null);
+--error 1048
+INSERT INTO t1 (d) values (1/null);
+INSERT INTO t1 (d) values (null),(null);
+select * from t1;
+drop table t1;
+

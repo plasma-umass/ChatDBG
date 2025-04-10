@@ -1,0 +1,20 @@
+srcdir = @srcdir@
+VPATH = @srcdir@
+
+TARGETS = \
+	sendrecv.lo \
+	sockets.lo \
+	sockopt.lo \
+	sockaddr.lo \
+	inet_ntop.lo \
+	inet_pton.lo
+
+# bring in rules.mk for standard functionality
+@INCLUDE_RULES@
+
+INCDIR=../../include
+OSDIR=$(INCDIR)/arch/@OSDIR@
+DEFOSDIR=$(INCDIR)/arch/@DEFAULT_OSDIR@
+INCLUDES=-I$(INCDIR) -I$(OSDIR) -I$(DEFOSDIR)
+
+# DO NOT REMOVE

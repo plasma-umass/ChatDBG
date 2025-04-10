@@ -1,0 +1,9 @@
+.deps
+.pure
+Makefile
+TAGS
+check.log
+check.plog
+cvs
+cvsbug
+mkmodules

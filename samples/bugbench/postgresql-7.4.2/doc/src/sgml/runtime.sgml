@@ -1,0 +1,3545 @@
+<!--
+$Header: /cvsroot/pgsql/doc/src/sgml/runtime.sgml,v 1.215.2.7 2004/02/23 20:46:16 tgl Exp $
+-->
+
+<Chapter Id="runtime">
+ <Title>Server Run-time Environment</Title>
+
+ <Para>
+  This chapter discusses how to set up and run the database server
+  and the interactions with the operating system.
+ </para>
+
+ <sect1 id="postgres-user">
+  <title>The <productname>PostgreSQL</productname> User Account</title>
+
+  <indexterm>
+   <primary>postgres user</primary>
+  </indexterm>
+
+  <para>
+   As with any other server daemon that is connected to outside world,
+   it is advisable to run <productname>PostgreSQL</productname> under a
+   separate user account. This user account should only own the data
+   that is managed by the server, and should not be shared with other
+   daemons. (For example, using the user <literal>nobody</literal> is a bad
+   idea.) It is not advisable to install executables owned by
+   this user because compromised systems could then modify their own 
+   binaries.
+  </para>
+
+  <para>
+   To add a Unix user account to your system, look for a command
+   <command>useradd</command> or <command>adduser</command>. The user
+   name <systemitem>postgres</systemitem> is often used but is by no
+   means required.
+  </para>
+ </sect1>
+
+ <sect1 id="creating-cluster">
+  <title>Creating a Database Cluster</title>
+
+  <indexterm>
+   <primary>database cluster</primary>
+  </indexterm>
+
+  <indexterm>
+   <primary>data area</primary>
+   <see>database cluster</see>
+  </indexterm>
+
+  <para>
+   Before you can do anything, you must initialize a database storage
+   area on disk. We call this a <firstterm>database cluster</firstterm>.
+   (<acronym>SQL</acronym> uses the term catalog cluster instead.) A
+   database cluster is a collection of databases is accessible by a
+   single instance of a running database server. After initialization, a
+   database cluster will contain a database named
+   <literal>template1</literal>. As the name suggests, this will be used
+   as a template for subsequently created databases; it should not be
+   used for actual work.  (See <xref linkend="managing-databases"> for information
+   about creating databases.)
+  </para>
+
+  <para>
+   In file system terms, a database cluster will be a single directory
+   under which all data will be stored. We call this the <firstterm>data
+   directory</firstterm> or <firstterm>data area</firstterm>. It is
+   completely up to you where you choose to store your data.  There is no
+   default, although locations such as
+   <filename>/usr/local/pgsql/data</filename> or
+   <filename>/var/lib/pgsql/data</filename> are popular. To initialize a
+   database cluster, use the command <command>initdb</command>,<indexterm><primary>initdb</></> which is
+   installed with <productname>PostgreSQL</productname>. The desired
+   file system location of your database system is indicated by the
+   <option>-D</option> option, for example
+<screen>
+<prompt>$</> <userinput>initdb -D /usr/local/pgsql/data</userinput>
+</screen>
+   Note that you must execute this command while logged into the
+   <productname>PostgreSQL</productname> user account, which is
+   described in the previous section.
+  </para>
+
+  <tip>
+   <para>
+    As an alternative to the <option>-D</option> option, you can set
+    the environment variable <envar>PGDATA</envar>.
+    <indexterm><primary><envar>PGDATA</envar></primary></indexterm>
+   </para>
+  </tip>
+
+  <para>
+   <command>initdb</command> will attempt to create the directory you
+   specify if it does not already exist. It is likely that it will not
+   have the permission to do so (if you followed our advice and created
+   an unprivileged account). In that case you should create the
+   directory yourself (as root) and change the owner to be the
+   <productname>PostgreSQL</productname> user. Here is how this might
+   be done:
+<screen>
+root# <userinput>mkdir /usr/local/pgsql/data</userinput>
+root# <userinput>chown postgres /usr/local/pgsql/data</userinput>
+root# <userinput>su postgres</userinput>
+postgres$ <userinput>initdb -D /usr/local/pgsql/data</userinput>
+</screen>
+  </para>
+
+  <para>
+   <command>initdb</command> will refuse to run if the data directory
+   looks like it it has already been initialized.</para>
+
+  <para>
+   Because the data directory contains all the data stored in the
+   database, it is essential that it be secured from unauthorized
+   access. <command>initdb</command> therefore revokes access
+   permissions from everyone but the
+   <productname>PostgreSQL</productname> user.
+  </para>
+
+  <para>
+   However, while the directory contents are secure, the default
+   client authentication setup allows any local user to connect to the
+   database and even become the database superuser. If you do not
+   trust other local users, we recommend you use
+   <command>initdb</command>'s <option>-W</option> or
+   <option>--pwprompt</option> option to assign a password to the
+   database superuser.<indexterm><primary>password</><secondary>of the
+   superuser</></indexterm> After <command>initdb</command>, modify
+   the <filename>pg_hba.conf</filename> file to use <literal>md5</> or
+   <literal>password</> instead of <literal>trust</> authentication
+   <emphasis>before</> you start the server for the first time. (Other
+   approaches include using <literal>ident</literal> authentication or
+   file system permissions to restrict connections. See <xref
+   linkend="client-authentication"> for more information.)
+  </para>
+
+  <para>
+   <command>initdb</command> also initializes the default
+   locale<indexterm><primary>locale</></> for the database cluster.
+   Normally, it will just take the locale settings in the environment
+   and apply them to the initialized database.  It is possible to
+   specify a different locale for the database; more information about
+   that can be found in <xref linkend="locale">.  The sort order used
+   within a particular database cluster is set by
+   <command>initdb</command> and cannot be changed later, short of
+   dumping all data, rerunning <command>initdb</command>, and
+   reloading the data. So it's important to make this choice correctly
+   the first time.
+  </para>
+ </sect1>
+
+ <sect1 id="postmaster-start">
+  <title>Starting the Database Server</title>
+
+  <para>
+   Before anyone can access the database, you must start the database
+   server. The database server program is called
+   <command>postmaster</command>.<indexterm><primary>postmaster</></>
+   The <command>postmaster</command> must know where to
+   find the data it is supposed to use. This is done with the
+   <option>-D</option> option. Thus, the simplest way to start the
+   server is:
+<screen>
+$ <userinput>postmaster -D /usr/local/pgsql/data</userinput>
+</screen>
+   which will leave the server running in the foreground. This must be
+   done while logged into the <productname>PostgreSQL</productname> user
+   account. Without <option>-D</option>, the server will try to use
+   the data directory in the environment variable <envar>PGDATA</envar>.
+   If neither of these succeed, it will fail.
+  </para>
+
+  <para>
+   To start the <command>postmaster</command> in the
+   background, use the usual shell syntax:
+<screen>
+$ <userinput>postmaster -D /usr/local/pgsql/data &gt;logfile 2&gt;&amp;1 &amp;</userinput>
+</screen>
+   It is an important to store the server's <systemitem>stdout</> and
+   <systemitem>stderr</> output somewhere, as shown above. It will help
+   for auditing purposes and to diagnose problems. (See <xref
+   linkend="logfile-maintenance"> for a more thorough discussion of log
+   file handling.)
+  </para>
+
+  <para>
+   The <command>postmaster</command> also takes a number of other
+   command line options. For more information, see the reference page
+   and <xref linkend="runtime-config"> below. In particular, in order
+   for the server to accept
+   TCP/IP<indexterm><primary>TCP/IP</primary></indexterm> connections
+   (rather than just Unix-domain socket ones), you must specify the
+   <option>-i</option> option.
+  </para>
+
+  <para>
+   This shell syntax can get tedious quickly.  Therefore the shell
+   script wrapper
+   <command>pg_ctl</command><indexterm><primary>pg_ctl</primary></indexterm>
+   is provided to simplify some tasks.  For example:
+<programlisting>
+pg_ctl start -l logfile
+</programlisting>
+   will start the server in the background and put the output into the
+   named log file. The <option>-D</option> option has the same meaning
+   here as in the <command>postmaster</command>. <command>pg_ctl</command> is also
+   capable of stopping the server.
+  </para>
+
+  <para>
+   Normally, you will want to start the database server when the
+   computer boots.<indexterm><primary>booting</><secondary>starting
+   the server during</></> Autostart scripts are operating
+   system-specific.  There are a few distributed with
+   <productname>PostgreSQL</productname> in the
+   <filename>contrib/start-scripts</> directory. This may require root
+   privileges.
+  </para>
+
+  <para>
+   Different systems have different conventions for starting up daemons
+   at boot time. Many systems have a file
+   <filename>/etc/rc.local</filename> or
+   <filename>/etc/rc.d/rc.local</filename>. Others use
+   <filename>rc.d</> directories. Whatever you do, the server must be
+   run by the <productname>PostgreSQL</productname> user account
+   <emphasis>and not by root</emphasis> or any other user. Therefore you
+   probably should form your commands using <literal>su -c '...'
+   postgres</literal>.  For example:
+<programlisting>
+su -c 'pg_ctl start -D /usr/local/pgsql/data -l serverlog' postgres
+</programlisting>
+  </para>
+
+  <para>
+   Here are a few more operating system specific suggestions. (Always
+   replace these with the proper installation directory and the user
+   name.)
+
+   <itemizedlist>
+    <listitem>
+     <para>
+      For <productname>FreeBSD</productname>, look at the file
+      <filename>contrib/start-scripts/freebsd</filename> in the
+      <productname>PostgreSQL</productname> source distribution.
+      <indexterm><primary>FreeBSD</><secondary>start script</secondary></>
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      On <productname>OpenBSD</productname>, add the following lines
+      to the file <filename>/etc/rc.local</filename>:
+      <indexterm><primary>OpenBSD</><secondary>start script</secondary></>
+<programlisting>
+if [ -x /usr/local/pgsql/bin/pg_ctl -a -x /usr/local/pgsql/bin/postmaster ]; then
+    su - -c '/usr/local/pgsql/bin/pg_ctl start -l /var/postgresql/log -s' postgres
+    echo -n ' postgresql'
+fi
+</programlisting>
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      On <productname>Linux</productname> systems either add
+      <indexterm><primary>Linux</><secondary>start script</secondary></>
+<programlisting>
+/usr/local/pgsql/bin/pg_ctl start -l logfile -D /usr/local/pgsql/data
+</programlisting>
+      to <filename>/etc/rc.d/rc.local</filename> or look at the file
+      <filename>contrib/start-scripts/linux</filename> in the
+      <productname>PostgreSQL</productname> source distribution.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      On <productname>NetBSD</productname>, either use the
+      <productname>FreeBSD</productname> or
+      <productname>Linux</productname> start scripts, depending on
+      preference. <indexterm><primary>NetBSD</><secondary>start script</secondary></>
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      On <productname>Solaris</productname>, create a file called
+      <filename>/etc/init.d/postgresql</filename> that contains
+      the following line:
+      <indexterm><primary>Solaris</><secondary>start script</secondary></>
+<programlisting>
+su - postgres -c "/usr/local/pgsql/bin/pg_ctl start -l logfile -D /usr/local/pgsql/data"
+</programlisting>
+      Then, create a symbolic link to it in <filename>/etc/rc3.d</> as
+      <filename>S99postgresql</>.
+     </para>
+    </listitem>
+   </itemizedlist>
+
+  </para>
+
+   <para>
+    While the <command>postmaster</command> is running, its
+    <acronym>PID</acronym> is stored in the file
+    <filename>postmaster.pid</filename> in the data directory. This is
+    used to prevent multiple <command>postmaster</command> processes
+    running in the same data directory and can also be used for
+    shutting down the <command>postmaster</command> process.
+   </para>
+
+   <sect2 id="postmaster-start-failures">
+    <title>Server Start-up Failures</title>
+
+    <para>
+     There are several common reasons the server might fail to
+     start. Check the server's log file, or start it by hand (without
+     redirecting standard output or standard error) and see what error
+     messages appear. Below we explain some of the most common error
+     messages in more detail.
+    </para>
+
+    <para>
+<screen>
+LOG:  could not bind IPv4 socket: Address already in use
+HINT:  Is another postmaster already running on port 5432? If not, wait a few seconds and retry.
+FATAL:  could not create TCP/IP listen socket
+</screen>
+     This usually means just what it suggests: you tried to start
+     another <command>postmaster</command> on the same port where one is already running.
+     However, if the kernel error message is not <computeroutput>Address
+     already in use</computeroutput> or some variant of that, there may
+     be a different problem. For example, trying to start a <command>postmaster</command>
+     on a reserved port number may draw something like:
+<screen>
+$ <userinput>postmaster -i -p 666</userinput>
+LOG:  could not bind IPv4 socket: Permission denied
+HINT:  Is another postmaster already running on port 666? If not, wait a few seconds and retry.
+FATAL:  could not create TCP/IP listen socket
+</screen>
+    </para>
+
+    <para>
+     A message like
+<screen>
+FATAL:  could not create shared memory segment: Invalid argument
+DETAIL:  Failed system call was shmget(key=5440001, size=4011376640, 03600).
+</screen>
+     probably means your kernel's limit on the size of shared memory is
+     smaller than the work area <productname>PostgreSQL</productname>
+     is trying to create (4011376640 bytes in this example). Or it could
+     mean that you do not have System-V-style shared memory support
+     configured into your kernel at all. As a temporary workaround, you
+     can try starting the server with a smaller-than-normal number
+     of buffers (<option>-B</option> switch). You will eventually want
+     to reconfigure your kernel to increase the allowed shared memory
+     size. You may also see this message when trying to start multiple
+     servers on the same machine, if their total space requested
+     exceeds the kernel limit.
+    </para>
+
+    <para>
+     An error like
+<screen>
+FATAL:  could not create semaphores: No space left on device
+DETAIL:  Failed system call was semget(5440126, 17, 03600).
+</screen>
+     does <emphasis>not</emphasis> mean you've run out of disk
+     space. It means your kernel's limit on the number of <systemitem
+     class="osname">System V</> semaphores is smaller than the number
+     <productname>PostgreSQL</productname> wants to create. As above,
+     you may be able to work around the problem by starting the
+     server with a reduced number of allowed connections
+     (<option>-N</option> switch), but you'll eventually want to
+     increase the kernel limit.
+    </para>
+
+    <para>
+     If you get an <quote>illegal system call</> error, it is likely that
+     shared memory or semaphores are not supported in your kernel at
+     all. In that case your only option is to reconfigure the kernel to
+     enable these features.
+    </para>
+
+    <para>
+     Details about configuring <systemitem class="osname">System V</>
+     <acronym>IPC</> facilities are given in <xref linkend="sysvipc">.
+    </para>
+   </sect2>
+
+   <sect2 id="client-connection-problems">
+    <title>Client Connection Problems</title>
+
+    <para>
+     Although the error conditions possible on the client side are quite
+     varied and application-dependent, a few of them might be directly
+     related to how the server was started up. Conditions other than
+     those shown below should be documented with the respective client
+     application.
+    </para>
+
+    <para>
+<screen>
+psql: could not connect to server: Connection refused
+        Is the server running on host "server.joe.com" and accepting
+        TCP/IP connections on port 5432?
+</screen>
+     This is the generic <quote>I couldn't find a server to talk
+     to</quote> failure. It looks like the above when TCP/IP
+     communication is attempted. A common mistake is to forget to
+     configure the server to allow TCP/IP connections.
+    </para>
+
+    <para>
+     Alternatively, you'll get this when attempting Unix-domain socket
+     communication to a local server:
+<screen>
+psql: could not connect to server: No such file or directory
+        Is the server running locally and accepting
+        connections on Unix domain socket "/tmp/.s.PGSQL.5432"?
+</screen>
+    </para>
+
+    <para>
+     The last line is useful in verifying that the client is trying to
+     connect to the right place. If there is in fact no server
+     running there, the kernel error message will typically be either
+     <computeroutput>Connection refused</computeroutput> or
+     <computeroutput>No such file or directory</computeroutput>, as
+     illustrated. (It is important to realize that
+     <computeroutput>Connection refused</computeroutput> in this context
+     does <emphasis>not</emphasis> mean that the server got your
+     connection request and rejected it. That case will produce a
+     different message, as shown in <xref
+     linkend="client-authentication-problems">.) Other error messages
+     such as <computeroutput>Connection timed out</computeroutput> may
+     indicate more fundamental problems, like lack of network
+     connectivity.
+    </para>
+   </sect2>
+  </sect1>
+
+  <sect1 id="runtime-config">
+   <Title>Run-time Configuration</Title>
+
+   <indexterm>
+    <primary>configuration</primary>
+    <secondary>of the server</secondary>
+   </indexterm>
+
+   <para>
+    There are a lot of configuration parameters that affect the
+    behavior of the database system. In this subsection, we describe
+    how to set configuration parameters; the following subsections
+    discuss each parameter in detail.
+   </para>
+
+   <para>
+    All parameter names are case-insensitive. Every parameter takes a
+    value of one of the four types: boolean, integer, floating point,
+    and string. Boolean values are <literal>ON</literal>,
+    <literal>OFF</literal>, <literal>TRUE</literal>,
+    <literal>FALSE</literal>, <literal>YES</literal>,
+    <literal>NO</literal>, <literal>1</literal>, <literal>0</literal>
+    (case-insensitive) or any non-ambiguous prefix of these.
+   </para>
+
+   <para>
+    One way to set these parameters is to edit the file
+    <filename>postgresql.conf</filename><indexterm><primary>postgresql.conf</></>
+    in the data directory. (A default file is installed there.) An
+    example of what this file might look like is:
+<programlisting>
+# This is a comment
+log_connections = yes
+syslog = 2
+search_path = '$user, public'
+</programlisting>
+    One parameter is specified per line. The equal sign between name and
+    value is optional. Whitespace is insignificant and blank lines are
+    ignored. Hash marks (<literal>#</literal>) introduce comments
+    anywhere.  Parameter values that are not simple identifiers or
+    numbers should be single-quoted.
+   </para>
+
+   <para>
+    <indexterm>
+     <primary>SIGHUP</primary>
+    </indexterm>
+    The configuration file is reread whenever the
+    <command>postmaster</command> process receives a
+    <systemitem>SIGHUP</> signal (which is most easily sent by means
+    of <literal>pg_ctl reload</>). The <command>postmaster</command>
+    also propagates this signal to all currently running server
+    processes so that existing sessions also get the new
+    value. Alternatively, you can send the signal to a single server
+    process directly.
+   </para>
+
+   <para>
+    A second way to set these configuration parameters is to give them
+    as a command line option to the <command>postmaster</command>, such as:
+<programlisting>
+postmaster -c log_connections=yes -c syslog=2
+</programlisting>
+    Command-line options override any conflicting settings in
+    <filename>postgresql.conf</filename>.
+   </para>
+
+   <para>
+    Occasionally it is also useful to give a command line option to
+    one particular session only. The environment variable
+    <envar>PGOPTIONS</envar> can be used for this purpose on the
+    client side:
+<programlisting>
+env PGOPTIONS='-c geqo=off' psql
+</programlisting>
+    (This works for any <application>libpq</>-based client application, not just
+    <application>psql</application>.) Note that this won't work for
+    parameters that are fixed when the server is started, such as the port
+    number.
+   </para>
+
+   <para>
+    Furthermore, it is possible to assign a set of option settings to
+    a user or a database.  Whenever a session is started, the default
+    settings for the user and database involved are loaded.  The
+    commands <command>ALTER DATABASE</command> and <command>ALTER
+    USER</command>, respectively, are used to configure these
+    settings.  Per-database settings override anything received
+    from the <command>postmaster</command> command-line or the
+    configuration file, and in turn are overridden by per-user
+    settings; both are overridden by per-session options.
+   </para>
+
+   <para>
+    Some parameters can be changed in individual <acronym>SQL</acronym>
+    sessions with the <xref linkend="SQL-SET" endterm="SQL-SET-title">
+    command, for example:
+<screen>
+SET ENABLE_SEQSCAN TO OFF;
+</screen>
+    If <command>SET</> is allowed, it overrides all other sources of
+    values for the parameter.  Superusers are allowed to <command>SET</>
+    more values than ordinary users.
+   </para>
+
+   <para>
+    The <xref linkend="SQL-SHOW" endterm="SQL-SHOW-title">
+    command allows inspection of the current values of all parameters.
+   </para>
+
+   <para>
+    The virtual table <structname>pg_settings</structname>
+    (described in <xref linkend="view-pg-settings">) also allows
+    displaying and updating session run-time parameters.  It is equivalent
+    to <command>SHOW</> and <command>SET</>, but can be more convenient
+    to use because it can be joined with other tables, or selected from using
+    any desired selection condition.
+   </para>
+    
+   <sect2 id="runtime-config-connection">
+    <title>Connections and Authentication</title>
+
+    <sect3 id="runtime-config-connection-settings">
+     <title>Connection Settings</title>
+
+     <variablelist>
+     
+     <varlistentry>
+      <term><varname>tcpip_socket</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        If this is true, then the server will accept TCP/IP connections.<indexterm><primary>TCP/IP</></>
+        Otherwise only local Unix domain socket connections are
+        accepted. It is off by default. This option can only be set at
+        server start.
+       </para>
+      </listitem>
+     </varlistentry>
+  
+     <varlistentry>
+      <term><varname>max_connections</varname> (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        Determines the maximum number of concurrent connections to the
+        database server. The default is typically 100, but may be less
+        if your kernel settings will not support it (as determined
+        during <application>initdb</>).  This parameter can only be
+        set at server start.
+       </para>
+
+       <para>
+        Increasing this parameter may cause <productname>PostgreSQL</>
+        to request more <systemitem class="osname">System V</> shared
+        memory or semaphores than your operating system's default configuration
+        allows. See <xref linkend="sysvipc"> for information on how to
+        adjust these parameters, if necessary.
+       </para>
+      </listitem>
+     </varlistentry>
+     
+     <varlistentry>
+      <term><varname>superuser_reserved_connections</varname>
+      (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        Determines the number of <quote>connection slots</quote> that
+        are reserved for connections by <productname>PostgreSQL</>
+        superusers.  At most <varname>max_connections</> connections can
+        ever be active simultaneously.  Whenever the number of active
+        concurrent connections is at least <varname>max_connections</> minus
+        <varname>superuser_reserved_connections</varname>, new connections
+        will be accepted only for superusers.
+       </para>
+
+       <para>
+        The default value is 2. The value must be less than the value of
+        <varname>max_connections</varname>. This parameter can only be
+        set at server start.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>port</varname> (<type>integer</type>)</term>
+      <indexterm><primary>port</></>
+      <listitem>
+       <para>
+        The TCP port the server listens on; 5432 by default. This
+        option can only be set at server start.
+       </para>
+      </listitem>
+     </varlistentry>
+
+
+     <varlistentry>
+      <term><varname>unix_socket_directory</varname> (<type>string</type>)</term>
+      <listitem>
+       <para>
+        Specifies the directory of the Unix-domain socket on which the
+        server is to listen for
+        connections from client applications.  The default is normally
+        <filename>/tmp</filename>, but can be changed at build time.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>unix_socket_group</varname> (<type>string</type>)</term>
+      <listitem>
+       <para>
+        Sets the group owner of the Unix domain socket.  (The owning
+        user of the socket is always the user that starts the
+        server.)  In combination with the option
+        <varname>unix_socket_permissions</varname> this can be used as
+        an additional access control mechanism for this socket type.
+        By default this is the empty string, which uses the default
+        group for the current user.  This option can only be set at
+        server start.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>unix_socket_permissions</varname> (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        Sets the access permissions of the Unix domain socket.  Unix
+        domain sockets use the usual Unix file system permission set.
+        The option value is expected to be an numeric mode
+        specification in the form accepted by the
+        <function>chmod</function> and <function>umask</function>
+        system calls.  (To use the customary octal format the number
+        must start with a <literal>0</literal> (zero).)
+       </para>
+
+       <para>
+        The default permissions are <literal>0777</literal>, meaning
+        anyone can connect. Reasonable alternatives are
+        <literal>0770</literal> (only user and group, see also under
+        <varname>unix_socket_group</varname>) and <literal>0700</literal>
+        (only user). (Note that actually for a Unix domain socket, only write
+        permission matters and there is no point in setting or revoking
+        read or execute permissions.)
+       </para>
+
+       <para>
+        This access control mechanism is independent of the one
+        described in <xref linkend="client-authentication">.
+       </para>
+
+       <para>
+        This option can only be set at server start.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>virtual_host</varname> (<type>string</type>)</term>
+      <listitem>
+       <para>
+        Specifies the host name or IP address on which the server is
+        to listen for connections from client applications. The
+        default is to listen on all configured addresses (including
+        <systemitem class="systemname">localhost</>).
+       </para>
+      </listitem>
+     </varlistentry>
+     
+     <varlistentry>
+      <term><varname>rendezvous_name</varname> (<type>string</type>)</term>
+      <listitem>
+       <para>
+        Specifies the Rendezvous broadcast name.  By default, the
+        computer name is used, specified as ''.
+       </para>
+      </listitem>
+     </varlistentry>
+     
+     </variablelist>
+     </sect3>
+     <sect3 id="runtime-config-connection-security">
+     <title>Security and Authentication</title>
+     
+     <variablelist>
+     <varlistentry>
+      <term><varname>authentication_timeout</varname> (<type>integer</type>)</term>
+      <indexterm><primary>timeout</><secondary>client authentication</></indexterm>
+      <indexterm><primary>client authentication</><secondary>timeout during</></indexterm>
+      <listitem>
+       <para>
+        Maximum time to complete client authentication, in seconds. If a
+        would-be client has not completed the authentication protocol in
+        this much time, the server breaks the connection. This prevents
+        hung clients from occupying a connection indefinitely. This
+        option can only be set at server start or in the
+        <filename>postgresql.conf</filename> file. The default is 60.
+       </para>
+      </listitem>
+     </varlistentry>
+     
+     <varlistentry>
+      <indexterm>
+       <primary>SSL</primary>
+      </indexterm>
+
+      <term><varname>ssl</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        Enables <acronym>SSL</> connections. Please read
+        <xref linkend="ssl-tcp"> before using this. The default
+        is off.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>password_encryption</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        When a password is specified in <command>CREATE USER</> or
+        <command>ALTER USER</> without writing either <literal>ENCRYPTED</> or
+        <literal>UNENCRYPTED</>, this option determines whether the password is to be
+        encrypted. The default is on (encrypt the password).
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>krb_server_keyfile</varname> (<type>string</type>)</term>
+      <listitem>
+       <para>
+        Sets the location of the Kerberos server key file. See
+        <xref linkend="kerberos-auth"> for details.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>db_user_namespace</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        This allows per-database user names.  It is off by default.
+       </para>
+
+       <para>
+        If this is on, you should create users as <literal>username@dbname</>.
+        When <literal>username</> is passed by a connecting client,
+        <literal>@</> and the database name is appended to the user
+        name and that database-specific user name is looked up by the
+        server. Note that when you create users with names containing
+        <literal>@</> within the SQL environment, you will need to
+        quote the user name.
+       </para>
+
+       <para>
+        With this option enabled, you can still create ordinary global
+        users.  Simply append <literal>@</> when specifying the user
+        name in the client.  The <literal>@</> will be stripped off
+        before the user name is looked up by the server.
+       </para>
+
+       <note>
+        <para>
+         This feature is intended as a temporary measure until a
+         complete solution is found.  At that time, this option will
+         be removed.
+        </para>
+       </note>
+      </listitem>
+     </varlistentry>
+
+    </variablelist>
+    </sect3>
+   </sect2>
+
+   <sect2 id="runtime-config-resource">
+    <title>Resource Consumption</title>
+
+    <sect3 id="runtime-config-resource-memory">
+     <title>Memory</title>
+
+     <variablelist>
+     <varlistentry>
+      <term><varname>shared_buffers</varname> (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        Sets the number of shared memory buffers used by the database
+        server. The default is typically 1000, but may be less if your
+        kernel settings will not support it (as determined during
+        <application>initdb</>).  Each buffer is 8192 bytes, unless a
+        different value of <literal>BLCKSZ</> was chosen when building
+        the server.  This setting must be at least 16, as well as at
+        least twice the value of <varname>max_connections</varname>;
+        however, settings significantly higher than the minimum are
+        usually needed for good performance.  Values of a few thousand
+        are recommended for production installations.  This option can
+        only be set at server start.
+       </para>
+
+       <para>
+        Increasing this parameter may cause <productname>PostgreSQL</>
+        to request more <systemitem class="osname">System V</> shared
+        memory than your operating system's default configuration
+        allows. See <xref linkend="sysvipc"> for information on how to
+        adjust these parameters, if necessary.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>sort_mem</varname> (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        Specifies the amount of memory to be used by internal sort operations and
+        hash tables before switching to temporary disk files. The value is
+        specified in kilobytes, and defaults to 1024 kilobytes (1 MB).
+        Note that for a complex query, several sort or hash operations might be
+        running in parallel; each one will be allowed to use as much memory
+        as this value specifies before it starts to put data into temporary
+        files. Also, several running sessions could be doing
+        sort operations simultaneously.  So the total memory used could be many
+        times the value of <varname>sort_mem</varname>. Sort operations are used
+        by <literal>ORDER BY</>, merge joins, and <command>CREATE INDEX</>.
+        Hash tables are used in hash joins, hash-based aggregation, and
+        hash-based processing of <literal>IN</> subqueries.  Because 
+        <command>CREATE INDEX</> is used when restoring a database,
+        increasing <varname>sort_mem</varname> before doing a large
+        restore operation can improve performance.
+       </para>
+      </listitem>
+     </varlistentry>
+     
+     <varlistentry>
+      <term><varname>vacuum_mem</varname> (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        Specifies the maximum amount of memory to be used by
+        <command>VACUUM</command> to keep track of to-be-reclaimed
+        rows. The value is specified in kilobytes, and defaults to
+        8192 kB. Larger settings may improve the speed of
+        vacuuming large tables that have many deleted rows.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     </variablelist>
+     </sect3>
+     <sect3 id="runtime-config-resource-fsm">
+     <title>Free Space Map</title>
+
+     <variablelist>
+     <varlistentry>
+      <term><varname>max_fsm_pages</varname> (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        Sets the maximum number of disk pages for which free space will
+        be tracked in the shared free-space map.  Six bytes of shared memory
+        are consumed for each page slot.  This setting must be more than
+        16 * <varname>max_fsm_relations</varname>.  The default is 20000.
+        This option can only be set at server start.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>max_fsm_relations</varname> (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        Sets the maximum number of relations (tables and indexes) for which
+        free space will be tracked in the shared free-space map.  Roughly
+        fifty bytes of shared memory are consumed for each slot.
+        The default is 1000.
+        This option can only be set at server start.
+       </para>
+      </listitem>
+     </varlistentry>
+     
+     </variablelist>
+     </sect3>
+     <sect3 id="runtime-config-resource-kernel">
+     <title>Kernel Resource Usage</title>
+     <variablelist>
+
+     <varlistentry>
+      <term><varname>max_files_per_process</varname> (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        Sets the maximum number of simultaneously open files allowed to each
+        server subprocess. The default is 1000. If the kernel is enforcing
+        a safe per-process limit, you don't need to worry about this setting.
+        But on some platforms (notably, most BSD systems), the kernel will
+        allow individual processes to open many more files than the system
+        can really support when a large number of processes all try to open
+        that many files. If you find yourself seeing <quote>Too many open
+        files</> failures, try reducing this setting.
+        This option can only be set at server start.
+       </para>
+      </listitem>
+     </varlistentry>
+     
+     <varlistentry>
+      <term><varname>preload_libraries</varname> (<type>string</type>)</term>
+      <indexterm><primary>preload_libraries</></>
+      <listitem>
+       <para>
+        This variable specifies one or more shared libraries that are
+        to be preloaded at server start. A parameterless
+        initialization function can optionally be called for each
+        library.  To specify that, add a colon and the name of the
+        initialization function after the library name. For example
+        <literal>'$libdir/mylib:mylib_init'</literal> would cause
+        <literal>mylib</> to be preloaded and <literal>mylib_init</>
+        to be executed. If more than one library is to be loaded,
+        separate their names with commas.
+       </para>
+
+       <para>
+        If <literal>mylib</> or <literal>mylib_init</> are not found, the
+        server will fail to start.
+       </para>
+
+       <para>
+        <productname>PostgreSQL</productname> procedural language
+        libraries may be preloaded in this way, typically by using the
+        syntax <literal>'$libdir/plXXX:plXXX_init'</literal> where
+        <literal>XXX</literal> is <literal>pgsql</>, <literal>perl</>,
+        <literal>tcl</>, or <literal>python</>.
+       </para>
+
+       <para>
+        By preloading a shared library (and initializing it if
+        applicable), the library startup time is avoided when the
+        library is first used.  However, the time to start each new
+        server process may increase, even if that process never
+        uses the library.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     </variablelist>
+    </sect3>
+   </sect2>
+
+   <sect2 id="runtime-config-wal">
+    <title>Write Ahead Log</title>
+
+   <para>
+    See also <xref linkend="wal-configuration"> for details on WAL
+    tuning.
+   </para>
+
+    <sect3 id="runtime-config-wal-settings">
+     <title>Settings</title>
+     <variablelist>
+     
+     <varlistentry>
+      <indexterm>
+       <primary>fsync</primary>
+      </indexterm>
+
+      <term><varname>fsync</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        If this option is on, the <productname>PostgreSQL</> server
+        will use the <function>fsync()</> system call in several places
+        to make sure that updates are physically written to disk. This
+        insures that a database cluster will recover to a
+        consistent state after an operating system or hardware crash.
+        (Crashes of the database server itself are <emphasis>not</>
+        related to this.)
+       </para>
+
+       <para>
+        However, using <function>fsync()</function> results in a
+        performance penalty: when a transaction is committed,
+        <productname>PostgreSQL</productname> must wait for the
+        operating system to flush the write-ahead log to disk.  When
+        <varname>fsync</varname> is disabled, the operating system is
+        allowed to do its best in buffering, ordering, and delaying
+        writes. This can result in significantly improved performance.
+        However, if the system crashes, the results of the last few
+        committed transactions may be lost in part or whole. In the
+        worst case, unrecoverable data corruption may occur.
+       </para>
+
+       <para>
+        Due to the risks involved, there is no universally correct
+        setting for <varname>fsync</varname>. Some administrators
+        always disable <varname>fsync</varname>, while others only
+        turn it off for bulk loads, where there is a clear restart
+        point if something goes wrong, whereas some administrators
+        always leave <varname>fsync</varname> enabled. The default is
+        to enable <varname>fsync</varname>, for maximum reliability.
+        If you trust your operating system, your hardware, and your
+        utility company (or your battery backup), you can consider
+        disabling <varname>fsync</varname>.
+       </para>
+
+       <para>
+        This option can only be set at server start or in the
+        <filename>postgresql.conf</filename> file.
+       </para>
+      </listitem>
+     </varlistentry>
+     
+     <varlistentry>
+      <term><varname>wal_sync_method</varname> (<type>string</type>)</term>
+      <listitem>
+       <para>
+        Method used for forcing WAL updates out to disk.  Possible
+        values are
+        <literal>fsync</> (call <function>fsync()</> at each commit),
+        <literal>fdatasync</> (call <function>fdatasync()</> at each commit),
+        <literal>open_sync</> (write WAL files with <function>open()</> option <symbol>O_SYNC</>), and
+        <literal>open_datasync</> (write WAL files with <function>open()</> option <symbol>O_DSYNC</>).
+        Not all of these choices are available on all platforms.
+        This option can only be set at server start or in the
+        <filename>postgresql.conf</filename> file.
+       </para>
+      </listitem>
+     </varlistentry>
+     
+     <varlistentry>
+      <term><varname>wal_buffers</varname> (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        Number of disk-page buffers in shared memory for WAL
+        logging. The default is 8. This option can only be set at
+        server start.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     </variablelist>
+     </sect3>
+     <sect3 id="runtime-config-wal-checkpoints">
+     <title>Checkpoints</title>
+
+    <variablelist>
+     <varlistentry>
+      <term><varname>checkpoint_segments</varname> (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        Maximum distance between automatic WAL checkpoints, in log
+        file segments (each segment is normally 16 megabytes). The
+        default is three.  This option can only be set at server start
+        or in the <filename>postgresql.conf</filename> file.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>checkpoint_timeout</varname> (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        Maximum time between automatic WAL checkpoints, in
+        seconds. The default is 300 seconds.  This option can only be
+        set at server start or in the <filename>postgresql.conf</>
+        file.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>checkpoint_warning</varname> (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        Write a message to the server logs if checkpoints caused by
+        the filling of checkpoint segment files happens more
+        frequently than this number of seconds.  The default is 30
+        seconds.  Zero turns off the warning.
+       </para>
+      </listitem>
+     </varlistentry>
+                
+                
+     <varlistentry>
+      <term><varname>commit_delay</varname> (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        Time delay between writing a commit record to the WAL buffer
+        and flushing the buffer out to disk, in microseconds. A
+        nonzero delay allows multiple transactions to be committed
+        with only one <function>fsync()</function> system call, if
+        system load is high enough additional transactions may become
+        ready to commit within the given interval. But the delay is
+        just wasted if no other transactions become ready to
+        commit. Therefore, the delay is only performed if at least
+        <varname>commit_siblings</varname> other transactions are
+        active at the instant that a server process has written its
+        commit record. The default is zero (no delay).
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>commit_siblings</varname> (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        Minimum number of concurrent open transactions to require
+        before performing the <varname>commit_delay</> delay. A larger
+        value makes it more probable that at least one other
+        transaction will become ready to commit during the delay
+        interval. The default is five.
+       </para>
+      </listitem>
+     </varlistentry>
+     
+     </variablelist>
+    </sect3>
+   </sect2>
+
+   <sect2 id="runtime-config-query">
+    <title>Query Planning</title>
+
+    <sect3 id="runtime-config-query-enable">
+     <title>Planner Method Configuration</title>
+
+     <note>
+      <para>
+       These configuration parameters provide a crude method for
+       influencing the query plans chosen by the query optimizer. If
+       the default plan chosen by the optimizer for a particular query
+       is not optimal, a temporary solution may be found by using one
+       of these configuration parameters to force the optimizer to
+       choose a better plan. Other ways to improve the quality of the
+       plans chosen by the optimizer include configuring the <xref
+       linkend="runtime-config-query-constants"
+       endterm="runtime-config-query-constants-title">, running
+       <command>ANALYZE</command> more frequently, and increasing the
+       amount of statistics collected for a particular column using
+       <command>ALTER TABLE SET STATISTICS</command>.
+      </para>
+     </note>
+
+     <variablelist>
+     <varlistentry>
+      <term><varname>enable_hashagg</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        Enables or disables the query planner's use of hashed
+        aggregation plan types. The default is on. This is used for
+        debugging the query planner.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>enable_hashjoin</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        Enables or disables the query planner's use of hash-join plan
+        types. The default is on. This is used for debugging the query
+        planner.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <indexterm>
+       <primary>index scan</primary>
+      </indexterm>
+
+      <term><varname>enable_indexscan</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        Enables or disables the query planner's use of index-scan plan
+        types. The default is on. This is used for debugging the query
+        planner.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>enable_mergejoin</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        Enables or disables the query planner's use of merge-join plan
+        types. The default is on. This is used for debugging the query
+        planner.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>enable_nestloop</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        Enables or disables the query planner's use of nested-loop join
+        plans. It's not possible to suppress nested-loop joins entirely,
+        but turning this variable off discourages the planner from using
+        one if there are other methods available. The default is
+        on. This is used for debugging the query planner.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <indexterm>
+       <primary>sequential scan</primary>
+      </indexterm>
+
+      <term><varname>enable_seqscan</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        Enables or disables the query planner's use of sequential scan
+        plan types. It's not possible to suppress sequential scans
+        entirely, but turning this variable off discourages the planner
+        from using one if there are other methods available. The
+        default is on. This is used for debugging the query planner.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>enable_sort</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        Enables or disables the query planner's use of explicit sort
+        steps. It's not possible to suppress explicit sorts entirely,
+        but turning this variable off discourages the planner from
+        using one if there are other methods available. The default
+        is on. This is used for debugging the query planner.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>enable_tidscan</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        Enables or disables the query planner's use of <acronym>TID</>
+        scan plan types. The default is on. This is used for debugging
+        the query planner.
+       </para>
+      </listitem>
+     </varlistentry>
+     
+     </variablelist>
+     </sect3>
+     <sect3 id="runtime-config-query-constants">
+     <title id="runtime-config-query-constants-title">
+      Planner Cost Constants
+     </title>
+
+   <note>
+    <para>
+     Unfortunately, there is no well-defined method for determining
+     ideal values for the family of <quote>cost</quote> variables that
+     appear below. You are encouraged to experiment and share
+     your findings.
+    </para>
+   </note>
+
+     <variablelist>
+     
+     <varlistentry>
+      <term><varname>effective_cache_size</varname> (<type>floating point</type>)</term>
+      <listitem>
+       <para>
+        Sets the planner's assumption about the effective size of the
+        disk cache (that is, the portion of the kernel's disk cache
+        that will be used for <productname>PostgreSQL</productname>
+        data files). This is measured in disk pages, which are
+        normally 8192 bytes each. The default is 1000.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>random_page_cost</varname> (<type>floating point</type>)</term>
+      <listitem>
+       <para>
+        Sets the query planner's estimate of the cost of a
+        nonsequentially fetched disk page. This is measured as a
+        multiple of the cost of a sequential page fetch. A higher
+        value makes it more likely a sequential scan will be used, a
+        lower value makes it more likely an index scan will be
+        used. The default is four.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>cpu_tuple_cost</varname> (<type>floating point</type>)</term>
+      <listitem>
+       <para>
+        Sets the query planner's estimate of the cost of processing
+        each row during a query. This is measured as a fraction of
+        the cost of a sequential page fetch. The default is 0.01.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>cpu_index_tuple_cost</varname> (<type>floating point</type>)</term>
+      <listitem>
+       <para>
+        Sets the query planner's estimate of the cost of processing
+        each index row during an index scan. This is measured as a
+        fraction of the cost of a sequential page fetch. The default
+        is 0.001.
+       </para>
+      </listitem>
+     </varlistentry>
+    
+     <varlistentry>
+      <term><varname>cpu_operator_cost</varname> (<type>floating point</type>)</term>
+      <listitem>
+       <para>
+        Sets the planner's estimate of the cost of processing each
+        operator in a <literal>WHERE</> clause. This is measured as a fraction of
+        the cost of a sequential page fetch. The default is 0.0025.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     </variablelist>
+
+    </sect3>
+     <sect3 id="runtime-config-query-geqo">
+     <title>Genetic Query Optimizer</title>
+
+     <variablelist>
+
+     <varlistentry>
+      <indexterm>
+       <primary>genetic query optimization</primary>
+      </indexterm>
+      <indexterm>
+       <primary>GEQO</primary>
+       <see>genetic query optimization</see>
+      </indexterm>
+      <term><varname>geqo</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        Enables or disables genetic query optimization, which is an
+        algorithm that attempts to do query planning without exhaustive
+        searching. This is on by default. See also the various other
+        <varname>geqo_</varname> settings.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>geqo_threshold</varname> (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        Use genetic query optimization to plan queries with at least
+        this many <literal>FROM</> items involved. (Note that an outer
+        <literal>JOIN</> construct counts as only one <literal>FROM</>
+        item.) The default is 11. For simpler queries it is usually best
+        to use the deterministic, exhaustive planner, but for queries with
+        many tables the deterministic planner takes too long.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>geqo_effort</varname> (<type>integer</type>)</term>
+      <term><varname>geqo_generations</varname> (<type>integer</type>)</term>
+      <term><varname>geqo_pool_size</varname> (<type>integer</type>)</term>
+      <term><varname>geqo_selection_bias</varname> (<type>floating point</type>)</term>
+      <listitem>
+       <para>
+        Various tuning parameters for the genetic query optimization
+        algorithm: The pool size is the number of individuals in one
+        population. Valid values are between 128 and 1024. If it is set
+        to 0 (the default) a pool size of 2^(QS+1), where QS is the
+        number of <literal>FROM</> items in the query, is taken. The effort is used
+        to calculate a default for generations. Valid values are between
+        1 and 80, 40 being the default. Generations specifies the number
+        of iterations in the algorithm. The number must be a positive
+        integer. If 0 is specified then <literal>Effort *
+        Log2(PoolSize)</literal> is used. The run time of the algorithm
+        is roughly proportional to the sum of pool size and generations.
+        The selection bias is the selective pressure within the
+        population. Values can be from 1.50 to 2.00; the latter is the
+        default.
+       </para>
+      </listitem>
+     </varlistentry>
+     
+     </variablelist>
+    </sect3>
+     <sect3 id="runtime-config-query-other">
+     <title>Other Planner Options</title>
+
+     <variablelist>
+
+     <varlistentry>
+      <term><varname>default_statistics_target</varname> (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        Sets the default statistics target for table columns that have not
+        had a column-specific target set via <command>ALTER TABLE SET
+        STATISTICS</>.  Larger values increase the time needed to do
+        <command>ANALYZE</>, but may improve the quality of the planner's
+        estimates. The default is 10.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>from_collapse_limit</varname> (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        The planner will merge sub-queries into upper queries if the resulting
+        FROM list would have no more than this many items.  Smaller values
+        reduce planning time but may yield inferior query plans.
+        The default is 8.  It is usually wise to keep this less than
+        <varname>geqo_threshold</varname>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>join_collapse_limit</varname> (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        The planner will flatten explicit inner <literal>JOIN</> constructs
+        into lists of <literal>FROM</> items whenever a list of no more than
+        this many items would result.  Usually this is set the same as
+        <varname>from_collapse_limit</>.  Setting it to 1 prevents any
+        flattening of inner <literal>JOIN</>s, allowing explicit
+        <literal>JOIN</> syntax to be used to control the join order.
+        Intermediate values might be useful to trade off planning time
+        against quality of plan.
+       </para>
+      </listitem>
+     </varlistentry>
+     
+     </variablelist>
+    </sect3>
+   </sect2>
+
+   <sect2 id="runtime-config-logging">
+    <title>Error Reporting and Logging</title>
+
+    <indexterm zone="runtime-config-logging">
+     <primary>server log</primary>
+    </indexterm>
+
+    <sect3 id="runtime-config-logging-syslog">
+     <title>Syslog</title>
+
+     <indexterm zone="runtime-config-logging-syslog">
+      <primary>syslog</primary>
+     </indexterm>
+
+     <variablelist>
+
+     <varlistentry>
+      <term><varname>syslog</varname> (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        <productname>PostgreSQL</productname> allows the use of
+        <systemitem>syslog</systemitem> for logging. If this option is
+        set to 1, messages go both to <systemitem>syslog</> and the
+        standard output. A setting of 2 sends output only to
+        <systemitem>syslog</>. (Some messages will still go to the
+        standard output/error.) The default is 0, which means
+        <systemitem>syslog</> is off. This option must be set at server
+        start.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>syslog_facility</varname> (<type>string</type>)</term>
+       <listitem>
+        <para>
+          This option determines the <application>syslog</application>
+          <quote>facility</quote> to be used when logging via
+          <application>syslog</application> is enabled. You may choose
+          from <literal>LOCAL0</>, <literal>LOCAL1</>,
+          <literal>LOCAL2</>, <literal>LOCAL3</>, <literal>LOCAL4</>,
+          <literal>LOCAL5</>, <literal>LOCAL6</>, <literal>LOCAL7</>;
+          the default is <literal>LOCAL0</>. See also the
+          documentation of your system's
+          <application>syslog</application>.
+        </para>
+       </listitem>
+     </varlistentry>
+     
+     <varlistentry>
+      <term><varname>syslog_ident</varname> (<type>string</type>)</term>
+       <listitem>
+        <para>
+         If logging to <application>syslog</> is enabled, this option
+         determines the program name used to identify
+         <productname>PostgreSQL</productname> messages in
+         <application>syslog</application> log messages. The default is
+         <literal>postgres</literal>.
+        </para>
+       </listitem>
+      </varlistentry>
+      
+      </variablelist>
+    </sect3>
+     <sect3 id="runtime-config-logging-when">
+     <title>When To Log</title>
+
+     <variablelist>
+
+     <varlistentry>
+      <term><varname>client_min_messages</varname> (<type>string</type>)</term>
+      <listitem>
+       <para>
+        Controls which message levels are sent to the client.
+        Valid values are <literal>DEBUG5</>,
+        <literal>DEBUG4</>, <literal>DEBUG3</>, <literal>DEBUG2</>,
+        <literal>DEBUG1</>, <literal>LOG</>, <literal>NOTICE</>,
+        <literal>WARNING</>, and <literal>ERROR</>.  Each level
+        includes all the levels that follow it.  The later the level,
+        the fewer messages are sent.  The default is
+        <literal>NOTICE</>.  Note that <literal>LOG</> has a different
+        rank here than in <varname>log_min_messages</>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>log_min_messages</varname> (<type>string</type>)</term>
+      <listitem>
+       <para>
+        Controls which message levels are written to the server log.
+        Valid values are <literal>DEBUG5</>, <literal>DEBUG4</>,
+        <literal>DEBUG3</>, <literal>DEBUG2</>, <literal>DEBUG1</>,
+        <literal>INFO</>, <literal>NOTICE</>, <literal>WARNING</>,
+        <literal>ERROR</>, <literal>LOG</>, <literal>FATAL</>, and
+        <literal>PANIC</>.  Each level includes all the levels that
+        follow it.  The later the level, the fewer messages are sent
+        to the log.  The default is <literal>NOTICE</>.  Note that
+        <literal>LOG</> has a different rank here than in
+        <varname>client_min_messages</>.
+        Only superusers can increase this option.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>log_error_verbosity</varname> (<type>string</type>)</term>
+      <listitem>
+       <para>
+        Controls the amount of detail written in the server log for each
+        message that is logged.  Valid values are <literal>TERSE</>,
+        <literal>DEFAULT</>, and <literal>VERBOSE</>, each adding more
+        fields to displayed messages.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>log_min_error_statement</varname> (<type>string</type>)</term>
+      <listitem>
+       <para>
+        Controls whether or not the SQL statement that causes an error
+        condition will also be recorded in the server log. All SQL
+        statements that cause an error of the specified level, or a
+        higher level, are logged.  The default is
+        <literal>PANIC</literal> (effectively turning this feature
+        off for normal use). Valid values are <literal>DEBUG5</literal>,
+        <literal>DEBUG4</literal>, <literal>DEBUG3</literal>,
+        <literal>DEBUG2</literal>, <literal>DEBUG1</literal>,
+        <literal>INFO</literal>, <literal>NOTICE</literal>,
+        <literal>WARNING</literal>, <literal>ERROR</literal>,
+        <literal>FATAL</literal>, and <literal>PANIC</literal>.  For
+        example, if you set this to <literal>ERROR</literal> then all
+        SQL statements causing errors, fatal errors, or panics will be
+        logged. Enabling this option can be helpful in tracking down
+        the source of any errors that appear in the server log.
+        Only superusers can increase this option.
+       </para>
+      </listitem>
+     </varlistentry>
+     
+     <varlistentry>
+      <term><varname>log_min_duration_statement</varname> (<type>integer</type>)</term>
+       <listitem>
+        <para>
+         Sets a minimum statement execution time (in milliseconds)
+         for statement to be logged.  All SQL statements
+         that run in the time specified or longer will be logged with
+         their duration.  Setting this to zero will print
+         all queries and their durations.  Minus-one (the default)
+         disables this.  For example, if you set it to 
+         <literal>250</literal> then all SQL statements that run 250ms 
+         or longer will be logged.  Enabling this option can be
+         useful in tracking down unoptimized queries in your applications.
+         Only superusers can increase this or set it to minus-one if this 
+         option is set by the administrator.
+        </para>
+       </listitem>
+      </varlistentry>
+
+     <varlistentry>
+      <term><varname>silent_mode</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        Runs the server silently. If this option is set, the server
+        will automatically run in background and any controlling terminals
+        are disassociated.  Thus, no messages are written to standard
+        output or standard error (same effect as <command>postmaster</>'s <option>-S</option>
+        option). Unless
+        <application>syslog</> logging is enabled, using this option is
+        discouraged since it makes it impossible to see error messages.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     </variablelist>
+
+       <para>
+        Here is a list of the various message severity levels used in
+        these settings:
+        <variablelist>
+         <varlistentry>
+          <term><literal>DEBUG[1-5]</literal></term>
+          <listitem>
+           <para>
+            Provides information for use by developers.
+           </para>
+          </listitem>
+         </varlistentry>
+
+         <varlistentry>
+          <term><literal>INFO</literal></term>
+          <listitem>
+           <para>
+            Provides information implicitly requested by the user,
+            e.g., during <command>VACUUM VERBOSE</>.
+           </para>
+          </listitem>
+         </varlistentry>
+
+         <varlistentry>
+          <term><literal>NOTICE</literal></term>
+          <listitem>
+           <para>
+            Provides information that may be helpful to users, e.g.,
+            truncation of long identifiers and the creation of indexes as part
+            of primary keys.
+           </para>
+          </listitem>
+         </varlistentry>
+
+         <varlistentry>
+          <term><literal>WARNING</literal></term>
+          <listitem>
+           <para>
+            Provides warnings to the user, e.g., <command>COMMIT</>
+            outside a transaction block.
+           </para>
+          </listitem>
+         </varlistentry>
+
+         <varlistentry>
+          <term><literal>ERROR</literal></term>
+          <listitem>
+           <para>
+            Reports an error that caused the current transaction to abort.
+           </para>
+          </listitem>
+         </varlistentry>
+
+         <varlistentry>
+          <term><literal>LOG</literal></term>
+          <listitem>
+           <para>
+            Reports information of interest to administrators, e.g.,
+            checkpoint activity.
+           </para>
+          </listitem>
+         </varlistentry>
+
+         <varlistentry>
+          <term><literal>FATAL</literal></term>
+          <listitem>
+           <para>
+            Reports an error that caused the current session to abort.
+           </para>
+          </listitem>
+         </varlistentry>
+
+         <varlistentry>
+          <term><literal>PANIC</literal></term>
+          <listitem>
+           <para>
+            Reports an error that caused all sessions to abort.
+           </para>
+          </listitem>
+         </varlistentry>
+        </variablelist>
+       </para>
+
+    </sect3>
+     <sect3 id="runtime-config-logging-what">
+     <title>What To Log</title>
+     
+     <variablelist>
+     
+     <varlistentry>
+      <term><varname>debug_print_parse</varname> (<type>boolean</type>)</term>
+      <term><varname>debug_print_rewritten</varname> (<type>boolean</type>)</term>
+      <term><varname>debug_print_plan</varname> (<type>boolean</type>)</term>
+      <term><varname>debug_pretty_print</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        These options enable various debugging output to be sent to
+        the client or server log. For each executed query, they print
+        the resulting parse tree, the query rewriter output, or the
+        execution plan.  <varname>debug_pretty_print</varname> indents
+        these displays to produce a more readable but much longer
+        output format.  <varname>client_min_messages</varname> or
+        <varname>log_min_messages</varname> must be
+        <literal>DEBUG1</literal> or lower to send output to the
+        client or server logs. These options are off by default.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>log_connections</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        This outputs a line to the server logs detailing each successful
+        connection. This is off by default, although it is probably very
+        useful. This option can only be set at server start or in the
+        <filename>postgresql.conf</filename> configuration file.
+       </para>
+      </listitem>
+     </varlistentry>
+
+
+     <varlistentry>
+      <term><varname>log_duration</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        Causes the duration of every completed statement to be logged.
+        To use this option, enable <varname>log_statement</> and
+        <varname>log_pid</> so you can link the statement to the
+        duration using the process ID. The default is off.
+        Only superusers can turn off this option if it is enabled by
+        the administrator.
+       </para>
+      </listitem>
+     </varlistentry>
+     
+     <varlistentry>
+      <term><varname>log_pid</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        Prefixes each message in the server log file with the process ID of
+        the server process. This is useful to sort out which messages
+        pertain to which connection. The default is off.  This parameter
+        does not affect messages logged via <application>syslog</>, which 
+        always contain the process ID.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>log_statement</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        Causes each SQL statement to be logged. The default is off.
+        Only superusers can turn off this option if it is enabled by
+        the administrator.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>log_timestamp</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        Prefixes each server log message with a time stamp. The default
+        is off.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>log_hostname</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        By default, connection logs only show the IP address of the
+        connecting host. If you want it to show the host name you can
+        turn this on, but depending on your host name resolution setup
+        it might impose a non-negligible performance penalty. This
+        option can only be set at server start.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>log_source_port</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        Shows the outgoing port number of the connecting host in the
+        connection log messages. You could trace back the port number
+        to find out what user initiated the connection. Other than
+        that, it's pretty useless and therefore off by default. This
+        option can only be set at server start.
+       </para>
+      </listitem>
+     </varlistentry>
+     
+     </variablelist>
+    </sect3>
+   </sect2>
+
+   <sect2 id="runtime-config-statistics">
+    <title>Runtime Statistics</title>
+
+    <sect3 id="runtime-config-statistics-monitor">
+     <title>Statistics Monitoring</title>
+     <variablelist>
+
+     <varlistentry>
+      <term><varname>log_statement_stats</varname> (<type>boolean</type>)</term>
+      <term><varname>log_parser_stats</varname> (<type>boolean</type>)</term>
+      <term><varname>log_planner_stats</varname> (<type>boolean</type>)</term>
+      <term><varname>log_executor_stats</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        For each query, write performance statistics of the respective
+        module to the server log. This is a crude profiling
+        instrument. All of these options are disabled by default.
+        Only superusers can turn off any of these options if they have
+        been enabled by the administrator.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     </variablelist>
+
+    </sect3>
+    <sect3 id="runtime-config-statistics-collector">
+     <title>Query and Index Statistics Collector</title>
+     <variablelist>
+
+     <varlistentry>
+      <term><varname>stats_start_collector</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        Controls whether the server should start the
+        statistics-collection subprocess.  This is on by default, but
+        may be turned off if you know you have no interest in
+        collecting statistics.  This option can only be set at server
+        start.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>stats_command_string</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        Enables the collection of statistics on the currently
+        executing command of each session, along with the time at
+        which that command began execution. This option is off by
+        default. Note that even when enabled, this information is not
+        visible to all users, only to superusers and the user owning
+        the session being reported on; so it should not represent a
+        security risk. This data can be accessed via the
+        <structname>pg_stat_activity</structname> system view; refer
+        to <xref linkend="monitoring"> for more information.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>stats_block_level</varname> (<type>boolean</type>)</term>
+      <term><varname>stats_row_level</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        These enable the collection of block-level and row-level statistics
+        on database activity, respectively. These options are off by
+        default. This data can be accessed via the
+        <structname>pg_stat</structname> and
+        <structname>pg_statio</structname> family of system views;
+        refer to <xref linkend="monitoring"> for more information.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>stats_reset_on_server_start</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        If on, collected statistics are zeroed out whenever the server
+        is restarted. If off, statistics are accumulated across server
+        restarts. The default is on. This option can only be set at
+        server start.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     </variablelist>
+    </sect3>
+   </sect2>
+
+   <sect2 id="runtime-config-client">
+    <title>Client Connection Defaults</title>
+
+    <sect3 id="runtime-config-client-statement">
+     <title>Statement Behavior</title>
+     <variablelist>
+
+     <varlistentry>
+      <term><varname>search_path</varname> (<type>string</type>)</term>
+      <indexterm><primary>search_path</></>
+      <indexterm><primary>path</><secondary>for schemas</></>
+      <listitem>
+       <para>
+        This variable specifies the order in which schemas are searched
+        when an object (table, data type, function, etc.) is referenced by a
+        simple name with no schema component.  When there are objects of
+        identical names in different schemas, the one found first
+        in the search path is used.  An object that is not in any of the
+        schemas in the search path can only be referenced by specifying
+        its containing schema with a qualified (dotted) name.
+       </para>
+
+       <para>
+        The value for <varname>search_path</varname> has to be a comma-separated
+        list of schema names.  If one of the list items is
+        the special value <literal>$user</literal>, then the schema
+        having the name returned by <function>SESSION_USER</> is substituted, if there
+        is such a schema.  (If not, <literal>$user</literal> is ignored.)
+       </para>
+
+       <para>
+        The system catalog schema, <literal>pg_catalog</>, is always
+        searched, whether it is mentioned in the path or not.  If it is
+        mentioned in the path then it will be searched in the specified
+        order.  If <literal>pg_catalog</> is not in the path then it will
+        be searched <emphasis>before</> searching any of the path items.
+        It should also be noted that the temporary-table schema,
+        <literal>pg_temp_<replaceable>nnn</></>, is implicitly searched before any of
+        these.
+       </para>
+
+       <para>
+        When objects are created without specifying a particular target
+        schema, they will be placed in the first schema listed
+        in the search path.  An error is reported if the search path is
+        empty.
+       </para>
+
+       <para>
+        The default value for this parameter is
+        <literal>'$user, public'</literal> (where the second part will be
+        ignored if there is no schema named <literal>public</>).
+        This supports shared use of a database (where no users
+        have private schemas, and all share use of <literal>public</>),
+        private per-user schemas, and combinations of these.  Other
+        effects can be obtained by altering the default search path
+        setting, either globally or per-user.
+       </para>
+
+       <para>
+        The current effective value of the search path can be examined
+        via the <acronym>SQL</acronym> function
+        <function>current_schemas()</>.  This is not quite the same as
+        examining the value of <varname>search_path</varname>, since
+        <function>current_schemas()</> shows how the requests
+        appearing in <varname>search_path</varname> were resolved.
+       </para>
+
+       <para>
+        For more information on schema handling, see <xref linkend="ddl-schemas">.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>check_function_bodies</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        This parameter is normally true.  When set false, it disables
+        validation of the function body string in <command>CREATE FUNCTION</>.
+        Disabling validation is occasionally useful to avoid problems such as
+        forward references when restoring function definitions from a dump.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <indexterm>
+       <primary>transaction isolation level</primary>
+      </indexterm>
+
+      <term><varname>default_transaction_isolation</varname> (<type>string</type>)</term>
+      <listitem>
+       <para>
+        Each SQL transaction has an isolation level, which can be either
+        <quote>read committed</quote> or <quote>serializable</quote>.
+        This parameter controls the default isolation level of each new
+        transaction. The default is <quote>read committed</quote>.
+       </para>
+
+       <para>
+        Consult <xref linkend="mvcc"> and <xref linkend="sql-set-transaction"> for more
+        information.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <indexterm>
+       <primary>read-only transaction</primary>
+      </indexterm>
+
+      <term><varname>default_transaction_read_only</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        A read-only SQL transaction cannot alter non-temporary tables.
+        This parameter controls the default read-only status of each new
+        transaction. The default is false (read/write).
+       </para>
+
+       <para>
+        Consult <xref linkend="sql-set-transaction"> for more information.
+       </para>
+      </listitem>
+     </varlistentry>
+     
+     <varlistentry>
+      <term><varname>statement_timeout</varname> (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        Aborts any statement that takes over the specified number of
+        milliseconds.  A value of zero turns off the timer, which is
+        the default value.
+       </para>
+      </listitem>
+     </varlistentry>
+     
+     </variablelist>
+    </sect3>
+     <sect3 id="runtime-config-client-format">
+     <title>Locale and Formatting</title>
+
+     <variablelist>
+
+     <varlistentry>
+      <term><varname>datestyle</varname> (<type>string</type>)</term>
+      <indexterm><primary>date style</></>
+      <listitem>
+       <para>
+        Sets the display format for date and time values, as well as
+        the rules for interpreting ambiguous date input values.
+        For historical reasons, this variable contains two independent
+        components: the output format specification (<literal>ISO</>,
+        <literal>Postgres</>, <literal>SQL</>, or <literal>German</>) and
+        the date field order specification (<literal>DMY</>, <literal>MDY</>,
+        or <literal>YMD</>).  These can be set separately or together.
+        The keywords <literal>Euro</> and <literal>European</> are synonyms
+        for <literal>DMY</>; the keywords <literal>US</>, <literal>NonEuro</>,
+        and <literal>NonEuropean</> are synonyms for <literal>MDY</>.
+        See <xref linkend="datatype-datetime"> for more information.  The
+        default is <literal>ISO, MDY</>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>timezone</varname> (<type>string</type>)</term>
+      <indexterm><primary>time zone</></>
+      <listitem>
+       <para>
+        Sets the time zone for displaying and interpreting time
+        stamps.  The default is to use whatever the system environment
+        specifies as the time zone.  See <xref
+        linkend="datatype-datetime"> for more information.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>australian_timezones</varname> (<type>boolean</type>)</term>
+      <indexterm><primary>time zone</><secondary>Australian</></>
+      <listitem>
+       <para>
+        If set to true, <literal>ACST</literal>,
+        <literal>CST</literal>, <literal>EST</literal>, and
+        <literal>SAT</literal> are interpreted as Australian time
+        zones rather than as North/South American time zones and
+        Saturday. The default is false.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <indexterm>
+       <primary>significant digits</primary>
+      </indexterm>
+      <indexterm>
+       <primary>floating-point</primary>
+       <secondary>display</secondary>
+      </indexterm>
+
+      <term><varname>extra_float_digits</varname> (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        This parameter adjusts the number of digits displayed for
+        floating-point values, including <type>float4</>, <type>float8</>,
+        and geometric data types.  The parameter value is added to the
+        standard number of digits (<literal>FLT_DIG</> or <literal>DBL_DIG</>
+        as appropriate).  The value can be set as high as 2, to include
+        partially-significant digits; this is especially useful for dumping
+        float data that needs to be restored exactly.  Or it can be set
+        negative to suppress unwanted digits.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>client_encoding</varname> (<type>string</type>)</term>
+      <indexterm><primary>character set</></>
+      <listitem>
+       <para>
+        Sets the client-side encoding (character set).
+        The default is to use the database encoding.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>lc_messages</varname> (<type>string</type>)</term>
+      <listitem>
+       <para>
+        Sets the language in which messages are displayed.  Acceptable
+        values are system-dependent; see <xref linkend="locale"> for
+        more information.  If this variable is set to the empty string
+        (which is the default) then the value is inherited from the
+        execution environment of the server in a system-dependent way.
+       </para>
+
+       <para>
+        On some systems, this locale category does not exist.  Setting
+        this variable will still work, but there will be no effect.
+        Also, there is a chance that no translated messages for the
+        desired language exist.  In that case you will continue to see
+        the English messages.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>lc_monetary</varname> (<type>string</type>)</term>
+      <listitem>
+       <para>
+        Sets the locale to use for formatting monetary amounts, for
+        example with the <function>to_char</function> family of
+        functions.  Acceptable values are system-dependent; see <xref
+        linkend="locale"> for more information.  If this variable is
+        set to the empty string (which is the default) then the value
+        is inherited from the execution environment of the server in a
+        system-dependent way.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>lc_numeric</varname> (<type>string</type>)</term>
+      <listitem>
+       <para>
+        Sets the locale to use for formatting numbers, for example
+        with the <function>to_char()</function> family of
+        functions. Acceptable values are system-dependent; see <xref
+        linkend="locale"> for more information.  If this variable is
+        set to the empty string (which is the default) then the value
+        is inherited from the execution environment of the server in a
+        system-dependent way.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>lc_time</varname> (<type>string</type>)</term>
+      <listitem>
+       <para>
+        Sets the locale to use for formatting date and time values.
+        (Currently, this setting does nothing, but it may in the
+        future.)  Acceptable values are system-dependent; see <xref
+        linkend="locale"> for more information.  If this variable is
+        set to the empty string (which is the default) then the value
+        is inherited from the execution environment of the server in a
+        system-dependent way.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     </variablelist>
+
+    </sect3>
+     <sect3 id="runtime-config-client-other">
+     <title>Other Defaults</title>
+
+     <variablelist>
+
+     <varlistentry>
+      <term><varname>explain_pretty_print</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        Determines whether <command>EXPLAIN VERBOSE</> uses the
+        indented or non-indented format for displaying detailed
+        query-tree dumps. The default is on.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>dynamic_library_path</varname> (<type>string</type>)</term>
+      <indexterm><primary>dynamic_library_path</></>
+      <indexterm><primary>dynamic loading</></>
+      <listitem>
+       <para>
+        If a dynamically loadable module needs to be opened and the
+        specified name does not have a directory component (i.e. the
+        name does not contain a slash), the system will search this
+        path for the specified file.  (The name that is used is the
+        name specified in the <command>CREATE FUNCTION</command> or
+        <command>LOAD</command> command.)
+       </para>
+
+       <para>
+        The value for <varname>dynamic_library_path</varname> has to be a colon-separated
+        list of absolute directory names. If a directory name starts
+        with the special value <literal>$libdir</literal>, the
+        compiled-in <productname>PostgreSQL</productname> package
+        library directory is substituted. This where the modules
+        provided by the <productname>PostgreSQL</productname>
+        distribution are installed. (Use <literal>pg_config
+        --pkglibdir</literal> to print the name of this directory.) For
+        example:
+<programlisting>
+dynamic_library_path = '/usr/local/lib/postgresql:/home/my_project/lib:$libdir'
+</programlisting>
+       </para>
+
+       <para>
+        The default value for this parameter is
+        <literal>'$libdir'</literal>. If the value is set to an empty
+        string, the automatic path search is turned off.
+       </para>
+
+       <para>
+        This parameter can be changed at run time by superusers, but a
+        setting done that way will only persist until the end of the
+        client connection, so this method should be reserved for
+        development purposes. The recommended way to set this parameter
+        is in the <filename>postgresql.conf</filename> configuration
+        file.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>max_expr_depth</varname> (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        Sets the maximum expression nesting depth of the parser. The
+        default value of 10000 is high enough for any normal query,
+        but you can raise it if needed. (But if you raise it too high,
+        you run the risk of server crashes due to stack overflow.)
+       </para>
+      </listitem>
+     </varlistentry>
+
+     </variablelist>
+    </sect3>
+   </sect2>
+
+   <sect2 id="runtime-config-locks">
+    <title>Lock Management</title>
+
+     <variablelist>
+
+     <varlistentry>
+      <indexterm>
+       <primary>deadlock</primary>
+       <secondary>timeout during</secondary>
+      </indexterm>
+      <indexterm>
+       <primary>timeout</primary>
+       <secondary>deadlock</secondary>
+      </indexterm>
+
+      <term><varname>deadlock_timeout</varname> (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        This is the amount of time, in milliseconds, to wait on a lock
+        before checking to see if there is a deadlock condition. The
+        check for deadlock is relatively slow, so the server doesn't run
+        it every time it waits for a lock. We (optimistically?) assume
+        that deadlocks are not common in production applications and
+        just wait on the lock for a while before starting the check for a
+        deadlock. Increasing this value reduces the amount of time
+        wasted in needless deadlock checks, but slows down reporting of
+        real deadlock errors. The default is 1000 (i.e., one second),
+        which is probably about the smallest value you would want in
+        practice. On a heavily loaded server you might want to raise it.
+        Ideally the setting should exceed your typical transaction time,
+        so as to improve the odds that a lock will be released before
+        the waiter decides to check for deadlock.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>max_locks_per_transaction</varname> (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        The shared lock table is sized on the assumption that at most
+        <varname>max_locks_per_transaction</varname> *
+        <varname>max_connections</varname> distinct objects will need to
+        be locked at any one time. The default, 64, has historically
+        proven sufficient, but you might need to raise this value if you
+        have clients that touch many different tables in a single
+        transaction. This option can only be set at server start.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     </variablelist>
+   </sect2>
+
+   <sect2 id="runtime-config-compatible">
+    <title>Version and Platform Compatibility</title>
+
+    <sect3 id="runtime-config-compatible-version">
+     <title>Previous PostgreSQL Versions</title>
+     <variablelist>
+
+     <varlistentry>
+      <term><varname>add_missing_from</varname> (<type>boolean</type>)</term>
+      <indexterm><primary>FROM</><secondary>missing</></>
+      <listitem>
+       <para>
+        When <literal>true</>, tables that are referenced by a query will be
+        automatically added to the <literal>FROM</> clause if not already
+        present.  The default is <literal>true</> for compatibility with
+        previous releases of <productname>PostgreSQL</>.  However, this
+        behavior is not SQL-standard, and many people dislike it because it
+        can mask mistakes.  Set to <literal>false</> for the SQL-standard
+        behavior of rejecting references to tables that are not listed in
+        <literal>FROM</>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>regex_flavor</varname> (<type>string</type>)</term>
+      <indexterm><primary>regular expressions</></>
+      <listitem>
+       <para>
+        The regular expression <quote>flavor</> can be set to
+        <literal>advanced</>, <literal>extended</>, or <literal>basic</>.
+        The default is <literal>advanced</>.  The <literal>extended</>
+        setting may be useful for exact backwards compatibility with
+        pre-7.4 releases of <productname>PostgreSQL</>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>sql_inheritance</varname> (<type>boolean</type>)</term>
+      <indexterm><primary>inheritance</></>
+      <listitem>
+       <para>
+        This controls the inheritance semantics, in particular whether
+        subtables are included by various commands by default. They were
+        not included in versions prior to 7.1. If you need the old
+        behavior you can set this variable to off, but in the long run
+        you are encouraged to change your applications to use the
+        <literal>ONLY</literal> key word to exclude subtables. See
+        <xref linkend="ddl-inherit"> for more information about inheritance.
+       </para>
+      </listitem>
+     </varlistentry>
+
+          </variablelist>
+    </sect3>
+    <sect3 id="runtime-config-compatible-clients">
+     <title>Platform and Client Compatibility</title>
+     <variablelist>
+
+     <varlistentry>
+      <term><varname>transform_null_equals</varname> (<type>boolean</type>)</term>
+      <indexterm><primary>IS NULL</></>
+      <listitem>
+       <para>
+        When turned on, expressions of the form
+        <literal><replaceable>expr</> = NULL</literal> (or <literal>NULL
+        = <replaceable>expr</></literal>) are treated as
+        <literal><replaceable>expr</> IS NULL</literal>, that is, they
+        return true if <replaceable>expr</> evaluates to the null value,
+        and false otherwise. The correct behavior of
+        <literal><replaceable>expr</> = NULL</literal> is to always
+        return null (unknown). Therefore this option defaults to off.
+       </para>
+
+       <para>
+        However, filtered forms in <productname>Microsoft
+        Access</productname> generate queries that appear to use
+        <literal><replaceable>expr</> = NULL</literal> to test for
+        null values, so if you use that interface to access the database you
+        might want to turn this option on.  Since expressions of the
+        form <literal><replaceable>expr</> = NULL</literal> always
+        return the null value (using the correct interpretation) they are not
+        very useful and do not appear often in normal applications, so
+        this option does little harm in practice.  But new users are
+        frequently confused about the semantics of expressions
+        involving null values, so this option is not on by default.
+       </para>
+
+       <para>
+        Note that this option only affects the literal <literal>=</>
+        operator, not other comparison operators or other expressions
+        that are computationally equivalent to some expression
+        involving the equals operator (such as <literal>IN</literal>).
+        Thus, this option is not a general fix for bad programming.
+       </para>
+
+       <para>
+        Refer to <xref linkend="functions-comparison"> for related information.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     </variablelist>
+    </sect3>
+   </sect2>
+
+   <sect2 id="runtime-config-developer">
+    <title>Developer Options</title>
+
+    <para>
+     The following options are intended for work on the
+     <productname>PostgreSQL</productname> source, and in some cases
+     to assist with recovery of severely damaged databases.  There
+     should be no reason to use them in a production database setup.
+     As such, they have been excluded from the sample
+     <filename>postgresql.conf</> file.  Note that many of these
+     options require special source compilation flags to work at all.
+    </para>
+
+    <variablelist>
+     <varlistentry>
+      <term><varname>debug_assertions</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        Turns on various assertion checks. This is a debugging aid. If
+        you are experiencing strange problems or crashes you might want
+        to turn this on, as it might expose programming mistakes. To use
+        this option, the macro <literal>USE_ASSERT_CHECKING</literal>
+        must be defined when <productname>PostgreSQL</productname> is
+        built (accomplished by the <command>configure</command> option
+        <option>--enable-cassert</option>). Note that
+        <literal>DEBUG_ASSERTIONS</literal> defaults to on if
+        <productname>PostgreSQL</productname> has been built with
+        assertions enabled.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>pre_auth_delay</varname> (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        If nonzero, a delay of this many seconds occurs just after a new
+        server process is forked, before it conducts the authentication
+        process.  This is intended to give an opportunity to attach to the
+        server process with a debugger to trace down misbehavior in
+        authentication.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>trace_notify</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        Generates a great amount of debugging output for the
+        <command>LISTEN</command> and <command>NOTIFY</command>
+        commands.  <varname>client_min_messages</varname> or
+        <varname>log_min_messages</varname> must be
+        <literal>DEBUG1</literal> or lower to send this output to the
+        client or server log, respectively.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>trace_locks</varname> (<type>boolean</type>)</term>
+      <term><varname>trace_lwlocks</varname> (<type>boolean</type>)</term>
+      <term><varname>trace_userlocks</varname> (<type>boolean</type>)</term>
+      <term><varname>trace_lock_oidmin</varname> (<type>boolean</type>)</term>
+      <term><varname>trace_lock_table</varname> (<type>boolean</type>)</term>
+      <term><varname>debug_deadlocks</varname> (<type>boolean</type>)</term>
+      <term><varname>log_btree_build_stats</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        Various other code tracing and debugging options.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><varname>wal_debug</varname> (<type>integer</type>)</term>
+      <listitem>
+       <para>
+        If nonzero, turn on WAL-related debugging output.
+       </para>
+      </listitem>
+     </varlistentry>
+
+    <varlistentry>
+      <term><varname>zero_damaged_pages</varname> (<type>boolean</type>)</term>
+      <listitem>
+       <para>
+        Detection of a damaged page header normally causes
+        <productname>PostgreSQL</> to report an error, aborting the current
+        transaction.  Setting <varname>zero_damaged_pages</> to true causes
+        the system to instead report a warning, zero out the damaged page,
+        and continue processing.  This behavior <emphasis>will destroy data</>,
+        namely all the rows on the damaged page.  But it allows you to get
+        past the error and retrieve rows from any undamaged pages that may
+        be present in the table.  So it is useful for recovering data if
+        corruption has occurred due to hardware or software error.  You should
+        generally not set this true until you have given up hope of recovering
+        data from the damaged page(s) of a table.  The
+        default setting is off, and it can only be changed by a superuser.
+       </para>
+      </listitem>
+     </varlistentry>
+   </variablelist>
+  </sect2>
+  <sect2 id="runtime-config-short">
+   <title>Short Options</title>
+
+   <para>
+    For convenience there are also single letter command-line option switches
+    available for some parameters. They are described in <xref
+    linkend="runtime-config-short-table">.
+   </para>
+
+    <table id="runtime-config-short-table">
+     <title>Short option key</title>
+     <tgroup cols="2">
+      <thead>
+       <row>
+        <entry>Short option</entry>
+        <entry>Equivalent</entry>
+       </row>
+      </thead>
+
+      <tbody>
+       <row>
+        <entry><option>-B <replaceable>x</replaceable></option></entry>
+        <entry><literal>shared_buffers = <replaceable>x</replaceable></></entry>
+       </row>
+       <row>
+        <entry><option>-d <replaceable>x</replaceable></option></entry>
+        <entry><literal>log_min_messages = DEBUG<replaceable>x</replaceable></></entry>
+       </row>
+       <row>
+        <entry><option>-F</option></entry>
+        <entry><literal>fsync = off</></entry>
+       </row>
+       <row>
+        <entry><option>-h <replaceable>x</replaceable></option></entry>
+        <entry><literal>virtual_host = <replaceable>x</replaceable></></entry>
+       </row>
+       <row>
+        <entry><option>-i</option></entry>
+        <entry><literal>tcpip_socket = on</></entry>
+       </row>
+       <row>
+        <entry><option>-k <replaceable>x</replaceable></option></entry>
+        <entry><literal>unix_socket_directory = <replaceable>x</replaceable></></entry>
+       </row>
+       <row>
+        <entry><option>-l</option></entry>
+        <entry><literal>ssl = on</></entry>
+       </row>
+       <row>
+        <entry><option>-N <replaceable>x</replaceable></option></entry>
+        <entry><literal>max_connections = <replaceable>x</replaceable></></entry>
+       </row>
+       <row>
+        <entry><option>-p <replaceable>x</replaceable></option></entry>
+        <entry><literal>port = <replaceable>x</replaceable></></entry>
+       </row>
+
+       <row>
+        <entry>
+          <option>-fi</option>, <option>-fh</option>,
+          <option>-fm</option>, <option>-fn</option>,
+          <option>-fs</option>, <option>-ft</option><footnote
+          id="fn.runtime-config-short">
+           <para>
+            For historical reasons, these options must be passed to
+            the individual server process via the <option>-o</option>
+            <command>postmaster</command> option, for example,
+<screen>
+$ <userinput>postmaster -o '-S 1024 -s'</userinput>
+</screen>
+            or via <envar>PGOPTIONS</envar> from the client side, as
+            explained above.
+           </para>
+          </footnote>
+         </entry>
+         <entry>
+          <literal>enable_indexscan=off</>,
+          <literal>enable_hashjoin=off</>,
+          <literal>enable_mergejoin=off</>,
+          <literal>enable_nestloop=off</>,
+          <literal>enable_seqscan=off</>,
+          <literal>enable_tidscan=off</>
+         </entry>
+       </row>
+
+       <row>
+        <entry><option>-s</option><footnoteref linkend="fn.runtime-config-short"></entry>
+        <entry><literal>log_statement_stats = on</></entry>
+       </row>
+
+       <row>
+        <entry><option>-S <replaceable>x</replaceable></option><footnoteref linkend="fn.runtime-config-short">
+        </entry>
+        <entry><literal>sort_mem = <replaceable>x</replaceable></></entry>
+       </row>
+
+       <row>
+        <entry><option>-tpa</option>, <option>-tpl</option>, <option>-te</option><footnoteref linkend="fn.runtime-config-short"></entry>
+        <entry><literal>log_parser_stats=on</>,
+        <literal>log_planner_stats=on</>, 
+        <literal>log_executor_stats=on</></entry>
+       </row>
+      </tbody>
+     </tgroup>
+    </table>
+
+  </sect2>
+ </sect1>
+
+
+ <sect1 id="kernel-resources">
+  <title>Managing Kernel Resources</title>
+
+  <para>
+   A large <productname>PostgreSQL</> installation can quickly exhaust
+   various operating system resource limits. (On some systems, the
+   factory defaults are so low that you don't even need a really
+   <quote>large</> installation.) If you have encountered this kind of
+   problem, keep reading.
+  </para>
+
+  <sect2 id="sysvipc">
+   <title>Shared Memory and Semaphores</title>
+
+   <indexterm zone="sysvipc">
+    <primary>shared memory</primary>
+   </indexterm>
+
+   <indexterm zone="sysvipc">
+    <primary>semaphores</primary>
+   </indexterm>
+
+   <para>
+    Shared memory and semaphores are collectively referred to as
+    <quote><systemitem class="osname">System V</>
+    <acronym>IPC</></quote> (together with message queues, which are not
+    relevant for <productname>PostgreSQL</>). Almost all modern
+    operating systems provide these features, but not all of them have
+    them turned on or sufficiently sized by default, especially systems
+    with BSD heritage. (For the <systemitem class="osname">QNX</> and
+    <systemitem class="osname">BeOS</> ports, <productname>PostgreSQL</>
+    provides its own replacement implementation of these facilities.)
+   </para>
+
+   <para>
+    The complete lack of these facilities is usually manifested by an
+    <errorname>Illegal system call</> error upon server start. In
+    that case there's nothing left to do but to reconfigure your
+    kernel.  <productname>PostgreSQL</> won't work without them.
+   </para>
+
+   <para>
+    When <productname>PostgreSQL</> exceeds one of the various hard
+    <acronym>IPC</> limits, the server will refuse to start and
+    should leave an instructive error message describing the problem
+    encountered and what to do about it. (See also <xref
+    linkend="postmaster-start-failures">.) The relevant kernel
+    parameters are named consistently across different systems; <xref
+    linkend="sysvipc-parameters"> gives an overview. The methods to set
+    them, however, vary. Suggestions for some platforms are given below.
+    Be warned that it is often necessary to reboot your machine, and
+    possibly even recompile the kernel, to change these settings.
+   </para>
+
+
+   <table id="sysvipc-parameters">
+    <title><systemitem class="osname">System V</> <acronym>IPC</> parameters</>
+
+    <tgroup cols="3">
+     <thead>
+      <row>
+       <entry>Name</>
+       <entry>Description</>
+       <entry>Reasonable values</>
+      </row>
+     </thead>
+
+     <tbody>
+      <row>
+       <entry><varname>SHMMAX</></>
+       <entry>Maximum size of shared memory segment (bytes)</>
+       <entry>250 kB + 8.2 kB * <varname>shared_buffers</> + 14.2 kB * <varname>max_connections</> up to infinity</entry>
+      </row>
+
+      <row>
+       <entry><varname>SHMMIN</></>
+       <entry>Minimum size of shared memory segment (bytes)</>
+       <entry>1</>
+      </row>
+
+      <row>
+       <entry><varname>SHMALL</></>
+       <entry>Total amount of shared memory available (bytes or pages)</>
+       <entry>if bytes, same as <varname>SHMMAX</varname>; if pages, <literal>ceil(SHMMAX/PAGE_SIZE)</literal></>
+      </row>
+
+      <row>
+       <entry><varname>SHMSEG</></>
+       <entry>Maximum number of shared memory segments per process</>
+       <entry>only 1 segment is needed, but the default is much higher</>
+      </row>
+
+       <row>
+        <entry><varname>SHMMNI</></>
+        <entry>Maximum number of shared memory segments system-wide</>
+        <entry>like <varname>SHMSEG</> plus room for other applications</>
+       </row>
+
+       <row>
+        <entry><varname>SEMMNI</></>
+        <entry>Maximum number of semaphore identifiers (i.e., sets)</>
+        <entry>at least <literal>ceil(max_connections / 16)</literal></>
+       </row>
+
+       <row>
+        <entry><varname>SEMMNS</></>
+        <entry>Maximum number of semaphores system-wide</>
+        <entry><literal>ceil(max_connections / 16) * 17</literal> plus room for other applications</>
+       </row>
+
+       <row>
+        <entry><varname>SEMMSL</></>
+        <entry>Maximum number of semaphores per set</>
+        <entry>at least 17</>
+       </row>
+
+       <row>
+        <entry><varname>SEMMAP</></>
+        <entry>Number of entries in semaphore map</>
+        <entry>see text</>
+       </row>
+
+       <row>
+        <entry><varname>SEMVMX</></>
+        <entry>Maximum value of semaphore</>
+        <entry>at least 1000 (The default is often 32767, don't change unless asked to.)</>
+       </row>
+
+     </tbody>
+    </tgroup>
+   </table>
+
+
+   <para>
+    <indexterm><primary>SHMMAX</primary></indexterm> The most important
+    shared memory parameter is <varname>SHMMAX</>, the maximum size, in
+    bytes, of a shared memory segment. If you get an error message from
+    <function>shmget</> like <errorname>Invalid argument</>, it is
+    possible that this limit has been exceeded. The size of the required
+    shared memory segment varies both with the number of requested
+    buffers (<option>-B</> option) and the number of allowed connections
+    (<option>-N</> option), although the former is the most significant.
+    (You can, as a temporary solution, lower these settings to eliminate
+    the failure.) As a rough approximation, you can estimate the
+    required segment size by multiplying the number of buffers and the
+    block size (8 kB by default) plus ample overhead (at least half a
+    megabyte). Any error message you might get will contain the size of
+    the failed allocation request.
+   </para>
+
+   <para>
+    Less likely to cause problems is the minimum size for shared
+    memory segments (<varname>SHMMIN</>), which should be at most
+    approximately 256 kB for <productname>PostgreSQL</> (it is
+    usually just 1). The maximum number of segments system-wide
+    (<varname>SHMMNI</>) or per-process (<varname>SHMSEG</>) should
+    not cause a problem unless your system has them set to zero. Some
+    systems also have a limit on the total amount of shared memory in
+    the system; see the platform-specific instructions below.
+   </para>
+
+   <para>
+    <productname>PostgreSQL</> uses one semaphore per allowed connection
+    (<option>-N</> option), in sets of 16.  Each such set will also
+    contain a 17th semaphore which contains a <quote>magic
+    number</quote>, to detect collision with semaphore sets used by
+    other applications. The maximum number of semaphores in the system
+    is set by <varname>SEMMNS</>, which consequently must be at least
+    as high as <literal>max_connections</> plus one extra for each 16
+    allowed connections (see the formula in <xref
+    linkend="sysvipc-parameters">).  The parameter <varname>SEMMNI</>
+    determines the limit on the number of semaphore sets that can
+    exist on the system at one time.  Hence this parameter must be at
+    least <literal>ceil(max_connections / 16)</>. Lowering the number
+    of allowed connections is a temporary workaround for failures,
+    which are usually confusingly worded <errorname>No space
+    left on device</>, from the function <function>semget</>.
+   </para>
+
+   <para>
+    In some cases it might also be necessary to increase
+    <varname>SEMMAP</> to be at least on the order of
+    <varname>SEMMNS</>. This parameter defines the size of the semaphore
+    resource map, in which each contiguous block of available semaphores
+    needs an entry. When a semaphore set is freed it is either added to
+    an existing entry that is adjacent to the freed block or it is
+    registered under a new map entry. If the map is full, the freed
+    semaphores get lost (until reboot). Fragmentation of the semaphore
+    space could over time lead to fewer available semaphores than there
+    should be.
+   </para>
+
+   <para>
+    The <varname>SEMMSL</> parameter, which determines how many
+    semaphores can be in a set, must be at least 17 for
+    <productname>PostgreSQL</>.
+   </para>
+
+   <para>
+    Various other settings related to <quote>semaphore undo</>, such as
+    <varname>SEMMNU</> and <varname>SEMUME</>, are not of concern
+    for <productname>PostgreSQL</>.
+   </para>
+
+    <variablelist>
+
+     <varlistentry>
+      <term><systemitem class="osname">BSD/OS</></term>
+      <indexterm><primary>BSD/OS</><secondary>IPC configuration</></>
+      <listitem>
+       <formalpara>
+        <title>Shared Memory</>
+        <para>
+         By default, only 4 MB of shared memory is supported. Keep in
+         mind that shared memory is not pageable; it is locked in RAM.
+         To increase the amount of shared memory supported by your
+         system, add the following to your kernel configuration
+         file. A <varname>SHMALL</> value of 1024 represents 4 MB of
+         shared memory. The following increases the maximum shared
+         memory area to 32 MB:
+<programlisting>
+options "SHMALL=8192"
+options "SHMMAX=\(SHMALL*PAGE_SIZE\)"
+</programlisting>
+         For those running 4.3 or later, you will probably need to increase
+         <varname>KERNEL_VIRTUAL_MB</> above the default <literal>248</>.
+         Once all changes have been made, recompile the kernel, and reboot.
+        </para>
+       </formalpara>
+
+       <para>
+        For those running 4.0 and earlier releases, use <command>bpatch</>
+        to find the <varname>sysptsize</> value in the current
+        kernel. This is computed dynamically at boot time.
+<screen>
+$ <userinput>bpatch -r sysptsize</>
+<computeroutput>0x9 = 9</>
+</screen>
+        Next, add <varname>SYSPTSIZE</> as a hard-coded value in the
+        kernel configuration file. Increase the value you found using
+        <command>bpatch</>. Add 1 for every additional 4 MB of
+        shared memory you desire.
+<programlisting>
+options "SYSPTSIZE=16"
+</programlisting>
+        <varname>sysptsize</> cannot be changed by <command>sysctl</command>.
+       </para>
+
+       <formalpara>
+        <title>Semaphores</>
+        <para>
+         You may need to increase the number of semaphores. By
+         default, <productname>PostgreSQL</> allocates 34 semaphores,
+         which is over half the default system total of 60.  Set the
+         values you want in your kernel configuration file, e.g.:
+<programlisting>
+options "SEMMNI=40"
+options "SEMMNS=240"
+</programlisting>
+        </para>
+       </formalpara>
+      </listitem>
+     </varlistentry>
+
+
+     <varlistentry>
+      <term><systemitem class="osname">FreeBSD</></term>
+      <term><systemitem class="osname">NetBSD</></term>
+      <term><systemitem class="osname">OpenBSD</></term>
+      <indexterm><primary>FreeBSD</><secondary>IPC configuration</></>
+      <indexterm><primary>NetBSD</><secondary>IPC configuration</></>
+      <indexterm><primary>OpenBSD</><secondary>IPC configuration</></>
+      <listitem>
+       <para>
+        The options <varname>SYSVSHM</> and <varname>SYSVSEM</> need
+        to be enabled when the kernel is compiled. (They are by
+        default.) The maximum size of shared memory is determined by
+        the option <varname>SHMMAXPGS</> (in pages). The following
+        shows an example of how to set the various parameters:
+<programlisting>
+options         SYSVSHM
+options         SHMMAXPGS=4096
+options         SHMSEG=256
+
+options         SYSVSEM
+options         SEMMNI=256
+options         SEMMNS=512
+options         SEMMNU=256
+options         SEMMAP=256
+</programlisting>
+        (On <systemitem class="osname">NetBSD</> and <systemitem
+        class="osname">OpenBSD</> the key word is actually
+        <literal>option</literal> singular.)
+       </para>
+       <para>
+        You might also want to configure your kernel to lock shared
+        memory into RAM and prevent it from being paged out to swap.
+        Use the <command>sysctl</> setting
+        <literal>kern.ipc.shm_use_phys</>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+
+     <varlistentry>
+      <term><systemitem class="osname">HP-UX</></term>
+      <indexterm><primary>HP-UX</><secondary>IPC configuration</></>
+      <listitem>
+       <para>
+        The default settings tend to suffice for normal installations.
+        On <productname>HP-UX</> 10, the factory default for
+        <varname>SEMMNS</> is 128, which might be too low for larger
+        database sites.
+       </para>
+       <para>
+        <acronym>IPC</> parameters can be set in the <application>System
+        Administration Manager</> (<acronym>SAM</>) under
+        <menuchoice><guimenu>Kernel
+        Configuration</><guimenuitem>Configurable Parameters</></>. Hit
+        <guibutton>Create A New Kernel</> when you're done.
+       </para>
+      </listitem>
+     </varlistentry>
+
+
+     <varlistentry>
+      <term><systemitem class="osname">Linux</></term>
+      <indexterm><primary>Linux</><secondary>IPC configuration</></>
+      <listitem>
+       <para>
+        The default shared memory limit (both
+        <varname>SHMMAX</varname> and <varname>SHMALL</varname>) is 32
+        MB in 2.2 kernels, but it can be changed in the
+        <filename>proc</filename> file system (without reboot).  For
+        example, to allow 128 MB:
+<screen>
+<prompt>$</prompt> <userinput>echo 134217728 >/proc/sys/kernel/shmall</userinput>
+<prompt>$</prompt> <userinput>echo 134217728 >/proc/sys/kernel/shmmax</userinput>
+</screen>
+        You could put these commands into a script run at boot-time.
+       </para>
+
+       <para>
+        Alternatively, you can use <command>sysctl</command>, if
+        available, to control these parameters.  Look for a file
+        called <filename>/etc/sysctl.conf</filename> and add lines
+        like the following to it:
+<programlisting>
+kernel.shmall = 134217728
+kernel.shmmax = 134217728
+</programlisting>
+        This file is usually processed at boot time, but
+        <command>sysctl</command> can also be called
+        explicitly later.
+       </para>
+
+       <para>
+        Other parameters are sufficiently sized for any application. If
+        you want to see for yourself look in
+        <filename>/usr/src/linux/include/asm-<replaceable>xxx</>/shmpara
+        m.h</> and <filename>/usr/src/linux/include/linux/sem.h</>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+
+     <varlistentry>
+      <term><systemitem class="osname">MacOS X</></term>
+      <indexterm><primary>MacOS X</><secondary>IPC configuration</></>
+      <listitem>
+       <para>
+        In OS X 10.2 and earlier, edit the file
+        <filename>/System/Library/StartupItems/SystemTuning/SystemTuning</>
+	and change the values in the following commands:
+<programlisting>
+sysctl -w kern.sysv.shmmax
+sysctl -w kern.sysv.shmmin
+sysctl -w kern.sysv.shmmni
+sysctl -w kern.sysv.shmseg
+sysctl -w kern.sysv.shmall
+</programlisting>
+        In OS X 10.3, these commands have been moved to <filename>/etc/rc</>
+	and must be edited there.
+       </para>
+      </listitem>
+     </varlistentry>
+
+
+     <varlistentry>
+      <term><systemitem class="osname">SCO OpenServer</></term>
+      <indexterm><primary>SCO OpenServer</><secondary>IPC configuration</></>
+      <listitem>
+       <para>
+        In the default configuration, only 512 kB of shared memory per
+        segment is allowed, which is about enough for <option>-B 24 -N
+        12</>. To increase the setting, first change to the directory
+        <filename>/etc/conf/cf.d</>. To display the current value of
+        <varname>SHMMAX</>, run
+<programlisting>
+./configure -y SHMMAX
+</programlisting>
+        To set a new value for <varname>SHMMAX</>, run
+<programlisting>
+./configure SHMMAX=<replaceable>value</>
+</programlisting>
+        where <replaceable>value</> is the new value you want to use
+        (in bytes). After setting <varname>SHMMAX</>, rebuild the kernel:
+<programlisting>
+./link_unix
+</programlisting>
+        and reboot.
+       </para>
+      </listitem>
+     </varlistentry>
+
+
+     <varlistentry>
+      <term><systemitem class="osname">Solaris</></term>
+      <indexterm><primary>Solaris</><secondary>IPC configuration</></>
+      <listitem>
+       <para>
+        At least in version 2.6, the default maximum size of a shared
+        memory segments is too low for <productname>PostgreSQL</>. The
+        relevant settings can be changed in <filename>/etc/system</>,
+        for example:
+<programlisting>
+set shmsys:shminfo_shmmax=0x2000000
+set shmsys:shminfo_shmmin=1
+set shmsys:shminfo_shmmni=256
+set shmsys:shminfo_shmseg=256
+
+set semsys:seminfo_semmap=256
+set semsys:seminfo_semmni=512
+set semsys:seminfo_semmns=512
+set semsys:seminfo_semmsl=32
+</programlisting>
+        You need to reboot for the changes to take effect.
+       </para>
+
+       <para>
+        See also <ulink
+        url="http://www.sunworld.com/swol-09-1997/swol-09-insidesolaris.html"></>
+        for information on shared memory under
+        <productname>Solaris</>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+
+     <varlistentry>
+      <term><systemitem class="osname">UnixWare</></term>
+      <indexterm><primary>UnixWare</><secondary>IPC configuration</></>
+      <listitem>
+       <para>
+        On <productname>UnixWare</> 7, the maximum size for shared
+        memory segments is 512 kB in the default configuration. This
+        is enough for about <option>-B 24 -N 12</>. To display the
+        current value of <varname>SHMMAX</>, run
+<programlisting>
+/etc/conf/bin/idtune -g SHMMAX
+</programlisting>
+        which displays the current, default, minimum, and maximum
+        values. To set a new value for <varname>SHMMAX</>,
+        run
+<programlisting>
+/etc/conf/bin/idtune SHMMAX <replaceable>value</>
+</programlisting>
+        where <replaceable>value</> is the new value you want to use
+        (in bytes). After setting <varname>SHMMAX</>, rebuild the
+        kernel:
+<programlisting>
+/etc/conf/bin/idbuild -B
+</programlisting>
+        and reboot.
+       </para>
+      </listitem>
+     </varlistentry>
+
+    </variablelist>
+
+  </sect2>
+
+
+  <sect2>
+   <title>Resource Limits</title>
+
+   <para>
+    Unix-like operating systems enforce various kinds of resource limits
+    that might interfere with the operation of your
+    <productname>PostgreSQL</productname> server. Of particular
+    importance are limits on the number of processes per user, the
+    number of open files per process, and the amount of memory available
+    to each process. Each of these have a <quote>hard</quote> and a
+    <quote>soft</quote> limit. The soft limit is what actually counts
+    but it can be changed by the user up to the hard limit. The hard
+    limit can only be changed by the root user. The system call
+    <function>setrlimit</function> is responsible for setting these
+    parameters. The shell's built-in command <command>ulimit</command>
+    (Bourne shells) or <command>limit</command> (<application>csh</>) is
+    used to control the resource limits from the command line. On
+    BSD-derived systems the file <filename>/etc/login.conf</filename>
+    controls the various resource limits set during login. See the
+    operating system documentation for details. The relevant
+    parameters are <varname>maxproc</varname>,
+    <varname>openfiles</varname>, and <varname>datasize</varname>. For
+    example:
+<programlisting>
+default:\
+...
+        :datasize-cur=256M:\
+        :maxproc-cur=256:\
+        :openfiles-cur=256:\
+...
+</programlisting>
+    (<literal>-cur</literal> is the soft limit.  Append
+    <literal>-max</literal> to set the hard limit.)
+   </para>
+
+   <para>
+    Kernels can also have system-wide limits on some resources.
+    <itemizedlist>
+     <listitem>
+      <para>
+      On <productname>Linux</productname>
+      <filename>/proc/sys/fs/file-max</filename> determines the
+      maximum number of open files that the kernel will support.  It can
+      be changed by writing a different number into the file or by
+      adding an assignment in <filename>/etc/sysctl.conf</filename>.
+      The maximum limit of files per process is fixed at the time the
+      kernel is compiled; see
+      <filename>/usr/src/linux/Documentation/proc.txt</filename> for
+      more information.
+      </para>
+     </listitem>
+    </itemizedlist>
+   </para>
+
+   <para>
+    The <productname>PostgreSQL</productname> server uses one process
+    per connection so you should provide for at least as many processes
+    as allowed connections, in addition to what you need for the rest
+    of your system.  This is usually not a problem but if you run
+    several servers on one machine things might get tight.
+   </para>
+
+   <para>
+    The factory default limit on open files is often set to
+    <quote>socially friendly</quote> values that allow many users to
+    coexist on a machine without using an inappropriate fraction of
+    the system resources.  If you run many servers on a machine this
+    is perhaps what you want, but on dedicated servers you may want to
+    raise this limit.
+   </para>
+
+   <para>
+    On the other side of the coin, some systems allow individual
+    processes to open large numbers of files; if more than a few
+    processes do so then the system-wide limit can easily be exceeded.
+    If you find this happening, and you do not want to alter the system-wide
+    limit, you can set <productname>PostgreSQL</productname>'s
+    <varname>max_files_per_process</varname> configuration parameter to
+    limit the consumption of open files.
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Linux Memory Overcommit</title>
+
+   <para>
+    In Linux 2.4 and later, the default virtual memory behavior is not
+    optimal for <productname>PostgreSQL</productname>. Because of the
+    way that the kernel implements memory overcommit, the kernel may
+    terminate the <productname>PostgreSQL</productname> server (the
+    <filename>postmaster</filename> process) if the memory demands of
+    another process cause the system to run out of virtual memory.
+   </para>
+
+   <para>
+    If this happens, you will see a kernel message that looks like
+    this (consult your system documentation and configuration on where
+    to look for such a message):
+<programlisting>
+Out of Memory: Killed process 12345 (postmaster). 
+</programlisting>
+    This indicates that the <filename>postmaster</filename> process
+    has been terminated due to memory pressure.
+    Although existing database connections will continue to function
+    normally, no new connections will be accepted.  To recover,
+    <productname>PostgreSQL</productname> will need to be restarted.
+   </para>
+
+   <para>
+    One way to avoid this problem is to run
+    <productname>PostgreSQL</productname>
+    on a machine where you can be sure that other processes will not
+    run the machine out of memory.
+   </para>
+
+   <para>
+    On Linux 2.6 and later, a better solution is to modify the kernel's
+    behavior so that it will not <quote>overcommit</> memory.  This is
+    done by selecting strict overcommit mode via sysctl:
+<programlisting>
+sysctl -w vm.overcommit_memory=2
+</programlisting>
+    or placing an equivalent entry in <filename>/etc/sysctl.conf</>.
+    You may also wish to modify the related setting 
+    <literal>vm.overcommit_ratio</>.  For details see the kernel documentation
+    file <filename>Documentation/vm/overcommit-accounting</>.
+   </para>
+
+   <para>
+    Some vendors' Linux 2.4 kernels are reported to have early versions
+    of the 2.6 overcommit sysctl.  However, setting
+    <literal>vm.overcommit_memory</> to 2
+    on a kernel that does not have the relevant code will make
+    things worse not better.  It is recommended that you inspect
+    the actual kernel source code (see the function
+    <function>vm_enough_memory</> in the file <filename>mm/mmap.c</>)
+    to verify what is supported in your copy before you try this in a 2.4
+    installation.  The presence of the <filename>overcommit-accounting</>
+    documentation file should <emphasis>not</> be taken as evidence that the
+    feature is there.  If in any doubt, consult a kernel expert or your
+    kernel vendor.
+   </para>
+  </sect2>
+ </sect1>
+
+
+ <sect1 id="postmaster-shutdown">
+  <title>Shutting Down the Server</title>
+
+  <indexterm zone="postmaster-shutdown">
+   <primary>shutdown</>
+  </indexterm>
+
+  <para>
+   There are several ways to shut down the database server. You control
+   the type of shutdown by sending different signals to the
+   <command>postmaster</command> process.
+
+   <variablelist>
+    <varlistentry>
+     <term><systemitem>SIGTERM</systemitem><indexterm><primary>SIGTERM</></></term>
+     <listitem>
+      <para>
+       After receiving <systemitem>SIGTERM</systemitem>, the server
+       disallows new connections, but lets existing sessions end their
+       work normally. It shuts down only after all of the sessions
+       terminate normally. This is the <firstterm>Smart
+       Shutdown</firstterm>.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><systemitem>SIGINT</systemitem><indexterm><primary>SIGINT</></></term>
+     <listitem>
+      <para>
+       The server disallows new connections and sends all existing
+       server processes <systemitem>SIGTERM</systemitem>, which will cause them
+       to abort their current transactions and exit promptly. It then
+       waits for the server processes to exit and finally shuts down. This is the
+       <firstterm>Fast Shutdown</firstterm>.
+      </para>
+     </listitem>
+    </varlistentry>
+
+    <varlistentry>
+     <term><systemitem>SIGQUIT</systemitem><indexterm><primary>SIGQUIT</></></term>
+     <listitem>
+      <para>
+      This is the <firstterm>Immediate Shutdown</firstterm>, which
+      will cause the <command>postmaster</command> process to send a
+      <systemitem>SIGQUIT</systemitem> to all child processes and exit
+      immediately (without properly shutting itself down). The child processes
+      likewise exit immediately upon receiving
+      <systemitem>SIGQUIT</systemitem>. This will lead to recovery (by
+      replaying the WAL log) upon next start-up. This is recommended
+      only in emergencies.
+      </para>
+     </listitem>
+    </varlistentry>
+   </variablelist>
+  </para>
+
+   <important>
+    <para>
+     It is best not to use <systemitem>SIGKILL</systemitem> to shut down
+     the server. This will prevent the server from releasing
+     shared memory and semaphores, which may then have to be done by
+     manually.
+    </para>
+   </important>
+
+  <para>
+   The <acronym>PID</> of the <command>postmaster</command> process can be found using the
+   <command>ps</command> program, or from the file
+   <filename>postmaster.pid</filename> in the data directory. So for
+   example, to do a fast shutdown:
+<screen>
+$ <userinput>kill -INT `head -1 /usr/local/pgsql/data/postmaster.pid`</userinput>
+</screen>
+  </para>
+  <para>
+   The program <command>pg_ctl</command> is a shell script
+   that provides a more convenient interface for shutting down the
+   server.
+  </para>
+ </sect1>
+
+ <sect1 id="ssl-tcp">
+  <title>Secure TCP/IP Connections with SSL</title>
+
+  <indexterm zone="ssl-tcp">
+   <primary>SSL</primary>
+  </indexterm>
+
+  <para>
+   <productname>PostgreSQL</> has native support for using
+   <acronym>SSL</> connections to encrypt client/server communications
+   for increased security. This requires that
+   <productname>OpenSSL</productname> is installed on both client and
+   server systems and that support in <productname>PostgreSQL</> is
+   enabled at build time (see <xref linkend="installation">).
+  </para>
+
+  <para>
+   With <acronym>SSL</> support compiled in, the
+   <productname>PostgreSQL</> server can be started with
+   <acronym>SSL</> enabled by setting the parameter
+   <varname>ssl</varname> to on in <filename>postgresql.conf</>. When
+   starting in <acronym>SSL</> mode, the server will look for the
+   files <filename>server.key</> and <filename>server.crt</> in the
+   data directory, which should contain the server private key
+   and certificate, respectively. These files must be set up correctly
+   before an <acronym>SSL</>-enabled server can start. If the private key is
+   protected with a passphrase, the server will prompt for the
+   passphrase and will not start until it has been entered.
+  </para>
+
+  <para>
+   The server will listen for both standard and <acronym>SSL</>
+   connections on the same TCP port, and will negotiate with any
+   connecting client on whether to use <acronym>SSL</>. See <xref
+   linkend="client-authentication"> about how to force the server to
+   require use of <acronym>SSL</> for certain connections.
+  </para>
+
+  <para>
+   For details on how to create your server private key and certificate,
+   refer to the <productname>OpenSSL</> documentation. A simple
+   self-signed certificate can be used to get started for testing, but a
+   certificate signed by a certificate authority (<acronym>CA</>) (either one of the global
+   <acronym>CAs</> or a local one) should be used in production so the
+   client can verify the server's identity. To create a quick
+   self-signed certificate, use the following
+   <productname>OpenSSL</productname> command:
+<programlisting>
+openssl req -new -text -out server.req
+</programlisting>
+   Fill out the information that <command>openssl</> asks for. Make sure
+   that you enter the local host name as <quote>Common Name</>; the challenge
+   password can be left blank. The program will generate a key that is
+   passphrase protected; it will not accept a passphrase that is less
+   than four characters long. To remove the passphrase (as you must if
+   you want automatic start-up of the server), run the commands
+<programlisting>
+openssl rsa -in privkey.pem -out server.key
+rm privkey.pem
+</programlisting>
+   Enter the old passphrase to unlock the existing key. Now do
+<programlisting>
+openssl req -x509 -in server.req -text -key server.key -out server.crt
+chmod og-rwx server.key
+</programlisting>
+   to turn the certificate into a self-signed certificate and to copy the
+   key and certificate to where the server will look for them.
+  </para>
+ </sect1>
+
+ <sect1 id="ssh-tunnels">
+  <title>Secure TCP/IP Connections with <application>SSH</application> Tunnels</title>
+
+  <indexterm zone="ssh-tunnels">
+   <primary>ssh</primary>
+  </indexterm>
+
+  <para>
+   One can use <application>SSH</application> to encrypt the network
+   connection between clients and a
+   <productname>PostgreSQL</productname> server. Done properly, this
+   provides an adequately secure network connection.
+  </para>
+
+  <para>
+   First make sure that an <application>SSH</application> server is
+   running properly on the same machine as the
+   <productname>PostgreSQL</productname> server and that you can log in using
+   <command>ssh</command> as some user. Then you can establish a secure
+   tunnel with a command like this from the client machine:
+<programlisting>
+ssh -L 3333:foo.com:5432 joe@foo.com
+</programlisting>
+   The first number in the <option>-L</option> argument, 3333, is the
+   port number of your end of the tunnel; it can be chosen freely. The
+   second number, 5432, is the remote end of the tunnel: the port
+   number your server is using. The name or the address in between
+   the port numbers is the host with the database server you are going
+   to connect to. In order to connect to the database server using
+   this tunnel, you connect to port 3333 on the local machine:
+<programlisting>
+psql -h localhost -p 3333 template1
+</programlisting>
+   To the database server it will then look as though you are really
+   user <literal>joe@foo.com</literal> and it will use whatever
+   authentication procedure was set up for this user. In order for the
+   tunnel setup to succeed you must be allowed to connect via
+   <command>ssh</command> as <literal>joe@foo.com</literal>, just
+   as if you had attempted to use <command>ssh</command> to set up a
+   terminal session.
+  </para>
+
+  <tip>
+   <para>
+    Several other applications exist that can provide secure tunnels using
+    a procedure similar in concept to the one just described.
+   </para>
+  </tip>
+
+ </sect1>
+
+</Chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

@@ -1,0 +1,93 @@
+drop table if exists t1;
+create table t1 (t datetime);
+insert into t1 values(101),(691231),(700101),(991231),(10000101),(99991231),(101000000),(691231000000),(700101000000),(991231235959),(10000101000000),(99991231235959);
+select * from t1;
+t
+2000-01-01 00:00:00
+2069-12-31 00:00:00
+1970-01-01 00:00:00
+1999-12-31 00:00:00
+1000-01-01 00:00:00
+9999-12-31 00:00:00
+2000-01-01 00:00:00
+2069-12-31 00:00:00
+1970-01-01 00:00:00
+1999-12-31 23:59:59
+1000-01-01 00:00:00
+9999-12-31 23:59:59
+delete from t1 where t > 0;
+optimize table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+insert into t1 values("000101"),("691231"),("700101"),("991231"),("00000101"),("00010101"),("99991231"),("00101000000"),("691231000000"),("700101000000"),("991231235959"),("10000101000000"),("99991231235959");
+select * from t1;
+t
+2000-01-01 00:00:00
+2069-12-31 00:00:00
+1970-01-01 00:00:00
+1999-12-31 00:00:00
+0000-01-01 00:00:00
+0001-01-01 00:00:00
+9999-12-31 00:00:00
+2000-10-10 00:00:00
+2069-12-31 00:00:00
+1970-01-01 00:00:00
+1999-12-31 23:59:59
+1000-01-01 00:00:00
+9999-12-31 23:59:59
+drop table t1;
+CREATE TABLE t1 (a timestamp, b date, c time, d datetime);
+insert into t1 (b,c,d) values(now(),curtime(),now());
+select date_format(a,"%Y-%m-%d")=b,right(a+0,6)=c+0,a=d+0 from t1;
+date_format(a,"%Y-%m-%d")=b	right(a+0,6)=c+0	a=d+0
+1	1	1
+drop table t1;
+CREATE TABLE t1 (a datetime not null);
+insert into t1 values (0);
+select * from t1 where a is null;
+a
+0000-00-00 00:00:00
+drop table t1;
+create table t1 (id int, dt datetime);
+insert into t1 values (1,"2001-08-14 00:00:00"),(2,"2001-08-15 00:00:00"),(3,"2001-08-16 00:00:00"),(4,"2003-09-15 01:20:30");
+select * from t1 where dt='2001-08-14 00:00:00' and dt =  if(id=1,'2001-08-14 00:00:00','1999-08-15');
+id	dt
+1	2001-08-14 00:00:00
+create index dt on t1 (dt);
+select * from t1 where dt > 20021020;
+id	dt
+4	2003-09-15 01:20:30
+select * from t1 ignore index (dt) where dt > 20021020;
+id	dt
+4	2003-09-15 01:20:30
+drop table t1;
+CREATE TABLE `t1` (
+`date` datetime NOT NULL default '0000-00-00 00:00:00',
+`numfacture` int(6) unsigned NOT NULL default '0',
+`expedition` datetime NOT NULL default '0000-00-00 00:00:00',
+PRIMARY KEY  (`numfacture`),
+KEY `date` (`date`),
+KEY `expedition` (`expedition`)
+) TYPE=MyISAM;
+INSERT INTO t1 (expedition) VALUES ('0001-00-00 00:00:00');
+SELECT * FROM t1 WHERE expedition='0001-00-00 00:00:00';
+date	numfacture	expedition
+0000-00-00 00:00:00	0	0001-00-00 00:00:00
+INSERT INTO t1 (numfacture,expedition) VALUES ('1212','0001-00-00 00:00:00');
+SELECT * FROM t1 WHERE expedition='0001-00-00 00:00:00';
+date	numfacture	expedition
+0000-00-00 00:00:00	0	0001-00-00 00:00:00
+0000-00-00 00:00:00	1212	0001-00-00 00:00:00
+EXPLAIN SELECT * FROM t1 WHERE expedition='0001-00-00 00:00:00';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	expedition	expedition	8	const	1	Using where
+drop table t1;
+create table t1 (a datetime not null, b datetime not null);
+insert into t1 values (now(), now());
+insert into t1 values (now(), now());
+select * from t1 where a is null or b is null;
+a	b
+drop table t1;

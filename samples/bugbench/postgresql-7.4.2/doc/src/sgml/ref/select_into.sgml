@@ -1,0 +1,128 @@
+<!--
+$Header: /cvsroot/pgsql/doc/src/sgml/ref/select_into.sgml,v 1.24 2003/09/09 18:28:53 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-SELECTINTO">
+ <refmeta>
+  <refentrytitle id="SQL-SELECTINTO-TITLE">SELECT INTO</refentrytitle>
+  <refmiscinfo>SQL - Language Statements</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>SELECT INTO</refname>
+  <refpurpose>create a new table from the results of a query</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-selectinto">
+  <primary>SELECT INTO</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+SELECT [ ALL | DISTINCT [ ON ( <replaceable class="PARAMETER">expression</replaceable> [, ...] ) ] ]
+    * | <replaceable class="PARAMETER">expression</replaceable> [ AS <replaceable class="PARAMETER">output_name</replaceable> ] [, ...]
+    INTO [ TEMPORARY | TEMP ] [ TABLE ] <replaceable class="PARAMETER">new_table</replaceable>
+    [ FROM <replaceable class="PARAMETER">from_item</replaceable> [, ...] ]
+    [ WHERE <replaceable class="PARAMETER">condition</replaceable> ]
+    [ GROUP BY <replaceable class="PARAMETER">expression</replaceable> [, ...] ]
+    [ HAVING <replaceable class="PARAMETER">condition</replaceable> [, ...] ]
+    [ { UNION | INTERSECT | EXCEPT } [ ALL ] <replaceable class="PARAMETER">select</replaceable> ]
+    [ ORDER BY <replaceable class="PARAMETER">expression</replaceable> [ ASC | DESC | USING <replaceable class="PARAMETER">operator</replaceable> ] [, ...] ]
+    [ LIMIT { <replaceable class="PARAMETER">count</replaceable> | ALL } ]
+    [ OFFSET <replaceable class="PARAMETER">start</replaceable> ]
+    [ FOR UPDATE [ OF <replaceable class="PARAMETER">tablename</replaceable> [, ...] ] ]
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Description</title>
+
+  <para>
+   <command>SELECT INTO</command> creates a new table and fills it
+   with data computed by a query.  The data is not returned to the
+   client, as it is with a normal <command>SELECT</command>.  The new
+   table's columns have the names and data types associated with the
+   output columns of the <command>SELECT</command>.
+  </para>
+ </refsect1>
+  
+ <refsect1>
+  <title>Parameters</title>
+
+  <variablelist>
+  <varlistentry>
+   <term><literal>TEMPORARY</literal> or <literal>TEMP</literal></term>
+   <listitem>
+    <para>
+     If specified, the table is created as a temporary table.  Refer
+     to <xref linkend="sql-createtable"
+     endterm="sql-createtable-title"> for details.
+    </para>
+   </listitem>
+  </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="PARAMETER">new_table</replaceable></term>
+    <listitem>
+     <para>
+      The name (optionally schema-qualified) of the table to be created.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+
+  <para>
+   All other parameters are described in detail under <xref
+   linkend="sql-select" endterm="sql-select-title">.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Notes</title>
+
+  <para>
+   <xref linkend="sql-createtableas" endterm="sql-createtableas-title">
+   is functionally equivalent to <command>SELECT INTO</command>.
+   <command>CREATE TABLE AS</command> is the recommended syntax, since
+   this form of <command>SELECT INTO</command> is not available in
+   <application>ECPG</application> or
+   <application>PL/pgSQL</application>, because they interpret the
+   <literal>INTO</literal> clause differently.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibility</title>
+
+  <para>
+   The SQL standard uses <command>SELECT ... INTO</command> to
+   represent selecting values into scalar variables of a host program,
+   rather than creating a new table.  This indeed is the usage found
+   in <application>ECPG</application> (see <xref linkend="ecpg">) and
+   <application>PL/pgSQL</application> (see <xref linkend="plpgsql">).
+   The <productname>PostgreSQL</productname> usage of <command>SELECT
+   INTO</command> to represent table creation is historical.  It's
+   best to use <command>CREATE TABLE AS</command> for this purpose in
+   new code.  (<command>CREATE TABLE AS</command> isn't standard
+   either, but it's less likely to cause confusion.)
+  </para>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

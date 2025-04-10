@@ -1,0 +1,11 @@
+VPATH = @srcdir@
+
+INCLUDES = @APRUTIL_PRIV_INCLUDES@ @APR_INCLUDES@ @APRUTIL_INCLUDES@
+
+TARGETS = xlate.lo
+CLEAN_TARGETS = xlate
+
+SUBDIRS = @APR_ICONV_SUBDIRS@
+
+# bring in rules.mk for standard functionality
+@INCLUDE_RULES@

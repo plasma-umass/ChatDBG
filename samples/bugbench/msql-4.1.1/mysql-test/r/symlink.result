@@ -1,0 +1,66 @@
+drop table if exists t1,t2,t7,t8,t9;
+drop database if exists mysqltest;
+create table t1 (a int not null auto_increment, b char(16) not null, primary key (a));
+create table t2 (a int not null auto_increment, b char(16) not null, primary key (a));
+insert into t1 (b) values ("test"),("test1"),("test2"),("test3");
+insert into t2 (b) select b from t1;
+insert into t1 (b) select b from t2;
+insert into t2 (b) select b from t1;
+insert into t1 (b) select b from t2;
+insert into t2 (b) select b from t1;
+insert into t1 (b) select b from t2;
+insert into t2 (b) select b from t1;
+insert into t1 (b) select b from t2;
+insert into t2 (b) select b from t1;
+insert into t1 (b) select b from t2;
+insert into t2 (b) select b from t1;
+insert into t1 (b) select b from t2;
+insert into t2 (b) select b from t1;
+insert into t1 (b) select b from t2;
+insert into t2 (b) select b from t1;
+insert into t1 (b) select b from t2;
+insert into t2 (b) select b from t1;
+insert into t1 (b) select b from t2;
+drop table t2;
+insert into t9 select * from t1;
+check table t9;
+Table	Op	Msg_type	Msg_text
+test.t9	check	status	OK
+optimize table t9;
+Table	Op	Msg_type	Msg_text
+test.t9	optimize	status	OK
+repair table t9;
+Table	Op	Msg_type	Msg_text
+test.t9	repair	status	OK
+alter table t9 add column c int not null;
+show create table t9;
+Table	Create Table
+t9	CREATE TABLE `t9` (
+  `a` int(11) NOT NULL auto_increment,
+  `b` char(16) NOT NULL default '',
+  `c` int(11) NOT NULL default '0',
+  PRIMARY KEY  (`a`)
+) TYPE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='TEST_DIR/var/tmp/' INDEX DIRECTORY='TEST_DIR/var/run/'
+alter table t9 rename t8, add column d int not null;
+alter table t8 rename t7;
+rename table t7 to t9;
+drop table t1;
+Got one of the listed errors
+Got one of the listed errors
+Got one of the listed errors
+Got one of the listed errors
+Got one of the listed errors
+alter table t9 rename mysqltest.t9;
+select count(*) from mysqltest.t9;
+count(*)
+16724
+show create table mysqltest.t9;
+Table	Create Table
+t9	CREATE TABLE `t9` (
+  `a` int(11) NOT NULL auto_increment,
+  `b` char(16) NOT NULL default '',
+  `c` int(11) NOT NULL default '0',
+  `d` int(11) NOT NULL default '0',
+  PRIMARY KEY  (`a`)
+) TYPE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='TEST_DIR/var/tmp/' INDEX DIRECTORY='TEST_DIR/var/run/'
+drop database mysqltest;

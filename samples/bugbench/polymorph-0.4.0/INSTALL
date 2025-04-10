@@ -1,0 +1,13 @@
+Install file for polymorph:
+===========================
+
+Instructions for compiling:
+
+	1) ./configure
+	2) make
+	3) copy the binary somewhere in your local path, or 'su' and 
+	4) make install
+
+It's just that simple...  Thanks for the tools, GNU!
+
+===========================

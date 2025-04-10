@@ -1,0 +1,1738 @@
+<!doctype linuxdoc system>
+<article>
+<title>Squid Programmers Guide</title>
+<author>Duane Wessels, Squid Developers
+<date>$Id: prog-guide.sgml,v 1.21.2.4 2000/02/05 06:42:20 wessels Exp $</date>
+
+<abstract>
+Squid is a WWW Cache application developed by the National Laboratory
+for Applied Network Research and members of the Web Caching community.
+Squid is implemented as a single, non-blocking process based around
+a BSD select() loop.  This document describes the operation of the Squid
+source code and is intended to be used by others who wish to customize
+or improve it.
+</abstract>
+
+<toc>
+
+
+<!-- %%%% Chapter : INTRODUCTION %%%% -->
+<sect>Introduction
+
+	<P>
+	The Squid source code has evolved more from empirical
+	observation and tinkering, rather than a solid design
+	process.  It carries a legacy of being ``touched'' by
+	numerous individuals, each with somewhat different techniques
+	and terminology.
+
+	<P>
+	Squid is a single-process proxy server.  Every request is
+	handled by the main process, with the exception of FTP.
+	However, Squid does not use a ``threads package'' such has
+	Pthreads.  While this might be easier to code, it suffers
+	from portability and performance problems.  Instead Squid
+	maintains data structures and state information for each
+	active request.
+
+	<P>
+	The code is often difficult to follow because there are no
+	explicit state variables for the active requests.  Instead,
+	thread execution progresses as a sequence of ``callback
+	functions'' which get executed when I/O is ready to occur,
+	or some other event has happened.  As a callback function
+	completes, it is responsible for registering the next
+	callback function for subsequent I/O.
+
+	<P>
+	Note there is only a pseudo-consistent naming scheme.  In
+	most cases functions are named like <tt/moduleFooBar()/.
+	However, there are also some functions named like
+	<tt/module_foo_bar()/.
+
+	<P>
+	Note that the Squid source changes rapidly, and some parts
+	of this document may become out-of-date.  If you find any
+	inconsistencies, please feel free to notify <url
+	url="mailto:squid-dev@nlanr.net" name="the Squid Developers">.
+
+<sect1>Conventions
+
+	<P>
+	Function names and file names will be written in a courier
+	font, such as <tt/store.c/ and <tt/storeRegister()/.  Data
+	structures and their members will be written in an italicized
+	font, such as <em/StoreEntry/.
+
+
+<sect>Overview of Squid Components
+
+	<P>
+Squid consists of the following major components
+
+<sect1>Client Side
+
+	<P>
+	Here new client connections are accepted, parsed, and
+	processed.  This is where we determine if the request is
+	a cache HIT, REFRESH, MISS, etc.  With HTTP/1.1 we may have
+	multiple requests from a single TCP connection.  Per-connection
+	state information is held in a data structure called
+	<em/ConnStateData/.  Per-request state information is stored
+	in the <em/clientHttpRequest/ structure.
+    
+<sect1>Server Side
+
+	<P>
+	These routines are responsible for forwarding cache misses
+	to other servers, depending on the protocol.  Cache misses
+	may be forwarded to either origin servers, or other proxy
+	caches.  Note that all requests (FTP, Gopher) to other
+	proxies are sent as HTTP requests.  <tt/gopher.c/ is somewhat
+	complex and gross because it must convert from the Gopher
+	protocol to HTTP.  Wais and Gopher don't receive much
+	attention because they comprise a relatively insignificant
+	portion of Internet traffic.
+
+<sect1>Storage Manager
+
+	<P>
+	The Storage Manager is the glue between client and server
+	sides.  Every object saved in the cache is allocated a
+	<em/StoreEntry/ structure.  While the object is being
+	accessed, it also has a <em/MemObject/ structure.
+
+	<P>
+	Squid can quickly locate cached objects because it keeps
+	(in memory) a hash table of all <em/StoreEntry/'s.  The
+	keys for the hash table are MD5 checksums of the objects
+	URI.  In addition there is also a doubly-linked list of
+	<em/StoreEntry/'s used for the LRU replacement algorithm.
+	When an entry is accessed, it is moved to the head of the
+	LRU list.  When Squid needs to replace cached objects, it
+	takes objects from the tail of the LRU list.
+
+	<P>
+	Objects are saved to disk in a two-level directory structure.
+	For each object the <em/StoreEntry/ includes a 4-byte
+	<em/fileno/ field.  This file number is converted to a disk
+	pathname by a simple algorithm which evenly distributes
+	the files across all cache directories.  A cache swap file
+	consists of two parts: the cache metadata, and the object
+	data.  Note the object data includes the full HTTP
+	reply---headers and body.  The HTTP reply headers are not
+	the same as the cache metadata.
+
+	<P>
+	Client-side requests register themselves with a <em/StoreEntry/
+	to be notified when new data arrives.  Multiple clients
+	may receive data via a single <em/StoreEntry/.  For POST
+	and PUT request, this process works in reverse.  Server-side
+	functions are notified when additional data is read from
+	the client.
+
+<sect1>Request Forwarding
+
+<sect1>Peer Selection
+
+	<P>
+	These functions are responsible for selecting one (or none)
+	of the neighbor caches as the appropriate forwarding
+	location.
+
+<sect1>Access Control
+
+	<P>
+	These functions are responsible for allowing or denying a
+	request, based on a number of different parameters.  These
+	parameters include the client's IP address, the hostname
+	of the requested resource, the request method, etc.  Some
+	of the necessary information may not be immediately available,
+	for example the origin server's IP address.  In these cases,
+	the ACL routines initiate lookups for the necessary
+	information and continues the access control checks when
+	the information is available.
+
+<sect1>Network Communication
+
+	<P>
+	These are the routines for communicating over TCP and UDP
+	network sockets.  Here is where sockets are opened, closed,
+	read, and written.  In addition, note that the heart of
+	Squid (<tt/comm_select()/ or <tt/comm_poll()/) exists here,
+	even though it handles all file descriptors, not just
+	network sockets.  These routines do not support queuing
+	multiple blocks of data for writing.  Consequently, a
+	callback occurs for every write request.
+
+<sect1>File/Disk I/O
+
+	<P>
+	Routines for reading and writing disk files (and FIFOs).
+	Reasons for separating network and disk I/O functions are
+	partly historical, and partly because of different behaviors.
+	For example, we don't worry about getting a ``No space left
+	on device'' error for network sockets.  The disk I/O routines
+	support queuing of multiple blocks for writing.  In some
+	cases, it is possible to merge multiple blocks into a single
+	write request.  The write callback does not necessarily
+	occur for every write request.
+
+<sect1>Neighbors
+
+	<P>
+	Maintains the list of neighbor caches.  Sends and receives
+	ICP messages to neighbors.  Decides which neighbors to
+	query for a given request.  File: <tt/neighbors.c/.
+
+<sect1>IP/FQDN Cache
+
+	<P>
+	A cache of name-to-address and address-to-name lookups.
+	These are hash tables keyed on the names and addresses.
+	<tt/ipcache_nbgethostbyname()/ and <tt/fqdncache_nbgethostbyaddr()/
+	implement the non-blocking lookups.  Files: <tt/ipcache.c/,
+	<tt/fqdncache.c/.
+
+<sect1>Cache Manager
+
+	<P>
+	This provides access to certain information needed by the
+	cache administrator.  A companion program, <em/cachemgr.cgi/
+	can be used to make this information available via a Web
+	browser.  Cache manager requests to Squid are made with a 
+	special URL of the form
+<verb>
+	cache_object://hostname/operation
+</verb>
+	The cache manager provides essentially ``read-only'' access
+	to information.  It does not provide a method for configuring
+	Squid while it is running.
+
+<sect1>Network Measurement Database
+
+	<P>
+	In a number of situation, Squid finds it useful to know the
+	estimated network round-trip time (RTT) between itself and
+	origin servers.  A particularly useful is example is
+	the peer selection algorithm.  By making RTT measurements, a
+	Squid cache will know if it, or one if its neighbors, is closest
+	to a given origin server.  The actual measurements are made
+	with the <em/pinger/ program, described below.  The measured
+	values are stored in a database indexed under two keys.  The 
+	primary index field is the /24 prefix of the origin server's
+	IP address.  Secondly, a hash table of fully-qualified host
+	names have have data structures with links to the appropriate
+	network entry.  This allows Squid to quickly look up measurements
+	when given either an IP address, or a host name.  The /24 prefix
+	aggregation is used to reduce the overall database size.  File:
+	<tt/net_db.c/.
+
+<sect1>Redirectors
+
+	<P>
+	Squid has the ability to rewrite requests from clients.  After
+	checking the access controls, but before checking for cache hits,
+	requested URLs may optionally be written to an external
+	<em/redirector/ process.  This program, which can be highly
+	customized, may return a new URL to replace the original request.
+	Common applications for this feature are extended access controls
+	and local mirroring.  File: <tt/redirect.c/.
+
+<sect1>Autonomous System Numbers
+
+	<P>
+	Squid supports Autonomous System (AS) numbers as another 
+	access control element.  The routines in <tt/asn.c/
+	query databases which map AS numbers into lists of CIDR
+	prefixes.  These results are stored in a radix tree which
+	allows fast searching of the AS number for a given IP address.
+
+<sect1>Configuration File Parsing
+
+	<P>
+	The primary configuration file specification is in the file
+	<tt/cf.data.pre/.  A simple utility program, <tt/cf_gen/,
+	reads the <tt/cf.data.pre/ file and generates <tt/cf_parser.c/
+	and <tt/squid.conf/.  <tt/cf_parser.c/ is included directly
+	into <tt/cache_cf.c/ at compile time.
+
+<sect1>Callback Data Database
+
+	<P>
+	Squid's extensive use of callback functions makes it very
+	susceptible to memory access errors.  Care must be taken
+	so that the <tt/callback_data/ memory is still valid when
+	the callback function is executed.  The routines in <tt/cbdata.c/
+	provide a uniform method for managing callback data memory,
+	canceling callbacks, and preventing erroneous memory accesses.
+
+<sect1>Debugging
+
+	<P>
+	Squid includes extensive debugging statements to assist in
+	tracking down bugs and strange behavior.  Every debug statement
+	is assigned a section and level.  Usually, every debug statement
+	in the same source file has the same section.  Levels are chosen
+	depending on how much output will be generated, or how useful the
+	provided information will be.  The <em/debug_options/ line 
+	in the configuration file determines which debug statements will
+	be shown and which will not.  The <em/debug_options/ line
+	assigns a maximum level for every section.  If a given debug
+	statement has a level less than or equal to the configured
+	level for that section, it will be shown.  This description
+	probably sounds more complicated than it really is.
+	File: <em/debug.c/.  Note that <tt/debug()/ itself is a macro.
+
+<sect1>Error Generation
+
+	<P>
+	The routines in <tt/errorpage.c/ generate error messages from
+	a template file and specific request parameters.  This allows
+	for customized error messages and multilingual support.
+
+<sect1>Event Queue
+
+	<P>
+	The routines in <tt/event.c/ maintain a linked-list event
+	queue for functions to be executed at a future time.  The
+	event queue is used for periodic functions such as performing
+	cache replacement, cleaning swap directories, as well as one-time
+	functions such as ICP query timeouts.
+
+<sect1>Filedescriptor Management
+
+	<P>
+	Here we track the number of filedescriptors in use, and the
+	number of bytes which has been read from or written to each
+	file descriptor.
+
+
+<sect1>Hashtable Support
+
+	<P>
+	These routines implement generic hash tables.  A hash table
+	is created with a function for hashing the key values, and a
+	function for comparing the key values.
+
+<sect1>HTTP Anonymization
+
+	<P>
+	These routines support anonymizing of HTTP requests leaving
+	the cache.  Either specific request headers will be removed
+	(the ``standard'' mode), or only specific request headers
+	will be allowed (the ``paranoid'' mode).
+
+
+<sect1>Internet Cache Protocol
+
+	<P>
+	Here we implement the Internet Cache Protocol.  This 
+	protocol is documented in the RFC 2186 and RFC 2187.
+	The bulk of code is in the <tt/icp_v2.c/ file.  The 
+	other, <tt/icp_v3.c/ is a single function for handling
+	ICP queries from Netcache/Netapp caches; they use
+	a different version number and a slightly different message
+	format.
+
+<sect1>Ident Lookups
+
+	<P>
+	These routines support RFC 931 ``Ident'' lookups.   An ident
+	server running on a host will report the user name associated
+	with a connected TCP socket.  Some sites use this facility for
+	access control and logging purposes.
+
+<sect1>Memory Management
+
+	<P>
+	These routines allocate and manage pools of memory for
+	frequently-used data structures.  When the <em/memory_pools/
+	configuration option is enabled, unused memory is not actually
+	freed.  Instead it is kept for future use.  This may result
+	in more efficient use of memory at the expense of a larger
+	process size.
+
+<sect1>Multicast Support
+
+	<P>
+	Currently, multicast is only used for ICP queries.   The
+	routines in this file implement joining a UDP 
+	socket to a multicast group (or groups), and setting
+	the multicast TTL value on outgoing packets.
+
+<sect1>Persistent Server Connections
+
+	<P>
+	These routines manage idle, persistent HTTP connections
+	to origin servers and neighbor caches.  Idle sockets
+	are indexed in a hash table by their socket address
+	(IP address and port number).  Up to 10 idle sockets
+	will be kept for each socket address, but only for
+	15 seconds.  After 15 seconds, idle socket connections
+	are closed.
+
+<sect1>Refresh Rules
+
+	<P>
+	These routines decide wether a cached object is stale or fresh,
+	based on the <em/refresh_pattern/ configuration options.
+	If an object is fresh, it can be returned as a cache hit.
+	If it is stale, then it must be revalidated with an	
+	If-Modified-Since request.
+
+<sect1>SNMP Support
+
+	<P>
+	These routines implement SNMP for Squid.  At the present time,
+	we have made almost all of the cachemgr information available
+	via SNMP.
+
+<sect1>URN Support
+
+	<P>
+	We are experimenting with URN support in Squid version 1.2.
+	Note, we're not talking full-blown generic URN's here. This
+	is primarily targeted towards using URN's as an smart way
+	of handling lists of mirror sites.  For more details, please
+	see <url        url="http://squid.nlanr.net/Squid/urn-support.html"
+	name="URN support in Squid">.
+
+
+<sect>External Programs
+
+<sect1>dnsserver
+
+	<P>
+	Because the standard <tt/gethostbyname(3)/ library call
+	blocks, Squid must use external processes to actually make
+	these calls.  Typically there will be ten <tt/dnsserver/
+	processes spawned from Squid.  Communication occurs via
+	TCP sockets bound to the loopback interface.  The functions
+	in <tt/dns.c/ are primarily concerned with starting and
+	stopping the dnsservers.  Reading and writing to and from
+	the dnsservers occurs in the IP and FQDN cache modules.
+
+<sect1>pinger
+
+	<P>
+	Although it would be possible for Squid to send and receive
+	ICMP messages directly, we use an external process for
+	two important reasons:
+	<enum>
+	<item>Because squid handles many filedescriptors simultaneously,
+	we get much more accurate RTT measurements when ICMP is
+	handled by a separate process.
+	<item>Superuser privileges are required to send and receive
+	ICMP.  Rather than require Squid to be started as root,
+	we prefer to have the smaller and simpler <em/pinger/
+	program installed with setuid permissions.
+	</enum>
+
+<sect1>unlinkd
+
+	<P>
+	The <tt/unlink(2)/ system call can cause a process to block
+	for a significant amount of time.  Therefore we do not want
+	to make unlink() calls from Squid.  Instead we pass them
+	to this external process.
+
+<sect1>redirector
+
+	<P>
+	A redirector process reads URLs on stdin and writes (possibly
+	changed) URLs on stdout.  It is implemented as an external
+	process to maximize flexibility.
+
+<sect>Flow of a Typical Request
+
+	<P>
+	<enum>
+	<item>
+	A client connection is accepted by the <em/client-side/.
+	The HTTP request is parsed.
+
+	<item>
+	The access controls are checked.  The client-side builds
+	an ACL state data structure and registers a callback function
+	for notification when access control checking is completed.
+
+	<item>
+	After the access controls have been verified, the client-side
+	looks for the requested object in the cache.  If is a cache
+	hit, then the client-side registers its interest in the
+	<em/StoreEntry/.  Otherwise, Squid needs to forward the
+	request, perhaps with an If-Modified-Since header.
+
+	<item>
+	The request-forwarding process begins with <tt/protoDispatch/.
+	This function begins the peer selection procedure, which
+	may involve sending ICP queries and receiving ICP replies.
+	The peer selection procedure also involves checking
+	configuration options such as <em/never_direct/ and
+	<em/always_direct/.
+
+	<item>
+	When the ICP replies (if any) have been processed, we end
+	up at <em/protoStart/.  This function calls an appropriate
+	protocol-specific function for forwarding the request.
+	Here we will assume it is an HTTP request.
+
+	<item>
+	The HTTP module first opens a connection to the origin
+	server or cache peer.  If there is no idle persistent socket
+	available, a new connection request is given to the Network
+	Communication module with a callback function.  The
+	<tt/comm.c/ routines may try establishing a connection
+	multiple times before giving up.
+
+	<item>
+	When a TCP connection has been established, HTTP builds a
+	request buffer and submits it for writing on the socket.
+	It then registers a read handler to receive and process
+	the HTTP reply.
+
+	<item>
+	As the reply is initially received, the HTTP reply headers
+	are parsed and placed into a reply data structure.  As
+	reply data is read, it is appended to the <em/StoreEntry/.
+	Every time data is appended to the <em/StoreEntry/, the
+	client-side is notified of the new data via a callback
+	function.
+
+	<item>
+	As the client-side is notified of new data, it copies the
+	data from the StoreEntry and submits it for writing on the
+	client socket.
+
+	<item>
+	As data is appended to the <em/StoreEntry/, and the client(s)
+	read it, the data may be submitted for writing to disk.
+
+	<item>
+	When the HTTP module finishes reading the reply from the
+	upstream server, it marks the <em/StoreEntry/ as ``complete.''
+	The server socket is either closed or given to the persistent
+	connection pool for future use.
+
+	<item>
+	When the client-side has written all of the object data,
+	it unregisters itself from the <em/StoreEntry/.  At the
+	same time it either waits for another request from the
+	client, or closes the client connection.
+
+	</enum>
+
+<sect>Callback Functions
+
+<sect>The Main Loop: <tt/comm_select()/
+
+	<P>
+	At the core of Squid is the <tt/select(2)/ system call.
+	Squid uses <tt/select()/ or <tt/poll(2)/ to process I/O on
+	all open file descriptors.  Hereafter we'll only use
+	``select'' to refer generically to either system call.
+
+	<P>
+	The <tt/select()/ and <tt/poll()/ system calls work by
+	waiting for I/O events on a set of file descriptors.  Squid
+	only checks for <em/read/ and <em/write/ events. Squid
+	knows that it should check for reading or writing when
+	there is a read or write handler registered for a given
+	file descriptor.  Handler functions are registered with
+	the <tt/commSetSelect/ function.  For example:
+<verb>
+	commSetSelect(fd, COMM_SELECT_READ, clientReadRequest, conn, 0);
+</verb>
+	In this example, <em/fd/ is a TCP socket to a client
+	connection.  When there is data to be read from the socket,
+	then the select loop will execute
+<verb>
+	clientReadRequest(fd, conn);
+</verb>
+
+	<P>
+	The I/O handlers are reset every time they are called.  In
+	other words, a handler function must re-register itself
+	with <tt/commSetSelect/ if it wants to continue reading or
+	writing on a file descriptor.  The I/O handler may be
+	canceled before being called by providing NULL arguments,
+	e.g.:
+<verb>
+	commSetSelect(fd, COMM_SELECT_READ, NULL, NULL, 0);
+</verb>
+
+	<P>
+	These I/O handlers (and others) and their associated callback
+	data pointers are saved in the <em/fde/ data structure:
+<verb>
+	struct _fde {
+		...
+		PF *read_handler;
+		void *read_data;
+		PF *write_handler;
+		void *write_data;
+		close_handler *close_handler;
+		DEFER *defer_check;
+		void *defer_data;
+	};
+</verb>
+	<em/read_handler/ and <em/write_handler/ are called when
+	the file descriptor is ready for reading or writing,
+	respectively.  The <em/close_handler/ is called when the
+	filedescriptor is closed.   The <em/close_handler/ is
+	actually a linked list of callback functions to be called.
+
+	<P>
+	In some situations we want to defer reading from a
+	filedescriptor, even though it has data for us to read.
+	This may be the case when data arrives from the server-side
+	faster than it can be written to the client-side.  Before
+	adding a filedescriptor to the ``read set'' for select, we
+	call <em/defer_check/ (if it is non-NULL).  If <em/defer_check/
+	returns 1, then we skip the filedescriptor for that time
+	through the select loop.
+
+
+
+	<P>
+	These handlers are stored in the <em/FD_ENTRY/ structure
+	as defined in <tt/comm.h/.  <tt/fd_table[]/ is the global
+	array of <em/FD_ENTRY/ structures.  The handler functions
+	are of type <em/PF/, which is a typedef:
+<verb>
+    typedef void (*PF) (int, void *);
+</verb>
+	The close handler is really a linked list of handler
+	functions.  Each handler also has an associated pointer
+	<tt/(void *data)/ to some kind of data structure.
+
+	<P>
+	<tt/comm_select()/ is the function which issues the select()
+	system call.  It scans the entire <tt/fd_table[]/ array
+	looking for handler functions.  Each file descriptor with
+	a read handler will be set in the <tt/fd_set/ read bitmask.
+	Similarly, write handlers are scanned and bits set for the
+	write bitmask.  <tt/select()/ is then called, and the return
+	read and write bitmasks are scanned for descriptors with
+	pending I/O.  For each ready descriptor, the handler is
+	called.  Note that the handler is cleared from the
+	<em/FD_ENTRY/ before it is called.
+
+	<P>
+	After each handler is called, <tt/comm_select_incoming()/
+	is called to process new HTTP and ICP requests.
+
+	<P>
+	Typical read handlers are
+	<tt/httpReadReply()/,
+	<tt/diskHandleRead()/,
+	<tt/icpHandleUdp()/,
+	and <tt/ipcache_dnsHandleRead()/.
+	Typical write handlers are
+	<tt/commHandleWrite()/,
+	<tt/diskHandleWrite()/,
+	and <tt/icpUdpReply()/.
+	The handler function is set with <tt/commSetSelect()/, with the
+	exception of the close handlers, which are set with
+	<tt/comm_add_close_handler()/.
+
+	<P>
+	The close handlers are normally called from <tt/comm_close()/.
+	The job of the close handlers is to deallocate data structures
+	associated with the file descriptor.  For this reason
+	<tt/comm_close()/ must normally be the last function in a
+	sequence to prevent accessing just-freed memory.
+
+	<P>
+	The timeout and lifetime handlers are called for file
+	descriptors which have been idle for too long.  They are
+	further discussed in a following chapter.
+
+<!-- %%%% Chapter : CLIENT REQUEST PROCESSING %%%% -->
+<sect>Processing Client Requests
+
+<!-- %%%% Chapter : STORAGE MANAGER %%%% -->
+<sect>Storage Manager
+
+<!-- %%%% Chapter : FILESYSTEM INTERFACE %%%% -->
+<sect>Filesystem Interface
+
+<sect1>Introduction
+
+	<P>
+	Traditionally, Squid has always used the Unix filesystem (UFS)
+	to store cache objects on disk.  Over the years, the
+	poor performance of UFS has become very obvious.  In most
+	cases, UFS limits Squid to about 30-50 requests per second.
+	Our work indicates that the poor performance is mostly
+	due to the synchronous nature of <tt/open()/ and <tt/unlink()/
+	system calls, and perhaps thrashing of inode/buffer caches.
+
+	<P>
+	We want to try out our own, customized filesystems with Squid.
+	In order to do that, we need a well-defined interface
+	for the bits of Squid that access the permanent storage
+	devices.
+
+<sect1>The Interface
+
+<sect2>Data Structures
+
+<sect3><em/storeIOState/
+
+	<P>
+	Every cache object that is ``opened'' for reading or writing
+	will have a <em/storeIOState/ data structure associated with
+	it.  Currently, this structure looks like:
+<verb>
+        struct _storeIOState {
+            sfileno swap_file_number;
+            mode_t mode;
+            size_t st_size;             /* do stat(2) after read open */
+            off_t offset;               /* current offset pointer */
+            STIOCB *callback;
+            void *callback_data;
+            struct {
+                STRCB *callback;
+                void *callback_data;
+            } read;
+            struct {
+                unsigned int closing:1; /* debugging aid */
+            } flags;
+            union {
+                struct {
+                    int fd;
+                    struct {
+                        unsigned int close_request:1;
+                        unsigned int reading:1;
+                        unsigned int writing:1;
+                    } flags;
+                } ufs;
+            } type;
+        };
+</verb>
+
+	<em/swap_file_number/ is the 32-bit swap file number for the
+	object, taken from the <em/StoreEntry/.
+
+	<em/mode/ is either O_RDONLY or O_WRONLY.
+
+	<em/offset/ represents the file (byte) offset after the
+	last operation completed.  For example, after a read operation,
+	<em/offset/ must be incremented by the number of bytes read.
+	The same goes for write operations.  This means that the
+	filesystem layer needs explicit (callback) notification
+	for writes.  It is wrong to increment <em/offset/ before
+	an I/O operation has been known to succeed.
+
+	<em/st_size/ is filled in with the object's on-disk size
+	after an object is opened for reading.  This allows
+	the upper layers to double-check that the disk object
+	actually belongs to the StoreEntry.
+
+	Note that there are two callback functions.  The first,
+	<em/callback/, of type <em/STIOCB/ (store I/O callback),
+	is callback for the <em/storeIOState/ as a whole.  This
+	callback is used to indicate success or failure of accessing
+	the object, whether its for reading or writing.
+	There are no callbacks for open and write operations,
+	unless they fail.
+
+	The second, <em/read.callback/, of type <em/STRCB/ (store
+	read callback) is used for every read operation.
+
+	The ugly union is used to hold filesystem-specific state
+	information.
+
+	<em/storeIOState/ structures are allocated by calling
+	<tt/storeOpen()/, and will be deallocated by the
+	filesystem layer after
+	<tt/storeClose()/ is called.
+
+<sect2>External Functions
+
+<sect3>Object I/O
+
+	<P>
+	These functions all relate to per-object I/O tasks: opening,
+	closing, reading, writing, and unlinking objects on disk.
+	These functions can all be found in <tt/store_io.c/.
+
+	<P>
+	Note that the underlying storage system functions are
+	accessed through function pointers, kept in the
+	<em/SwapDir/ structure:
+<verb>
+    struct _SwapDir {
+	....
+        struct {
+            STOBJOPEN *open;
+            STOBJCLOSE *close;
+            STOBJREAD *read;
+            STOBJWRITE *write;
+            STOBJUNLINK *unlink;
+        } obj;
+	....
+    };
+</verb>
+
+	<P>
+	Thus, a storage system must do something like this
+	when initializing its <em/SwapDir/ structure:
+<verb>
+            SwapDir->obj.open = storeFooOpen;
+            SwapDir->obj.close = storeFooClose;
+            SwapDir->obj.read = storeFooRead;
+            SwapDir->obj.write = storeFooWrite;
+            SwapDir->obj.unlink = storeFooUnlink;
+</verb>
+
+<sect4><tt/storeOpen()/
+
+	<P>
+<verb>
+	storeIOState *
+	storeOpen(sfileno f, mode_t mode, STIOCB *callback, void *callback_data)
+</verb>
+
+	<P>
+	<tt/storeOpen()/
+	submits a request to open a cache object for reading or writing.
+	<tt/f/ is the 32-bit swap file number of the cached object.
+	<tt/mode/ should be either <tt/O_RDONLY/ or <tt/O_WRONLY/.
+
+	<P>
+	<tt/callback/ is a function that will be called either when
+	an error is encountered, or when the object is closed (by
+	calling <tt/storeClose()/).  If the open request is
+	successful, there is no callback.  The calling module must
+	assume the open request will succeed, and may begin reading
+	or writing immediately.
+
+	<P>
+	<tt/storeOpen()/ may return NULL if the requested object
+	can not be openeed.  In this case the <tt/callback/ function
+	will not be called.
+
+<sect4><tt/storeClose()/
+
+	<P>
+<verb>
+	void
+	storeClose(storeIOState *sio)
+</verb>
+
+	<P>
+	<tt/storeClose()/
+	submits a request to close the cache object.  It is safe to request
+	a close even if there are read or write operations pending.
+	When the underlying filesystem actually closes the object,
+	the <em/STIOCB/ callback (registered with <tt/storeOpen()/) will
+	be called.
+
+<sect4><tt/storeRead()/
+
+	<P>
+<verb>
+	void
+	storeRead(storeIOState *sio, char *buf, size_t size, off_t offset, STRCB *callback, void *callback_data)
+</verb>
+
+	<P>
+	<tt/storeRead()/ is more complicated than the other functions
+	because it requires its own callback function to notify the
+	caller when the requested data has actually been read. 
+	<em/buf/ must be a valid memory buffer of at least <em/size/
+	bytes.  <em/offset/ specifies the byte offset where the
+	read should begin.  Note that with the Swap Meta Headers
+	prepended to each cache object, this offset does not equal
+	the offset into the actual object data.
+
+	<P>
+	The caller is responsible for allocating and freeing <em/buf/
+
+<sect4><tt/storeWrite()/
+
+	<P>
+<verb>
+	void
+	storeWrite(storeIOState *sio, char *buf, size_t size, off_t offset, FREE *free_func)
+</verb>
+
+	<P>
+	<tt/storeWrite()/ submits a request to write a block
+	of data to the disk store.  
+	The caller is responsible for allocating <em/buf/, but since
+	there is no per-write callback, this memory must be freed by
+	the lower filesystem implementation.  Therefore, the caller
+	must specify the <em/free_func/ to be used to deallocate
+	the memory.
+
+	<P>
+	If a write operation fails, the filesystem layer notifies the
+	calling module by calling the <em/STIOCB/ callback with an
+	error status code.
+
+<sect4><tt/storeUnlink()/
+
+	<P>
+<verb>
+	void
+	storeUnlink(sfileno f)
+</verb>
+
+	<P>
+	<tt/storeUnlink()/ removes the cached object from the disk
+	store.  There is no callback function, and the object
+	does not need to be opened first.  The filesystem
+	layer will remove the object if it exists on the disk.
+
+<sect4><tt/storeOffset()/
+
+	<P>
+<verb>
+	off_t
+	storeOffset(storeIOState *sio)
+</verb>
+
+	<P>
+	Returns the current byte-offset of the cache object on
+	disk.  For read-objects, this is the offset after the last
+	successful disk read operation.  For write-objects, it is
+	the offset of the last successful disk write operation.
+
+<sect4><em/STIOCB/ callback
+
+	<P>
+<verb>
+	void
+	stiocb(void *data, int errorflag, storeIOState *sio)
+</verb>
+
+	<P>
+	The <em/stiocb/ function is passed as a parameter to
+	<tt/storeOpen()/.  The filesystem layer calls <em/stiocb/
+	either when an I/O error occurs, or when the disk
+	object is closed.
+
+	<P>
+	<em/errorflag/ is one of the following:
+<verb>
+	#define DISK_OK                   (0)
+	#define DISK_ERROR               (-1)
+	#define DISK_EOF                 (-2)
+	#define DISK_NO_SPACE_LEFT       (-6)
+</verb>
+
+	<P>
+	Once the The <em/stiocb/ function has been called,
+	the <em/sio/ structure should not be accessed further.
+
+<sect4><em/STRCB/ callback
+
+	<P>
+<verb>
+	void
+	strcb(void *data, const char *buf, size_t len)
+</verb>
+
+	<P>
+	The <em/strcb/ function is passed as a parameter to
+	<tt/storeRead()/.  The filesystem layer calls <em/strcb/
+	after a block of data has been read from the disk and placed
+	into <em/buf/.  <em/len/ indicates how many bytes were
+	placed into <em/buf/.  The <em/strcb/ function is only
+	called if the read operation is successful.  If it fails,
+	then the <em/STIOCB/ callback will be called instead.
+
+<sect3>Config file parsing
+
+	<P>
+	There are three functions relating to the Squid configuration
+	file: parsing, dumping, and freeing.
+
+	<P>
+	The parse function is called at startup, and during a reconfigure,
+	for a <em/cache_dir/ line.  The first keyword after the <em/cache_dir/
+	keyword will be a filesystem type (such as "ufs").  A switch
+	statement in <tt/parse_cachedir/ will call the appropriate
+	filesystem-dependent parsing function.  The parsing function
+	may use <tt/strtok()/ to continue reading keywords after the
+	filesystem type on the <em/cache_dir/ line.
+
+
+	<P>
+	The ``dump'' function is used to output a configuration
+	file from the in-memory configuration structure.  It is
+	called with a <em/SwapDir/ argument, and must append one
+	line to the <em/StoreEntry/ that is holding the configuration
+	file being generated.
+
+	<P>
+	The free function is called during a reconfigure (and at
+	exit) to free up (or un-initialize) any memory or structures
+	associated with the configuration line.  The <em/SwapDir/
+	structure includes common and private sections.  The
+	<tt/free_cachedir()/ function will handle freeing anything
+	in the common section, and relies on a filesystem-dependent
+	function to free, or un-initialize private members.
+
+<sect3>Filesystem Startup, Initialization, and State Logging
+
+	<P>
+	These functions deal with initializing, state
+	logging, and related tasks for a squid storage system.
+	These functions are used (called) in <tt/store_dir.c/.
+
+	<P>
+	Each storage system must provide the functions described
+	in this section, although it may be a no-op (null) function
+	that does nothing.  Each function is accessed through a
+	function pointer stored in the <em/SwapDir/ structure:
+
+<verb>
+    struct _SwapDir {
+        ...
+        STINIT *init;
+        STNEWFS *newfs;
+        struct {
+            STLOGOPEN *open;
+            STLOGCLOSE *close;
+            STLOGWRITE *write;
+            struct {
+                STLOGCLEANOPEN *open;
+                STLOGCLEANWRITE *write;
+                void *state;
+            } clean;
+        } log;
+        ....
+    };
+</verb>
+
+<sect4><tt/init()/
+
+	<P>
+<verb>
+        void
+        STINIT(SwapDir *);
+</verb>
+
+	<P>
+	The <tt/init/ function, of type <em/STINIT/ is called by
+	<tt/storeDirInit()/ when Squid first starts up.  The
+	<tt/init/ function should probably start the process of
+	reading saved state information from disk (aka the "rebuild"
+	procedure).
+
+<sect4><tt/newfs()/
+
+	<P>
+<verb>
+	void
+	STNEWFS(SwapDir *);
+</verb>
+
+	<P>
+	The <tt/newfs/ function, of type <em/STNEWFS/, is used to
+	prepare a cache_dir for use by squid.  It is called when
+	the user runs <em/squid -z/.  For the Unix file system,
+	the <tt/newfs/ function makes all the two-layer subdirectories.
+
+<sect4><tt/log.open()/
+
+	<P>
+<verb>
+	void
+	STLOGOPEN(SwapDir *);
+</verb>
+
+	<P>
+	The <tt/log.open/ function, of type <em/STLOGOPEN/,
+	is used to open or initialize the state-holding log
+	files (if any) for the storage system.  For UFS this
+	opens the <em/swap.state/ files.
+
+	<P>
+	The <tt/log.open/ function may be called any number of
+	times during Squid's execution.  For example, the
+	process of rotating, or writing clean logfiles closes
+	the state log and then re-opens them.  A <em/squid -k reconfigure/
+	does the same.
+
+<sect4><tt/log.close()/
+
+	<P>
+<verb>
+	void
+	STLOGCLOSE(SwapDir *);
+</verb>
+
+	<P>
+	The <tt/log.close/ function, of type <em/STLOGCLOSE/, is
+	obviously the counterpart to <tt/log.open/.  It must close
+	the open state-holding log files (if any) for the storage
+	system.
+
+<sect4><tt/log.write()/
+
+	<P>
+<verb>
+	void
+	STLOGWRITE(const SwapDir *, const StoreEntry *, int op);
+</verb>
+
+	<P>
+	The <tt/log.write/ function, of type <em/STLOGWRITE/, is
+	used to write an entry to the state-holding log file.  The
+	<em/op/ argument is either <em/SWAP_LOG_ADD/ or <em/SWAP_LOG_DEL/.
+	This feature may not be required by some storage systems
+	and can be implemented as a null-function (no-op).
+
+<sect4><tt/log.clean.open()/
+
+	<P>
+<verb>
+	int
+	STLOGCLEANOPEN(SwapDir *);
+</verb>
+
+	<P>
+	The <tt/log.clean.open/ function, of type <em/STLOGCLEANOPEN/,
+	is used for the process of writing "clean" state-holding
+	log files.  The clean-writing procedure is initiated by
+	the <em/squid -k rotate/ command.  This is a special case
+	because we want to optimize the process as much as possible.
+	This might be a no-op for some storage systems that don't
+	have the same logging issues as UFS.
+
+	<P>
+	The <em/log.clean.state/ pointer may be used to
+	keep state information for the clean-writing process, but
+	should not be accessed by upper layers.
+
+<sect4><tt/log.clean.write()/
+
+	<P>
+<verb>
+	void
+	STLOGCLEANWRITE(const StoreEntry *, SwapDir *);
+</verb>
+
+	<P>
+	The <tt/log.clean.write/ function, of type <em/STLOGCLEANWRITE/,
+	writes an entry to the clean log file (if any).
+
+	<P>
+	A NULL <em/StoreEntry/ argument indicates the end of
+	the clean-writing process and signals the storage
+	system to close the clean log, and rename or move them
+	to become the official state-holding log.
+
+
+<!-- %%%% Chapter : FORWARDING SELECTION %%%% -->
+<sect>Forwarding Selection
+
+<!-- %%%% Chapter : IP/FQDN CACHE %%%% -->
+<sect>IP Cache and FQDN Cache
+
+<sect1> Introduction
+
+	<P>
+	The IP cache is a built-in component of squid providing
+	Hostname to IP-Number translation functionality and managing
+	the involved data-structures. Efficiency concerns require
+	mechanisms that allow non-blocking access to these mappings.
+	The IP cache usually doesn't block on a request except for
+	special cases where this is desired (see below).
+
+<sect1> Data Structures 
+
+	<P>
+	The data structure used for storing name-address mappings
+	is a small hashtable (<em>static hash_table *ip_table</em>),
+	where structures of type <em>ipcache_entry</em> whose most
+	interesting members are:
+
+<verb>
+	struct _ipcache_entry {
+		char *name;
+		time_t lastref;
+		ipcache_addrs addrs;
+		struct _ip_pending *pending_head;
+		char *error_message;
+		unsigned char locks;
+		ipcache_status_t status:3;
+	}
+</verb>
+
+
+<sect1> External overview
+
+	<P>
+	Main functionality
+	is provided through calls to:
+	<descrip>
+
+	<tag>ipcache_nbgethostbyname(const char *name, IPH *handler,
+	void *handlerdata)</tag>
+	where <em/name/ is the name of the host to resolve,
+	<em/handler/ is a pointer to the function to be called when
+	the reply from the IP cache (or the DNS if the IP cache
+	misses) and <em/handlerdata/ is information that is passed
+	to the handler and does not affect the IP cache.
+
+	<tag>ipcache_gethostbyname(const char *name,int flags)</tag>
+	is different in that it only checks if an entry exists in
+	it's data-structures and does not by default contact the
+	DNS, unless this is requested, by setting the <em/flags/
+	to <em/IP_BLOCKING_LOOKUP/ or <em/IP_LOOKUP_IF_MISS/.
+
+	<tag>ipcache_init()</tag> is called from <em/mainInitialize()/
+	after disk initialization and prior to the reverse fqdn
+	cache initialization
+
+	<tag>ipcache_restart()</tag> is called to clear the IP
+	cache's data structures, cancel all pending requests.
+	Currently, it is only called from <em/mainReconfigure/.
+
+	</descrip>
+
+<sect1> Internal Operation 
+
+	<P>
+	Internally, the execution flow is as follows: On a miss,
+	<em/ipcache_getnbhostbyname/ checks whether a request for
+	this name is already pending, and if positive, it creates
+	a new entry using <em/ipcacheAddNew/ with the <em/IP_PENDING/
+	flag set . Then it calls <em/ipcacheAddPending/ to add a
+	request to the queue together with data and handler.  Else,
+	<em/ipcache_dnsDispatch()/ is called to directly create a
+	DNS query or to <em/ipcacheEnqueue()/ if all no DNS port
+	is free.  <em/ipcache_call_pending()/ is called regularly
+	to walk down the pending list and call handlers. LRU clean-up
+	is performed through <em/ipcache_purgelru()/ according to
+	the <em/ipcache_high/ threshold.
+
+<!-- %%%% Chapter : SERVER PROTOCOLS %%%% -->
+<sect>Server Protocols
+<sect1>HTTP
+<sect1>FTP
+<sect1>Gopher
+<sect1>Wais
+<sect1>SSL
+<sect1>Passthrough
+
+<!-- %%%% Chapter : TIMEOUTS %%%% -->
+<sect>Timeouts
+
+<!-- %%%% Chapter : EVENTS %%%% -->
+<sect>Events
+
+<!-- %%%% Chapter : ACCESS CONTROLS %%%% -->
+<sect>Access Controls
+
+<!-- %%%% Chapter : ICP %%%% -->
+<sect>ICP
+
+<!-- %%%% Chapter : NETDB %%%% -->
+<sect>Network Measurement Database
+
+<!-- %%%% Chapter : Error Pages %%%% -->
+<sect>Error Pages
+
+<sect>Callback Data Database
+
+	<P>
+	Squid's extensive use of callback functions makes it very
+	susceptible to memory access errors.  For a blocking operation
+	with callback functions, the normal sequence of events is as
+	follows:
+<verb>
+	callback_data = malloc(...);
+	...
+	fooOperationStart(bar, callback_func, callback_data);
+	...
+	fooOperationComplete(...);
+	callback_func(callback_data, ....);
+	...
+	free(callback_data);
+</verb>
+	However, things become more interesting if we want or need
+	to free the callback_data, or otherwise cancel the callback,
+	before the operation completes.
+
+	<P>
+	The callback data database lets us do this in a uniform and
+	safe manner.  Every callback_data pointer must be added to the
+	database.  It is then locked while the blocking operation executes
+	elsewhere, and is freed when the operation completes.  The normal
+	sequence of events is:
+<verb>
+	callback_data = malloc(...);
+	cbdataAdd(callback_data);
+	...
+	cbdataLock(callback_data);
+	fooOperationStart(bar, callback_func, callback_data);
+	...
+	fooOperationComplete(...);
+	if (cbdataValid(callback_data)) {
+		callback_func(callback_data, ....);
+	cbdataUnlock(callback_data);
+	cbdataFree(callback_data);
+</verb>
+
+	<P>
+	With this scheme, nothing bad happens if <tt/cbdataFree/ gets called
+	before <tt/cbdataUnlock/:
+<verb>
+	callback_data = malloc(...);
+	cbdataAdd(callback_data);
+	...
+	cbdataLock(callback_data);
+	fooOperationStart(bar, callback_func, callback_data);
+	...
+	cbdataFree(callback_data);
+	...
+	fooOperationComplete(...);
+	if (cbdataValid(callback_data)) {
+		callback_func(callback_data, ....);
+	cbdataUnlock(callback_data);
+</verb>
+	In this case, when <tt/cbdataFree/ is called before 
+	<tt/cbdataUnlock/, the callback_data gets marked as invalid.  Before
+	executing the callback function, <tt/cbdataValid/ will return 0
+	and callback_func is never executed.  When <tt/cbdataUnlock/ gets
+	called, it notices that the callback_data is invalid and will
+	then call <tt/cbdataFree/.
+
+<!-- %%%% Chapter : CACHE MANAGER %%%% -->
+<sect>Cache Manager
+
+<!-- %%%% Chapter : HTTP Headers %%%% -->
+<sect>HTTP Headers
+
+	<P>
+	<em/Files:/
+        <tt/HttpHeader.c/,
+        <tt/HttpHeaderTools.c/,
+        <tt/HttpHdrCc.c/,
+        <tt/HttpHdrContRange.c/,
+        <tt/HttpHdrExtField.c/,
+        <tt/HttpHdrRange.c/
+
+
+	<P> 
+	<tt/HttpHeader/ class encapsulates methods and data for HTTP header
+	manipulation.  <tt/HttpHeader/ can be viewed as a collection of HTTP
+	header-fields with such common operations as add, delete, and find.
+	Compared to an ascii "string" representation, <tt/HttpHeader/ performs
+	those operations without rebuilding the underlying structures from
+	scratch or searching through the entire "string".
+
+<sect1>General remarks
+
+	<P>
+	<tt/HttpHeader/ is a collection (or array) of HTTP header-fields. A header
+	field is represented by an <tt/HttpHeaderEntry/ object. <tt/HttpHeaderEntry/ is
+	an (id, name, value) triplet.  Meaningful "Id"s are defined for
+	"well-known" header-fields like "Connection" or "Content-Length".
+	When Squid fails to recognize a field, it uses special "id",
+	<em/HDR_OTHER/.  Ids are formed by capitalizing the corresponding HTTP
+	header-field name and replacing dashes ('-') with underscores ('_').
+
+	<P>
+	Most operations on <tt/HttpHeader/ require a "known" id as a parameter. The
+	rationale behind the later restriction is that Squid programmer should
+	operate on "known" fields only. If a new field is being added to
+	header processing, it must be given an id.
+ 
+<sect1>Life cycle
+
+	<P> 
+	<tt/HttpHeader/ follows a common pattern for object initialization and
+	cleaning:
+
+<verb>
+    /* declare */
+    HttpHeader hdr;
+    
+    /* initialize (as an HTTP Request header) */
+    httpHeaderInit(&amp;hdr, hoRequest);
+
+    /* do something */
+    ...
+
+    /* cleanup */
+    httpHeaderClean(&amp;hdr);
+</verb>
+
+	<P> 
+	Prior to use, an <tt/HttpHeader/ must be initialized. A
+	programmer must specify if a header belongs to a request
+	or reply message. The "ownership" information is used mostly
+	for statistical purposes.
+
+	<P>
+	Once initialized, the <tt/HttpHeader/ object <em/must/ be,
+	eventually, cleaned.  Failure to do so will result in a
+	memory leak.
+
+	<P>
+	Note that there are no methods for "creating" or "destroying"
+	a "dynamic" <tt/HttpHeader/ object. Looks like headers are
+	always stored as a part of another object or as a temporary
+	variable. Thus, dynamic allocation of headers is not needed.
+
+
+<sect1>Header Manipulation.
+
+	<P>
+	The mostly common operations on HTTP headers are testing
+	for a particular header-field (<tt/httpHeaderHas()/),
+	extracting field-values (<tt/httpHeaderGet*()/), and adding
+	new fields (<tt/httpHeaderPut*()/).
+
+	<P>
+	<tt/httpHeaderHas(hdr, id)/ returns true if at least one
+	header-field specified by "id" is present in the header.
+	Note that using <em/HDR_OTHER/ as an id is prohibited.
+	There is usually no reason to know if there are "other"
+	header-fields in a header.
+
+	<P>
+	<tt/httpHeaderGet&lt;Type&gt;(hdr, id)/ returns the value
+	of the specified header-field.  The "Type" must match
+	header-field type. If a header is not present a "null"
+	value is returned. "Null" values depend on field-type, of
+	course.
+
+	<P>
+	Special care must be taken when several header-fields with
+	the same id are preset in the header. If HTTP protocol
+	allows only one copy of the specified field per header
+	(e.g. "Content-Length"), <tt/httpHeaderGet&lt;Type&gt;()/
+	will return one of the field-values (chosen semi-randomly).
+	If HTTP protocol allows for several values (e.g. "Accept"),
+	a "String List" will be returned.
+
+	<P>
+	It is prohibited to ask for a List of values when only one
+	value is permitted, and visa-versa. This restriction prevents
+	a programmer from processing one value of an header-field
+	while ignoring other valid values.
+
+	<P>
+	<tt/httpHeaderPut&lt;Type&gt;(hdr, id, value)/ will add an
+	header-field with a specified field-name (based on "id")
+	and field_value. The location of the newly added field in
+	the header array is undefined, but it is guaranteed to be
+	after all fields with the same "id" if any. Note that old
+	header-fields with the same id (if any) are not altered in
+	any way.
+
+	<P>
+	The value being put using one of the <tt/httpHeaderPut()/
+	methods is converted to and stored as a String object.
+
+	<P>
+	Example:
+
+<verb>
+	    /* add our own Age field if none was added before */
+	    int age = ...
+	    if (!httpHeaderHas(hdr, HDR_AGE))
+		httpHeaderPutInt(hdr, HDR_AGE, age);
+</verb>
+
+	<P>
+	There are two ways to delete a field from a header. To
+	delete a "known" field (a field with "id" other than
+	<em/HDR_OTHER/), use <tt/httpHeaderDelById()/ function.
+	Sometimes, it is convenient to delete all fields with a
+	given name ("known" or not) using <tt/httpHeaderDelByName()/
+	method. Both methods will delete <em/all/ fields specified.
+
+	<P>
+	The <em/httpHeaderGetEntry(hdr, pos)/ function can be used
+	for iterating through all fields in a given header. Iteration
+	is controlled by the <em/pos/ parameter. Thus, several
+	concurrent iterations over one <em/hdr/ are possible. It
+	is also safe to delete/add fields from/to <em/hdr/ while
+	iteration is in progress.
+
+<verb>
+	/* delete all fields with a given name */
+	HttpHeaderPos pos = HttpHeaderInitPos;
+	HttpHeaderEntry *e;
+	while ((e = httpHeaderGetEntry(hdr, &amp;pos))) {
+		if (!strCaseCmp(e->name, name))
+			... /* delete entry */
+	}
+</verb>
+
+	Note that <em/httpHeaderGetEntry()/ is a low level function
+	and must not be used if high level alternatives are available.
+	For example, to delete an entry with a given name, use the
+	<em/httpHeaderDelByName()/ function rather than the loop
+	above.
+
+<sect1>I/O and Headers.
+
+	<P>
+	To store a header in a file or socket, pack it using
+	<tt/httpHeaderPackInto()/ method and a corresponding
+	"Packer". Note that <tt/httpHeaderPackInto/ will pack only
+	header-fields; request-lines and status-lines are not
+	prepended, and CRLF is not appended. Remember that neither
+	of them is a part of HTTP message header as defined by the
+	HTTP protocol.
+
+
+<sect1>Adding new header-field ids.
+
+	<P> 
+	Adding new ids is simple. First add new HDR_ entry to the
+	http_hdr_type enumeration in enums.h. Then describe a new
+	header-field attributes in the HeadersAttrs array located
+	in <tt/HttpHeader.c/. The last attribute specifies field
+	type. Five types are supported: integer (<em/ftInt/), string
+	(<em/ftStr/), date in RFC 1123 format (<em/ftDate_1123/),
+	cache control field (<em/ftPCc/), range field (<em/ftPRange/),
+	and content range field (<em/ftPContRange/).  Squid uses
+	type information to convert internal binary representation
+	of fields to their string representation (<tt/httpHeaderPut/
+	functions) and visa-versa (<tt/httpHeaderGet/ functions).
+
+	<P>
+	Finally, add new id to one of the following arrays:
+	<em/GeneralHeadersArr/, <em/EntityHeadersArr/,
+	<em/ReplyHeadersArr/, <em/RequestHeadersArr/.  Use HTTP
+	specs to determine the applicable array.  If your header-field
+	is an "extension-header", its place is in <em/ReplyHeadersArr/
+	and/or in <em/RequestHeadersArr/. You can also use
+	<em/EntityHeadersArr/ for "extension-header"s that can be
+	used both in replies and requests.  Header fields other
+	than "extension-header"s must go to one and only one of
+	the arrays mentioned above.
+
+	<P>
+	Also, if the new field is a "list" header, add it to the
+	<em/ListHeadersArr/ array.  A "list" field-header is the
+	one that is defined (or can be defined) using "&num;" BNF
+	construct described in the HTTP specs. Essentially, a field
+	that may have more than one valid field-value in a single
+	header is a "list" field.
+
+	<P>
+	In most cases, if you forget to include a new field id in
+	one of the required arrays, you will get a run-time assertion.
+	For rarely used fields, however, it may take a long time
+	for an assertion to be triggered.
+
+	<P>
+	There is virtually no limit on the number of fields supported
+	by Squid. If current mask sizes cannot fit all the ids (you
+	will get an assertion if that happens), simply enlarge
+	HttpHeaderMask type in <tt/typedefs.h/.
+
+
+<sect1>A Word on Efficiency.
+
+	<P>
+	<tt/httpHeaderHas()/ is a very cheap (fast) operation
+	implemented using a bit mask lookup.
+
+	<P>
+	Adding new fields is somewhat expensive if they require
+	complex conversions to a string.
+
+	<P>
+	Deleting existing fields requires scan of all the entries
+	and comparing their "id"s (faster) or "names" (slower) with
+	the one specified for deletion.
+
+	<P>
+	Most of the operations are faster than their "ascii string"
+	equivalents.
+
+<sect>File Formats
+
+<sect1><em/swap.state/
+
+<P>
+NOTE: this information is current as of version 2.2.STABLE4.
+
+<P>
+A <em/swap.state/ entry is defined by the <em/storeSwapLogData/
+structure, and has the following elements:
+<verb>
+struct _storeSwapLogData {
+    char op;
+    int swap_file_number;
+    time_t timestamp;
+    time_t lastref;
+    time_t expires;
+    time_t lastmod;
+    size_t swap_file_sz;
+    u_short refcount;
+    u_short flags;
+    unsigned char key[MD5_DIGEST_CHARS];
+};
+</verb>
+
+<descrip>
+<tag/op/
+	Either SWAP_LOG_ADD (1) when an object is added to
+	the disk storage, or SWAP_LOG_DEL (2) when an object is
+	deleted.
+
+<tag/swap_file_number/
+	The 32-bit file number which maps to a pathname.  Only
+	the low 24-bits are relevant.  The high 8-bits are
+	used as an index to an array of storage directories, and
+	are set at run time because the order of storage directories
+	may change over time.
+
+<tag/timestamp/
+	A 32-bit Unix time value that represents the time when
+	the origin server generated this response.  If the response
+	has a valid <em/Date:/ header, this timestamp corresponds
+	to that time.  Otherwise, it is set to the Squid process time
+	when the response is read (as soon as the end of headers are
+	found).
+
+<tag/lastref/
+	The last time that a client requested this object.
+	Strictly speaking, this time is set whenver the StoreEntry
+	is locked (via <em/storeLockObject()/). 
+
+<tag/expires/
+	The value of the response's <em/Expires:/ header, if any.
+	If the response does not have an <em/Expires:/ header, this
+	is set to -1.  If the response has an invalid (unparseable)
+	<em/Expires:/ header, it is also set to -1.  There are some cases
+	where Squid sets <em/expires/ to -2.  This happens for the
+	internal ``netdb'' object and for FTP URL responses.
+
+<tag/lastmod/
+	The value of the response's <em/Last-modified:/ header, if any.
+	This is set to -1 if there is no <em/Last-modified:/ header,
+	or if it is unparseable.
+
+<tag/swap_file_sz/
+	This is the number of bytes that the object occupies on
+	disk.  It includes the Squid ``swap file header''.
+
+<tag/refcount/
+	The number of times that this object has been accessed (referenced).
+	Since its a 16-bit quantity, it is susceptible to overflow
+	if a single object is accessed 65,536 times before being replaced.
+
+<tag/flags/
+	A copy of the <em/StoreEntry/ flags field.  Used as a sanity
+	check when rebuilding the cache at startup.  Objects that
+	have the KEY_PRIVATE flag set are not added back to the cache.
+
+<tag/key/
+	The 128-bit MD5 hash for this object.
+	
+</descrip>
+
+Note that <em/storeSwapLogData/ entries are written in native machine
+byte order.  They are not necessarily portable across architectures.
+
+<sect>Store ``swap meta'' Description
+<p>
+``swap meta'' refers to a section of meta data stored at the beginning
+of an object that is stored on disk.  This meta data includes information
+such as the object's cache key (MD5), URL, and part of the StoreEntry
+structure.
+
+<p>
+The meta data is stored using a TYPE-LENGTH-VALUE format.  That is,
+each chunk of meta information consists of a TYPE identifier, a
+LENGTH field, and then the VALUE (which is LENGTH octets long).
+
+<sect1>Types
+
+<p>
+As of Squid-2.3, the following TYPES are defined (from <em/enums.h/):
+<descrip>
+<tag/STORE_META_VOID/
+	Just a placeholder for the zeroth value.   It is never used
+	on disk.
+
+<tag/STORE_META_KEY_URL/
+	This represents the case when we use the URL as the cache
+	key, as Squid-1.1 does.  Currently we don't support using
+	a URL as a cache key, so this is not used.
+
+<tag/STORE_META_KEY_SHA/
+	For a brief time we considered supporting SHA (secure
+	hash algorithm) as a cache key.  Nobody liked it, and
+	this type is not currently used.
+
+<tag/STORE_META_KEY_MD5/
+	This represents the MD5 cache key that Squid currently uses.
+	When Squid opens a disk file for reading, it can check that
+	this MD5 matches the MD5 of the user's request.  If not, then
+	something went wrong and this is probably the wrong object.
+
+<tag/STORE_META_URL/
+	The object's URL.  This also may be matched against a user's
+	request for cache hits to make sure we got the right object.
+
+<tag/STORE_META_STD/
+	This is the ``standard metadata'' for an object.  Really
+	its just this middle chunk of the StoreEntry structure:
+<verb>
+	time_t timestamp;
+	time_t lastref;
+	time_t expires;
+	time_t lastmod;
+	size_t swap_file_sz;
+	u_short refcount;
+	u_short flags;
+</verb>
+
+<tag/STORE_META_HITMETERING/
+	Reserved for future hit-metering (RFC 2227) stuff.
+
+<tag/STORE_META_VALID/
+	?
+
+<tag/STORE_META_END/
+	Marks the last valid META type.
+
+</descrip>
+
+
+<sect1>Implementation Notes
+
+<p>
+When writing an object to disk, we must first write the meta data.
+This is done with a couple of functions.  First, <tt/storeSwapMetaPack()/
+takes a <em/StoreEntry/ as a parameter and returns a <em/tlv/ linked
+list.  Second, <tt/storeSwapMetaPack()/ converts the <em/tlv/ list
+into a character buffer that we can write.
+
+<p>
+Note that the <em/MemObject/ has a member called <em/swap_hdr_sz/.
+This value is the size of that character buffer; the size of the
+swap file meta data.  The <em/StoreEntry/ has a member named
+<em/swap_file_sz/ that represents the size of the disk file.
+Thus, the size of the object ``content'' is
+<verb>
+	StoreEntry->swap_file_sz  - MemObject->swap_hdr_sz;
+</verb>
+Note that the swap file content includes the HTTP reply headers
+and the HTTP reply body (if any).
+
+<p>
+When reading a swap file, there is a similar process to extract
+the swap meta data.  First, <tt/storeSwapMetaUnpack()/ converts a
+character buffer into a <em/tlv/ linked list.  It also tells us
+the value for <em/MemObject->swap_hdr_sz/.
+
+</article>

@@ -1,0 +1,221 @@
+<!--
+$Header: /cvsroot/pgsql/doc/src/sgml/ref/create_view.sgml,v 1.27 2003/11/01 01:56:29 petere Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-CREATEVIEW">
+ <refmeta>
+  <refentrytitle id="SQL-CREATEVIEW-TITLE">CREATE VIEW</refentrytitle>
+  <refmiscinfo>SQL - Language Statements</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>CREATE VIEW</refname>
+  <refpurpose>define a new view</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-createview">
+  <primary>CREATE VIEW</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+CREATE [ OR REPLACE ] VIEW <replaceable class="PARAMETER">name</replaceable> [ ( <replaceable
+class="PARAMETER">column_name</replaceable> [, ...] ) ] AS <replaceable class="PARAMETER">query</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Description</title>
+
+  <para>
+   <command>CREATE VIEW</command> defines a view of a query.  The view
+   is not physically materialized. Instead, the query is run every time
+   the view is referenced in a query.
+  </para>
+
+  <para>
+   <command>CREATE OR REPLACE VIEW</command> is similar, but if a view
+   of the same name already exists, it is replaced.  You can only replace
+   a view with a new query that generates the identical set of columns
+   (i.e., same column names and data types).
+  </para>
+
+  <para>
+   If a schema name is given (for example, <literal>CREATE VIEW
+   myschema.myview ...</>) then the view is created in the
+   specified schema.  Otherwise it is created in the current schema.
+   The view name must be distinct from the name of any other view, table,
+   sequence, or index in the same schema.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parameters</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="parameter">name</replaceable></term>
+    <listitem>
+     <para>
+      The name (optionally schema-qualified) of a view to be created.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">column_name</replaceable></term>
+    <listitem>
+     <para>
+      An optional list of names to be used for columns of the view.
+      If not given, the column names are deduced from the query.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="parameter">query</replaceable></term>
+    <listitem>
+     <para>
+      A query (that is, a <command>SELECT</> statement) which will
+      provide the columns and rows of the view.
+     </para>
+
+     <para>
+      Refer to <xref linkend="sql-select" endterm="sql-select-title">
+      for more information about valid queries.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Notes</title>
+
+   <para>
+    Currently, views are read only: the system will not allow an insert,
+    update, or delete on a view.  You can get the effect of an updatable
+    view by creating rules that rewrite inserts, etc. on the view into
+    appropriate actions on other tables.  For more information see
+    <xref linkend="sql-createrule" endterm="sql-createrule-title">.
+   </para>
+
+   <para>
+    Use the <command>DROP VIEW</command> statement to drop views.
+   </para>
+
+   <para>
+    Be careful that the names and types of the view's columns will be
+    assigned the way you want.  For example,
+<programlisting>
+CREATE VIEW vista AS SELECT 'Hello World';
+</programlisting>
+    is bad form in two ways: the column name defaults to <literal>?column?</>,
+    and the column data type defaults to <type>unknown</>.  If you want a
+    string literal in a view's result, use something like
+<programlisting>
+CREATE VIEW vista AS SELECT text 'Hello World' AS hello;
+</programlisting>
+   </para>
+
+   <para>
+    Access to tables referenced in the view is determined by permissions of
+    the view owner.  However, functions called in the view are treated the
+    same as if they had been called directly from the query using the view.
+    Therefore the user of a view must have permissions to call all functions
+    used by the view.
+   </para>
+
+ </refsect1>
+
+ <refsect1>
+  <title>Examples</title>
+
+  <para>
+   Create a view consisting of all comedy films:
+
+<programlisting>
+CREATE VIEW comedies AS
+    SELECT *
+    FROM films
+    WHERE kind = 'Comedy';
+</programlisting>
+  </para>
+ </refsect1>
+ 
+ <refsect1>
+  <title>Compatibility</title>
+
+  <para>
+   The SQL standard specifies some additional capabilities for the
+   <command>CREATE VIEW</command> statement:
+<synopsis>
+CREATE VIEW <replaceable class="parameter">name</replaceable> [ ( <replaceable class="parameter">column</replaceable> [, ...] ) ]
+    AS query
+    [ WITH [ CASCADE | LOCAL ] CHECK OPTION ]
+</synopsis>
+  </para>
+
+  <para>
+   The optional clauses for the full SQL command are:
+
+   <variablelist>
+     <varlistentry>
+      <term><literal>CHECK OPTION</literal></term>
+      <listitem>
+       <para>
+        This option is to do with updatable views.  All
+        <command>INSERT</> and <command>UPDATE</> commands on the view
+        will be checked to ensure data satisfy the view-defining
+        condition (that is, the new data would be visible through the
+        view). If they do not, the update will be rejected.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>LOCAL</literal></term>
+      <listitem>
+       <para>
+        Check for integrity on this view.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><literal>CASCADE</literal></term>
+      <listitem>
+       <para>
+        Check for integrity on this view and on any dependent
+        view. <literal>CASCADE</> is assumed if neither
+        <literal>CASCADE</> nor <literal>LOCAL</> is specified.
+       </para>
+      </listitem>
+     </varlistentry>
+   </variablelist>
+  </para>
+
+  <para>
+   <command>CREATE OR REPLACE VIEW</command> is a
+   <productname>PostgreSQL</productname> language extension.
+  </para>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

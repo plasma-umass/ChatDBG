@@ -1,0 +1,10 @@
+VPATH = @srcdir@
+
+INCLUDES = @APRUTIL_PRIV_INCLUDES@ @APR_INCLUDES@ @APRUTIL_INCLUDES@
+
+TARGETS = apr_xml.lo
+
+SUBDIRS = @APR_XML_SUBDIRS@
+
+# bring in rules.mk for standard functionality
+@INCLUDE_RULES@

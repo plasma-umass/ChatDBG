@@ -1,0 +1,22 @@
+polymorph -- filename convertor
+==================================
+
+must fix:
+----------------------------------
+  nothing -- works pretty well right now...
+
+wishlist:
+----------------------------------
+* -r command line switch to recurse directories
+
+* a "~/.polymorphrc" file with the specific file extensions
+you want to convert listed and editable
+
+* implement the --long_options for the command line
+
+* -e command line switch to exclude filenames of a given
+extension
+
+* -j command line switch to convert just files of a given
+extension
+

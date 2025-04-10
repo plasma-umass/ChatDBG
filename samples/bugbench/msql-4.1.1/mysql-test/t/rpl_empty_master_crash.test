@@ -1,0 +1,13 @@
+source include/master-slave.inc;
+
+--replace_column 1 # 33 #
+show slave status;
+
+#
+# Load table should not succeed on the master as this is not a slave
+#
+--error 1218
+load table t1 from master;
+connection slave;
+--error 1188
+load table t1 from master;

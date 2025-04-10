@@ -1,0 +1,254 @@
+<!--
+$Header: /cvsroot/pgsql/doc/src/sgml/ref/reindex.sgml,v 1.22 2003/09/29 23:40:26 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-REINDEX">
+ <refmeta>
+  <refentrytitle id="SQL-REINDEX-TITLE">REINDEX</refentrytitle>
+  <refmiscinfo>SQL - Language Statements</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>REINDEX</refname>
+  <refpurpose>rebuild indexes</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-reindex">
+  <primary>REINDEX</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+REINDEX { DATABASE | TABLE | INDEX } <replaceable class="PARAMETER">name</replaceable> [ FORCE ]
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Description</title>
+
+  <para>
+   <command>REINDEX</command> rebuilds an index based on the data
+   stored in the table, replacing the old copy of the index. There are
+   two main reasons to use <command>REINDEX</command>:
+
+   <itemizedlist>
+    <listitem>
+     <para>
+      An index has become corrupted, and no longer contains valid
+      data. Although in theory this should never happen, in
+      practice indexes may become corrupted due to software bugs or
+      hardware failures.  <command>REINDEX</command> provides a
+      recovery method.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      The index in question contains a lot of dead index pages that
+      are not being reclaimed. This can occur with B-tree indexes in
+      <productname>PostgreSQL</productname> under certain access
+      patterns. <command>REINDEX</command> provides a way to reduce
+      the space consumption of the index by writing a new version of
+      the index without the dead pages. See <xref
+      linkend="routine-reindex"> for more information.
+     </para>
+    </listitem>
+   </itemizedlist>
+  </para>
+ </refsect1>
+  
+ <refsect1>
+  <title>Parameters</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><literal>DATABASE</literal></term>
+    <listitem>
+     <para>
+      Recreate all system indexes of a specified database. Indexes on
+      user tables are not processed.  Also, indexes on shared system
+      catalogs are skipped except in stand-alone mode (see below).
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>TABLE</literal></term>
+    <listitem>
+     <para>
+      Recreate all indexes of a specified table.  If the table has a
+      secondary <quote>TOAST</> table, that is reindexed as well.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>INDEX</literal></term>
+    <listitem>
+     <para>
+      Recreate a specified index.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="PARAMETER">name</replaceable></term>
+    <listitem>
+     <para>
+      The name of the specific database, table, or index to be
+      reindexed.  Table and index names may be schema-qualified.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><literal>FORCE</literal></term>
+    <listitem>
+     <para>
+      This is an obsolete option; it is ignored if specified.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Notes</title>
+
+  <para>
+   If you suspect corruption of an index on a user table, you can
+   simply rebuild that index, or all indexes on the table, using
+   <command>REINDEX INDEX</command> or <command>REINDEX
+   TABLE</command>.  Another approach to dealing with a corrupted
+   user-table index is just to drop and recreate it.  This may in fact
+   be preferable if you would like to maintain some semblance of
+   normal operation on the table meanwhile.  <command>REINDEX</>
+   acquires exclusive lock on the table, while <command>CREATE
+   INDEX</> only locks out writes not reads of the table.
+  </para>
+
+  <para>
+   Things are more difficult if you need to recover from corruption of
+   an index on a system table.  In this case it's important for the
+   system to not have used any of the suspect indexes itself.
+   (Indeed, in this sort of scenario you may find that server
+   processes are crashing immediately at start-up, due to reliance on
+   the corrupted indexes.)  To recover safely, the server must be started
+   with the <option>-P</option> option, which prevents it from using
+   indexes for system catalog lookups.
+  </para>
+
+  <para>
+   One way to do this is to shut down the postmaster and start a stand-alone
+   <productname>PostgreSQL</productname> server
+   with the <option>-P</option> option included on its command line.
+   Then, <command>REINDEX DATABASE</>,
+   <command>REINDEX TABLE</>, or <command>REINDEX INDEX</> can be
+   issued, depending on how much you want to reconstruct.  If in
+   doubt, use <command>REINDEX DATABASE</> to select
+   reconstruction of all system indexes in the database.  Then quit
+   the standalone server session and restart the regular server.
+   See the <xref linkend="app-postgres"> reference page for more
+   information about how to interact with the stand-alone server
+   interface.
+  </para>
+
+  <para>
+   Alternatively, a regular server session can be started with
+   <option>-P</option> included in its command line options.
+   The method for doing this varies across clients, but in all
+   <application>libpq</>-based clients, it is possible to set
+   the <envar>PGOPTIONS</envar> environment variable to <literal>-P</>
+   before starting the client.  Note that while this method does not
+   require locking out other clients, it may still be wise to prevent
+   other users from connecting to the damaged database until repairs
+   have been completed.
+  </para>
+
+  <para>
+   If corruption is suspected in the indexes of any of the shared
+   system catalogs (<structname>pg_database</structname>,
+   <structname>pg_group</structname>, or
+   <structname>pg_shadow</structname>), then a standalone server
+   must be used to repair it.  <command>REINDEX</> will not process
+   shared catalogs in multiuser mode.
+  </para>
+
+  <para>
+   For all indexes except the shared system catalogs, <command>REINDEX</>
+   is crash-safe and transaction-safe.  <command>REINDEX</> is not
+   crash-safe for shared indexes, which is why this case is disallowed
+   during normal operation.  If a failure occurs while reindexing one
+   of these catalogs in standalone mode, it will not be possible to
+   restart the regular server until the problem is rectified.  (The
+   typical symptom of a partially rebuilt shared index is <quote>index is not
+   a btree</> errors.)
+  </para>
+
+  <para>
+   Prior to <productname>PostgreSQL</productname> 7.4, <command>REINDEX
+   TABLE</> did not automatically process TOAST tables, and so those had
+   to be reindexed by separate commands.  This is still possible, but
+   redundant.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Examples</title>
+
+  <para>
+   Recreate the indexes on the table <literal>my_table</literal>:
+
+<programlisting>
+REINDEX TABLE my_table;
+</programlisting>
+  </para>
+
+  <para>
+   Rebuild a single index:
+
+<programlisting>
+REINDEX INDEX my_index;
+</programlisting>
+  </para>
+
+  <para>
+   Rebuild all system indexes in a particular database, without trusting them
+   to be valid already:
+
+<programlisting>
+$ <userinput>export PGOPTIONS="-P"</userinput>
+$ <userinput>psql broken_db</userinput>
+...
+broken_db=> REINDEX DATABASE broken_db;
+broken_db=> \q
+</programlisting>
+  </para>
+ </refsect1>
+ 
+ <refsect1>
+  <title>Compatibility</title>
+
+  <para>
+   There is no <command>REINDEX</command> command in the SQL standard.
+  </para>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:t
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

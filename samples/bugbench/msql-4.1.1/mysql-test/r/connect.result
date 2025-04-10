@@ -1,0 +1,49 @@
+show tables;
+Tables_in_mysql
+columns_priv
+db
+func
+help_category
+help_keyword
+help_relation
+help_topic
+host
+tables_priv
+user
+show tables;
+Tables_in_test
+grant ALL on *.* to test@localhost identified by "gambling";
+grant ALL on *.* to test@127.0.0.1 identified by "gambling";
+show tables;
+Tables_in_mysql
+columns_priv
+db
+func
+help_category
+help_keyword
+help_relation
+help_topic
+host
+tables_priv
+user
+show tables;
+Tables_in_test
+update mysql.user set password=old_password("gambling2") where user="test";
+flush privileges;
+set password=old_password('gambling3');
+show tables;
+Tables_in_mysql
+columns_priv
+db
+func
+help_category
+help_keyword
+help_relation
+help_topic
+host
+tables_priv
+user
+show tables;
+Tables_in_test
+delete from mysql.user where user="test";
+flush privileges;

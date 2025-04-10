@@ -1,0 +1,187 @@
+2002-12-19  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.in: Remove reference to options.h.
+	* startserver.c: Ditto.
+	* options.h: Remove file and move relevant content...
+	* config.h: ...here.
+
+2002-09-24  Derek Price  <derek@ximbiot.com>
+
+	* options.h: Remove prototype of STDC exit().
+
+2002-08-24  Larry Jones  <lawrence.jones@eds.com>
+
+	* options.h: Remove PATCH_PROGRAM.
+
+2002-08-16  Derek Price  <derek@ximbiot.com>
+
+	* options.h: Remove RELATIVE_REPOS & move CVS_BADROOT...
+	* config.h: ...here.
+
+2001-09-04  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated with automake 1.5.
+
+2001-03-14  Derek Price  <derek.price@openavenue.com>
+
+	* Makefile.in (installcheck): New target.
+
+2001-02-14  Larry Jones  <larry.jones@sdrc.com>
+
+	* Makefile.in: Remove references to rtag.c & rtag.o.
+
+2000-12-21  Derek Price  <derek.price@openavenue.com>
+
+	* Makefile.in: Targets added to please Automake
+
+1999-03-27  Jim Kingdon  <http://www.cyclic.com>
+
+	* Makefile.in (LIB_OBJECTS, LIB_SOURCES): Remove vasprintf.
+
+1999-02-26  Jim Kingdon  <http://www.cyclic.com>
+
+	* options.h: Make RELATIVE_REPOS the default, as in
+	../src/options.h.in.
+
+1998-08-24  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (rcscmds.o): New rule, so we can supply -I for
+	diffrun.h.
+
+1998-04-09  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* filesubr.c (link_file): Remove; no longer used.
+
+Tue Feb 17 02:28:20 1998  Noel Cragg  <noel@swish.red-bean.com>
+
+	* filesubr.c (last_component): return the top-level directory when
+ 	asked about the top-level directory.
+
+Tue Jan 13 13:17:33 1998  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* options.h (DIFF, RCSBIN_DFLT): Remove; no longer used.
+
+Wed Dec 31 10:56:39 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* config.h, filesubr.c (convert_file): Remove; no longer used
+	(except for BROKEN_READWRITE_CONVERSION which doesn't apply).
+
+Sat Dec 27 16:57:41 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* options.h (HAVE_RCS5): Remove; no longer used.
+
+	* config.h (LINES_CRLF_TERMINATED): Remove; no longer used.
+
+Tue Dec 23 08:28:44 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README: Change bug-cvs address from prep.ai.mit.edu to gnu.org
+	per email from Martin Hamilton.
+
+Sat Nov 29 22:20:42 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* options.h: Remove declaration of getwd; see lib/ChangeLog for
+	rationale.
+
+Fri Nov 14 13:37:33 1997  Abe Feldman and Jim Kingdon
+
+	* savecwd.c: New file, copied from lib/savecwd.c except it calls
+	_chdir2 not chdir.
+	* Makefile.in: Put savecwd in emx directory not lib directory.
+
+Tue Nov  4 18:20:08 1997  Abe Feldman  <feldman@cyclic.com>
+	and Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in: Adjust to add diff directory.
+
+Sun Sep  7 19:49:36 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* system.c (os2_stat): Adjust comment to reflect removal of
+	same_directories from src/root.c.
+
+Sat Sep 06 14:45:13 1997  Jim Kingdon
+
+	* Makefile.in: Add a cvs-static.exe rule for generating
+	executables which don't need emx.dll (doesn't work yet).
+
+Fri Sep 05 12:21:56 1997  Jim Kingdon
+
+	* filesubr.c (xchmod): Replace with "attrib"-based code from
+	os2/filesubr.c.
+	* config.h (CHMOD_BROKEN): Define.
+
+Wed Jul 30 15:35:33 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in: In comment about Makefile rule, remove note about
+	this not being a problem for os2/Makefile.in.  It is a problem
+	there too.
+
+	* README: Add note about srcdir and top_srcdir.
+
+Mon Jul 21 15:36:48 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (DISTFILES): Makefile is not in srcdir.
+
+Wed Jun 18 12:07:25 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (OS2_SOURCES): Fix comment so this is not commented
+	out.  Remove windows-NT/rcmd.c; the make dist for the windows-NT
+	directory can take care of that one.
+
+	* Makefile.in, README: Add comments about Makefile rule.
+
+Tue Jun 17 14:44:02 1997  Jim Kingdon  (unknown@beezley)
+
+	* rcmd.c: Removed; no longer used.
+	* rcmd.h: Updated to have similar contents as
+	windows-NT/rcmd.h.
+	* Makefile.in (OS2_HEADERS): Change back to ${srcdir}/rcmd.h.
+	That is the one that the -I options specify anyway.
+	* startserver.c (os2_start_server): Pass a const char ** not
+	a char ** to rcmd.
+
+	* README: Replace text concerning warnings with a more
+	specific list of exactly what the warnings are.  For the
+	most part there should be no warnings.
+	Update note about -lufc.
+	* Makefile.in (LIB): Remove -lufc.
+	* config.h (RSH_NOT_TRANSPARENT): Define.
+	* Makefile.in: Use ${top_srcdir}/windows-NT/rcmd.* not our
+	own rcmd.* (for better error messages).
+	* .cvsignore: Add cvs.out.
+
+Tue Jun 17 13:19:53 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README: Revise paragraph on -Zsys to discuss problem with
+	sockets being missing.
+
+Mon Jun 16 10:58:46 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README: Change bug submission address to include bug-cvs.
+	Add paragraph (from the mail message of the submission) concerning
+	HPFS and such.  Cosmetic changes (two spaces after periods for
+	example).  Say that ufc-crypt shouldn't be needed currently.
+	Add comment about emx.dll.
+	* config.h, startserver.c, rcmd.h, rcmd.c, system.c: Add
+	"copyright" notice.
+	* system.c (os2_initialize): Add comment about whether we should
+	be expanding wildcards here.  Cosmetic changes throughout
+	(for example, reindenting just about everything).
+	* system.c (xgetwd): Rewritten and renamed from os2_getwd.
+	* config.h (CVS_GETWD, os2_getwd): Removed.
+	* rcmd.c: Add comment about portable versus OS-specific
+	implementations of this functionality.
+	* config.h: Remove SIZEOF_INT, SIZEOF_LONG, HAVE_MKFIFO,
+	HAVE_SETVBUF, and USE_DIRECT_TCP; no longer used.
+	* config.h: Add USE_SETMODE_BINARY.
+	* config.h: Define NO_EXT_METHOD.
+	* Makefile.in (LIB_SOURCES): Remove lib/xgetwd.c; replaced by
+	xgetwd in system.c.
+	(LIB_OBJECTS): Likewise, remove lib/xgetwd.o.
+	* Makefile.in (DISTFILES): Add missing "/".
+	* .cvsignore: Added.
+
+	* New directory.  This consists of the port that Thomas Epting
+	sent to bug-cvs on 18 Mar 97.  He also sent some diffs which go
+	with this; I'll subsequently be checking in some of those diffs
+	and my various tweaks to the code.
+

@@ -1,0 +1,12 @@
+if test "$GCC" != yes ; then
+  CC="$CC -std"
+  CFLAGS="-O -ieee"
+fi
+
+THREAD_SUPPORT=yes
+NEED_REENTRANT_FUNCS=no		# 4.0 2003-09-13
+if test "$GCC" = yes
+then	THREAD_LIBS="-pthread"
+else	THREAD_CPPFLAGS="-pthread"
+	THREAD_LIBS="-lpthread"
+fi

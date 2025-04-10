@@ -1,0 +1,18 @@
+polymorph -- filename conversion program
+
+v0.4.0  -- 08.04.01
+        -- fixed clean-up bugs
+
+v0.3.1  -- 07.07.01
+        -- name changed to 'polymorph'
+        -- bugfix release
+
+v0.3 -- 01.01.00
+     -- added -c switch to clean filenames of backslashes
+
+v0.2 -- 12.28.99
+     -- added -a switch for hidden files, and cleaned up symlink
+        mayhem.
+
+v0.1 -- 12.21.99
+     -- Initial Release

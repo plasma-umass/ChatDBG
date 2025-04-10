@@ -1,0 +1,74 @@
+#
+# Test timestamp
+#
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+CREATE TABLE t1 (a int, t timestamp);
+CREATE TABLE t2 (a int, t datetime);
+SET TIMESTAMP=1234;
+insert into t1 values(1,NULL);
+insert into t1 values(2,"2002-03-03");
+SET TIMESTAMP=1235;
+insert into t1 values(3,NULL);
+SET TIMESTAMP=1236;
+insert into t1 (a) values(4);
+insert into t2 values(5,"2002-03-04"),(6,NULL),(7,"2002-03-05"),(8,"00-00-00");
+SET TIMESTAMP=1237;
+insert into t1 select * from t2;
+SET TIMESTAMP=1238;
+insert into t1 (a) select a+1 from t2 where a=8;
+select * from t1;
+drop table t1,t2;
+
+SET TIMESTAMP=1234;
+CREATE TABLE t1 (value TEXT NOT NULL, id VARCHAR(32) NOT NULL, stamp timestamp, PRIMARY KEY (id));
+INSERT INTO t1 VALUES ("my value", "myKey","1999-04-02 00:00:00");
+SELECT stamp FROM t1 WHERE id="myKey";
+UPDATE t1 SET value="my value" WHERE id="myKey";
+SELECT stamp FROM t1 WHERE id="myKey";
+drop table t1;
+
+create table t1 (a timestamp);
+insert into t1 values (now());
+select date_format(a,"%Y %y"),year(a),year(now()) from t1;
+drop table t1;
+
+create table t1 (ix timestamp);
+insert into t1 values (19991101000000),(19990102030405),(19990630232922),(19990601000000),(19990930232922),(19990531232922),(19990501000000),(19991101000000),(19990501000000);
+select ix+0 from t1; 
+drop table t1;
+
+CREATE TABLE t1 (date date, date_time datetime, time_stamp timestamp);
+INSERT INTO t1 VALUES ("1998-12-31","1998-12-31 23:59:59",19981231235959);
+INSERT INTO t1 VALUES ("1999-01-01","1999-01-01 00:00:00",19990101000000);
+INSERT INTO t1 VALUES ("1999-09-09","1999-09-09 23:59:59",19990909235959);
+INSERT INTO t1 VALUES ("2000-01-01","2000-01-01 00:00:00",20000101000000);
+INSERT INTO t1 VALUES ("2000-02-28","2000-02-28 00:00:00",20000228000000);
+INSERT INTO t1 VALUES ("2000-02-29","2000-02-29 00:00:00",20000229000000);
+INSERT INTO t1 VALUES ("2000-03-01","2000-03-01 00:00:00",20000301000000);
+INSERT INTO t1 VALUES ("2000-12-31","2000-12-31 23:59:59",20001231235959);
+INSERT INTO t1 VALUES ("2001-01-01","2001-01-01 00:00:00",20010101000000);
+INSERT INTO t1 VALUES ("2004-12-31","2004-12-31 23:59:59",20041231235959);
+INSERT INTO t1 VALUES ("2005-01-01","2005-01-01 00:00:00",20050101000000);
+INSERT INTO t1 VALUES ("2030-01-01","2030-01-01 00:00:00",20300101000000);
+# The following will get you an different answer on 64 bit machines
+#INSERT INTO t1 VALUES ("2050-01-01","2050-01-01 00:00:00",20500101000000);
+SELECT * FROM t1;
+drop table t1;
+
+show variables like 'new';
+create table t1 (t2 timestamp(2), t4 timestamp(4), t6 timestamp(6),
+                 t8 timestamp(8), t10 timestamp(10), t12 timestamp(12),
+                 t14 timestamp(14));
+insert t1 values (0,0,0,0,0,0,0),
+("1997-12-31 23:47:59", "1997-12-31 23:47:59", "1997-12-31 23:47:59",
+"1997-12-31 23:47:59", "1997-12-31 23:47:59", "1997-12-31 23:47:59",
+"1997-12-31 23:47:59");
+select * from t1;
+set new=1;
+select * from t1;
+drop table t1;
+

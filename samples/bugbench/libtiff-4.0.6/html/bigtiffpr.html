@@ -1,0 +1,77 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html lang="en">
+<head>
+  <title>Extending LibTiff library with support for the new BigTIFF format</title>
+  <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+  <meta http-equiv="content-language" content="en">
+</head>
+<body lang="en" text="#000000" bgcolor="#ffffff" link="#0000ff" alink="#0000ff" vlink="#0000ff">
+  <h1>Extending LibTiff library with support for the new BigTIFF format</h1>
+  <p>
+    <a href="http://www.remotesensing.org/libtiff/">LibTiff</a> maintainers have started work on LibTiff 4.0, 
+    the next major upgrade of the time-proven <a href="http://www.awaresystems.be/imaging/tiff.html">TIFF</a>
+    codec. This upgrade will include support for the new BigTIFF file format. It is planned a preliminary 
+    version (LibTiff 4.0alpha1) will be operational by June 15, 2007. Testing and final release improvements 
+    for LibTiff 4.0 will be completed by July 30, 2007.
+  </p>
+  <p>
+    BigTIFF logically extends the original TIFF file format (referred to as 'ClassicTIFF' from now on), 
+    breaking the 4 gigabyte boundary, with 64bit offsets allowing files up to 18,000 petabytes in size. The 
+    BigTIFF specification is the result of work by a variety of parties on the LibTiff mailing list, including 
+    the current LibTiff maintainers, Joris Van Damme and Adobe staff. The BigTIFF specification has not yet 
+    been officially approved by the TIFF specification owner (Adobe), but implementation within LibTiff
+    could accelerate that process. For more information on the BigTIFF file format, we recommend AWare Systems'
+    <a href="http://www.awaresystems.be/imaging/tiff/bigtiff.html">BigTIFF page</a>.
+  </p>
+  <p>
+    BigTIFF will be especially useful for people and vendors that are confronted with very large images, and 
+    still seek to use an open, simple, and extendable format. This requirement is frequently encountered in the
+    geospatial field, but also concerns large format scanners, medical imaging and other fields.
+  </p>
+  <p>
+    The LibTiff BigTIFF upgrade is made possible by four sponsors funding the project. The programming work will 
+    primarily be done by <a href="http://www.awaresystems.be/index.html">Joris Van Damme (AWare Systems)</a>. 
+    LibTiff's licensing agreement will remain unchanged. More details on the project itself, are available from
+    the <a href="http://www.remotesensing.org/libtiff/BigTIFFProposal.html">BigTIFF in LibTiff project page</a>.
+  </p>
+  <p>
+    The sponsors are, in alphabetical order:
+  </p>
+  <table cellspacing="4" cellpadding="4" border="0">
+    <tbody>
+      <tr>
+        <td><img src="bigtiffpr_images/esri.png" width="128" height="78" alt="ESRI" border="0"></td>
+        <td><a href="http://www.esri.com/">ESRI</a> has been giving customers around the world the power to
+          think and plan geographically since 1969.  As the leader in GIS, ESRI applies innovative technologies to help 
+          organizations create, analyze, and visualize information for more informed decisions.  Running on more than
+          a million desktops and thousands of servers, ESRI applications are the foundation of the world's mapping and 
+          spatial analysis infrastructure.</td>
+      </tr>
+      <tr>
+        <td><img src="bigtiffpr_images/leica.png" width="128" height="85" alt="Leica Geosystems Geospatial Imaging" border="0"></td>
+        <td><a href="http://gi.leica-geosystems.com/default.aspx">Leica Geosystems Geospatial Imaging</a> offers a 
+          range of workflow solutions for photogrammetry, mapping, remote sensing, catalog management and exploitation 
+          of geospatial imagery. Enterprise organizations use this imagery as the basis for generating information for 
+          both education and decision making processes. Those who use Leica Geosystems products every day trust them 
+          for their precision, seamless integration, interoperability and superior customer support.</td>
+      </tr>
+      <tr>
+        <td><img src="bigtiffpr_images/safe.png" width="128" height="53" alt="Safe Software" border="0"></td>
+        <td><a href="http://www.safe.com/">Safe Software</a> is the maker of FME, a powerful spatial ETL (Extract,
+          Transform and Load) tool that enables true data interoperability. FME manages the translation, 
+          transformation, integration and web-based distribution of geospatial data in 200 GIS, CAD, raster and 
+          database formats. Safe Software's FME technology is also embedded in numerous market-leading GIS and 
+          ETL applications.</td>
+      </tr>
+      <tr>
+        <td><img src="bigtiffpr_images/weogeo.png" width="128" height="37" alt="WeoGeo" border="0"></td>
+	<td><a href="http://www.weogeo.com/">WeoGeo</a> is a web-based data management resource for the geospatial 
+          industry that allows the free market exchange of mapping related imagery products, featuring an innovative 
+          solution that efficiently manages digital mapping files of any size. With an intuitive user interface 
+          and the scalable power of Amazon Web Services (AWS), geospatial professionals can view, sort, search, 
+          and share complex, high volume maps quickly and effectively.</td>
+      </tr>
+    </tbody>
+  </table>
+</body>
+</html>

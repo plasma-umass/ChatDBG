@@ -1,0 +1,16 @@
+srcdir = @srcdir@
+VPATH = @srcdir@
+
+TARGETS = \
+	thread_mutex.lo \
+	thread_rwlock.lo \
+	thread_cond.lo \
+	proc_mutex.lo
+
+# bring in rules.mk for standard functionality
+@INCLUDE_RULES@
+
+INCDIR=../../include
+INCLUDES=-I$(INCDIR) -I$(INCDIR)/arch
+
+# DO NOT REMOVE

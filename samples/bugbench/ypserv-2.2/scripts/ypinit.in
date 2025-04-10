@@ -1,0 +1,185 @@
+#! /bin/sh
+#
+#  ypinit - set up the YP directory on a master server or a slave server.
+#
+### some variables
+
+YPMAPDIR=@YPMAPDIR@
+YPBINDIR=@YPBINDIR@
+
+HOST=""
+DOMAIN=""
+MASTER=""
+is_correct=F
+
+### some functions, which make the life easier
+
+ypinit_slave()
+{
+  if [ $HOST = $MASTER ]
+  then
+    echo "The host specified should be a running master NIS server, not this machine."
+    exit 1
+  fi
+#  maps=`ypwhich -m | egrep $MASTER$| awk '{ printf("%s ",$1) }' -`
+  maps=`$YPBINDIR/yphelper --maps $MASTER`
+
+  if [ -z "$maps" ]
+  then
+    echo "Can't enumerate maps from $MASTER. Please check that it is running."
+    exit 1
+  fi
+
+  mkdir -p $YPMAPDIR/$DOMAIN
+
+  echo "We will need a few minutes to copy the data from $MASTER."
+
+  for map in $maps
+  do
+    echo "Transferring $map..."
+    $YPBINDIR/ypxfr -f -h $MASTER -c -d $DOMAIN $map
+
+    if [ $?  -ne 0 ]
+    then
+      echo "YPINIT: WARNING: Couldn't exec $YPBINDIR/ypxfr -f -h $MASTER -c -d $DOMAIN $map"
+    fi
+  done
+
+  echo ""
+  echo "${HOST}'s NIS data base has been set up."
+  echo "If there were warnings, please figure out what went wrong, and fix it."
+  echo ""
+  echo "At this point, make sure that /etc/passwd and /etc/group have"
+  echo "been edited so that when the NIS is activated, the data bases you"
+  echo "have just created will be used, instead of the /etc ASCII files."
+
+  exit 0
+
+}
+
+ypinit_master()
+{
+  mkdir -p $YPMAPDIR/$DOMAIN
+
+  rm -f $YPMAPDIR/$DOMAIN/*
+
+  while [ $is_correct = F ]; do
+    echo $HOST >$YPMAPDIR/ypservers
+    echo ""
+    echo "At this point, we have to construct a list of the hosts which will run NIS"
+    echo "servers.  $HOST is in the list of NIS server hosts.  Please continue to add"
+    echo "the names for the other hosts, one per line.  When you are done with the"
+    echo "list, type a <control D>."
+    echo "	next host to add:  $HOST"
+    echo -n "	next host to add:  "
+
+    while read h
+    do
+      echo -n "	next host to add:  "
+      echo $h >>$YPMAPDIR/ypservers
+    done
+
+    echo ""
+    echo "The current list of NIS servers looks like this:"
+    echo ""
+
+    cat $YPMAPDIR/ypservers
+    echo ""
+    echo -n "Is this correct?  [y/n: y]  "
+    read hostlist_ok
+
+    case $hostlist_ok in
+      N)  echo "Let's try again...";;
+      n)  echo "Let's try again...";;
+      *)  is_correct=T;;
+    esac
+  done
+
+  echo "We need a few minutes to build the databases..."
+  echo "Building $YPMAPDIR/$DOMAIN/ypservers..."
+  cat $YPMAPDIR/ypservers | awk '{print $$0, $$0}' | $YPBINDIR/makedbm - $YPMAPDIR/$DOMAIN/ypservers
+
+  if [ $?  -ne 0 ]
+  then
+    echo "Couldn't build yp data base $YPMAPDIR/$DOMAIN/ypservers."
+    echo "Please fix it."
+  fi
+
+  echo "Running $YPMAPDIR/Makefile..."
+  cd $YPMAPDIR && make NOPUSH=true
+
+  if [ $? -ne 0 ]
+  then
+    echo "Error running Makefile."
+    echo "Please try it by hand."
+  else
+    echo ""
+    echo "$HOST has been set up as a NIS master server."
+    echo ""
+    echo "Now you can run ypinit -s $HOST on all slave server."
+  fi
+}
+
+usage()
+{
+  echo "usage:"
+  echo "  ypinit -m"
+  echo "  ypinit -s master"
+  echo ""
+  echo "where -m is used to build the data bases on a master NIS server,"
+  echo "and -s is used for a slave data base. master must be an existing"
+  echo "reachable NIS server."
+
+  exit 1
+}
+
+
+### Begin of the shell script
+
+HOST=`$YPBINDIR/yphelper --hostname`
+if [ $? -ne 0 ]
+then
+	echo "Can't get local host's name.  Please check your path."
+	exit 1
+fi
+
+if [ -z "$HOST" ]
+then
+	echo "The local host's name hasn't been set.  Please set it."
+	exit 1
+fi
+
+DOMAIN=`domainname`
+if [ $? -ne 0 ]
+then
+	echo "Can't find domainname. Please fix your PATH"
+	exit 1
+fi
+
+if [ -z "$DOMAIN" ]
+then
+	echo "The local host's domain name hasn't been set.  Please set it."
+	exit 1
+fi
+
+if [ ! -d $YPMAPDIR -o -f $YPMAPDIR ]
+then
+	echo "The directory $YPMAPDIR doesn't exist."
+	echo "Create it or run make install-* from the sourcen."
+	exit 1
+fi
+
+case $# in
+1)	case $1 in
+	-m)	ypinit_master;;
+	*)      usage;;
+	esac;;
+
+2)	case $1 in
+        -s)	MASTER=$2
+	        ypinit_slave;;
+        *)      usage;;
+        esac;;
+
+*)      usage;;
+esac

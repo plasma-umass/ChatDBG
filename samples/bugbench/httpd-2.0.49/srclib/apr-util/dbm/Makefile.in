@@ -1,0 +1,10 @@
+VPATH = @srcdir@
+
+INCLUDES = @APRUTIL_PRIV_INCLUDES@ @APR_INCLUDES@ @APRUTIL_INCLUDES@
+
+TARGETS = apr_dbm.lo apr_dbm_berkeleydb.lo apr_dbm_gdbm.lo apr_dbm_sdbm.lo apr_dbm_ndbm.lo
+
+# bring in rules.mk for standard functionality
+@INCLUDE_RULES@
+
+SUBDIRS = sdbm .

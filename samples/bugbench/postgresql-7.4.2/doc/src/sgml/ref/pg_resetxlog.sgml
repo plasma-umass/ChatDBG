@@ -1,0 +1,139 @@
+<!--
+$Header: /cvsroot/pgsql/doc/src/sgml/ref/pg_resetxlog.sgml,v 1.7 2003/03/24 14:32:51 petere Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="APP-PGRESETXLOG">
+ <refmeta>
+  <refentrytitle id="APP-PGRESETXLOG-TITLE"><application>pg_resetxlog</application></refentrytitle>
+  <manvolnum>1</manvolnum>
+  <refmiscinfo>Application</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>pg_resetxlog</refname>
+  <refpurpose>reset the write-ahead log and other control information of a <productname>PostgreSQL</productname> database cluster</refpurpose>
+ </refnamediv>
+
+ <refsynopsisdiv>
+  <cmdsynopsis>
+   <command>pg_resetxlog</command>
+   <arg> -f </arg>
+   <arg> -n </arg>
+   <arg> -o <replaceable class="parameter">oid</replaceable> </arg>
+   <arg> -x <replaceable class="parameter">xid</replaceable> </arg>
+   <arg> -l <replaceable class="parameter">fileid</replaceable>,<replaceable class="parameter">seg</replaceable> </arg>
+   <arg choice="plain"><replaceable>datadir</replaceable></arg>
+  </cmdsynopsis>
+ </refsynopsisdiv>
+
+ <refsect1 id="R1-APP-PGRESETXLOG-1">
+  <title>Description</title>
+  <para>
+   <command>pg_resetxlog</command> clears the write-ahead log (WAL) and
+   optionally resets some other control information (stored in the
+   <filename>pg_control</> file).  This function is sometimes needed
+   if these files have become corrupted.  It should be used only as a
+   last resort, when the server will not start due to such corruption.
+  </para>
+
+  <para>
+   After running this command, it should be possible to start the server,
+   but bear in mind that the database may contain inconsistent data due to
+   partially-committed transactions.  You should immediately dump your data,
+   run <command>initdb</>, and reload.  After reload, check for
+   inconsistencies and repair as needed.
+  </para>
+
+  <para>
+   This utility can only be run by the user who installed the server, because
+   it requires read/write access to the data directory.
+   For safety reasons, you must specify the data directory on the command line.
+   <command>pg_resetxlog</command> does not use the environment variable
+   <envar>PGDATA</>.
+  </para>
+
+  <para>
+   If <command>pg_resetxlog</command> complains that it cannot determine
+   valid data for <filename>pg_control</>, you can force it to proceed anyway
+   by specifying the <literal>-f</> (force) switch.  In this case plausible
+   values will be substituted for the missing data.  Most of the fields can be
+   expected to match, but manual assistance may be needed for the next OID,
+   next transaction ID, WAL starting address, and database locale fields.
+   The first three of these can be set using the switches discussed below.
+   <command>pg_resetxlog</command>'s own environment is the source for its
+   guess at the locale fields; take care that <envar>LANG</> and so forth
+   match the environment that <command>initdb</> was run in.
+   If you are not able to determine correct values for all these fields,
+   <literal>-f</> can still be used, but
+   the recovered database must be treated with even more suspicion than
+   usual: an immediate dump and reload is imperative.  <emphasis>Do not</>
+   execute any data-modifying operations in the database before you dump;
+   as any such action is likely to make the corruption worse.
+  </para>
+
+  <para>
+   The <literal>-o</>, <literal>-x</>, and <literal>-l</> switches allow
+   the next OID, next transaction ID, and WAL starting address values to
+   be set manually.  These are only needed when
+   <command>pg_resetxlog</command> is unable to determine appropriate values
+   by reading <filename>pg_control</>.  A safe value for the
+   next transaction ID may be determined by looking for the numerically largest
+   file name in the directory <filename>pg_clog</> under the data directory, adding one,
+   and then multiplying by 1048576.  Note that the file names are in
+   hexadecimal.  It is usually easiest to specify the switch value in
+   hexadecimal too. For example, if <filename>0011</> is the largest entry
+   in <filename>pg_clog</>, <literal>-x 0x1200000</> will work (five trailing
+   zeroes provide the proper multiplier).
+   The WAL starting address should be
+   larger than any file number currently existing in
+   the directory <filename>pg_xlog</> under the data directory.  The addresses are also in hexadecimal and
+   have two parts.   For example, if <filename>000000FF0000003A</> is the
+   largest entry in <filename>pg_xlog</>, <literal>-l 0xFF,0x3B</> will work.
+   There is no comparably easy way to determine a next OID that's beyond
+   the largest one in the database, but fortunately it is not critical to
+   get the next-OID setting right.
+  </para>
+
+  <para>
+   The <literal>-n</> (no operation) switch instructs
+   <command>pg_resetxlog</command> to print the values reconstructed from
+   <filename>pg_control</> and then exit without modifying anything.
+   This is mainly a debugging tool, but may be useful as a sanity check
+   before allowing <command>pg_resetxlog</command> to proceed for real.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Notes</title>
+
+  <para>
+   This command must not be used when the server is 
+   running.  <command>pg_resetxlog</command> will refuse to start up if
+   it finds a server lock file in the data directory.  If the
+   server crashed then a lock file may have been left
+   behind; in that case you can remove the lock file to allow
+   <command>pg_resetxlog</command> to run.  But before you do
+   so, make doubly certain that there
+   is no <command>postmaster</command> nor any backend server process still alive.
+  </para>
+ </refsect1>
+
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

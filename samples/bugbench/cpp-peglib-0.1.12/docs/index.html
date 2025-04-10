@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>PEG Playground</title>
+<link rel="stylesheet" href="style.css" media="all">
+</head>
+<body>
+<div id="main">
+  <div class="editor-container">
+    <ul class="editor-header">
+      <li><span>Grammar</span></li>
+      <li><span id="grammar-validation" class="editor-validation">Valid</span></li>
+    </ul>
+    <pre id="grammar-editor" class="editor-area">{{syntax}}</pre>
+    <div id="grammar-info" class="editor-info"></div>
+  </div>
+  <div class="editor-container">
+    <ul class="editor-header">
+      <li><span>Source Code</span></li>
+      <li><span id="code-validation" class="editor-validation">Valid</span></li>
+    </ul>
+    <pre id="code-editor" class="editor-area">{{source}}</pre>
+    <div class="editor-sub-header">AST</div>
+    <pre id="code-ast" class="editor-area"></pre>
+    <div class="editor-sub-header">Optimized AST&nbsp;&nbsp;&nbsp;&nbsp;
+      mode:&nbsp;<select id="opt_mode" type="checkbox"><option value="all">All</option><option value="only">Only</option></select>&nbsp;&nbsp;
+      rules:&nbsp;<input id="opt_rules" type="text" size="40" placeholder="Enter definition rules separated by comma."></input>
+    </div>
+    <pre id="code-ast-optimized" class="editor-area"></pre>
+    <div id="code-info" class="editor-info"></div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.2/ace.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script src="index.js"></script>
+<script src="native.js"></script>
+</body>
+</html>

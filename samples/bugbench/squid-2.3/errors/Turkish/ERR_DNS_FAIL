@@ -1,0 +1,25 @@
+<HTML><HEAD>
+<TITLE>HATA:  İstenilen URL'e ulaşılamadı </TITLE>
+<META http-equiv="Content-Type" content="text/html;charset=iso-8859-9">
+</HEAD><BODY>
+<H1>HATA</H1>
+<H2>İstenilen URL'e ulaşılamadı</H2>
+<HR>
+<P>
+<A HREF="%U">%U</A>
+<P>
+adresine ulaşırken aşağıdaki hata oluştu:
+<P>
+<BLOCKQUOTE>
+<I>%H</I> isimli sunucuya ayit herhangi bir IP adresi bulunamadı.
+</BLOCKQUOTE>
+</UL>
+<P>
+DNS sunucusundan gelen cevap:
+<BLOCKQUOTE>
+%z
+</BLOCKQUOTE>
+<P>
+ Cache Sunucusu, verdiğiniz hedef WWW sunucusunun IP adresini bulamadı.
+ Adresin doğru olup olmadığını tekrar kontrol ediniz.
+</P>

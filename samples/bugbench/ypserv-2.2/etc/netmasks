@@ -1,0 +1,14 @@
+#
+# netmasks     The netmasks file. Entries look like this:
+# 
+#                 network  netmask
+# 
+#              So for example a netmask for the 192.168.0 network could be:
+# 
+#                 192.168.0  255.255.255.0
+#                 
+                  
+# 192.168.0  255.255.255.0
+# 172.16     255.255.0.0
+# 10         255.0.0.0
+

@@ -1,0 +1,18 @@
+<HTML><HEAD>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-2">
+<TITLE>CHYBA: Pozadovane URL je nedostupne</TITLE>
+</HEAD><BODY>
+<H1>CHYBA</H1>
+<H2>Požadované URL je nedostupné</H2>
+<HR>
+<P>
+FTP server bol príliš zaneprázdnený pri pokuse získat nasledovné URL:
+<A HREF="%U">%U</A>
+<P>
+Squid zaslal nasledujúci FTP príkaz:
+<blockquote><strong><pre>%f</pre></strong></blockquote>
+a obdržal nasledovnú opoveď:
+<blockquote><strong><pre>%F</pre></strong></blockquote>
+<blockquote><strong><pre>%g</pre></strong></blockquote>
+</P>
+

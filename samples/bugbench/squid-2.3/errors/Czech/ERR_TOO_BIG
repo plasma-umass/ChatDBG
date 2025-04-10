@@ -1,0 +1,24 @@
+<HTML><HEAD>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-2"> 
+<TITLE>CHYBA: Pozadovany dokument je nedostupny</TITLE>
+</HEAD><BODY>
+<H1>CHYBA</H1>
+<H2>Požadovaný dokument je nedostupný</H2>
+<HR>
+Při pokusu o přístup k:
+<A HREF="%U">%U</A>
+<P>
+se objevila následující chyba:
+<UL>
+<LI>
+<STRONG>
+The request or reply is too large.
+</STRONG>
+</UL>
+<P>
+Při použití metody POST, PUT nebo GET byl požadovaný dokument příliš
+velký a překročil možný limit povolený k přenosu (pravděpodobně jste
+se snažili o posílání/příjem dokumentu na server nebo ze serveru).
+Tento limit byl nastaven administrátorem této cache. Pokud si myslíte,
+že je potřeba tyto limity změnit, <A HREF="mailto:%w">kontaktujte ho</a>.
+</P>

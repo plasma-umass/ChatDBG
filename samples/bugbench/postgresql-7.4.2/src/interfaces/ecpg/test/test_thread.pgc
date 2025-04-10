@@ -1,0 +1,107 @@
+/*
+ *	Thread test program
+ *	by Philip Yarra
+ */
+
+
+#include <pthread.h>
+#include <stdlib.h>
+
+void		ins1(void);
+void		ins2(void);
+
+EXEC SQL BEGIN DECLARE SECTION;
+char	   *dbname;
+int	    iterations = 10;
+EXEC SQL END DECLARE SECTION;
+
+int
+main(int argc, char *argv[])
+{
+	pthread_t	thread1,
+			thread2;
+EXEC SQL BEGIN DECLARE SECTION;
+	int		rows;
+EXEC SQL END DECLARE SECTION;
+
+	if (argc < 2 || argc > 3)
+	{
+		fprintf(stderr, "Usage: %s dbname [iterations]\n", argv[0]);
+		return 1;
+	}
+	dbname = argv[1];
+
+	if (argc == 3)
+		iterations = atoi(argv[2]);
+	if (iterations % 2 != 0)
+	{
+		fprintf(stderr, "iterations must be an even number\n");
+		return 1;
+	}
+
+	EXEC SQL CONNECT TO:dbname AS test0;
+
+	/* DROP might fail */
+	EXEC SQL AT test0 DROP TABLE test_thread;
+	EXEC SQL AT test0 COMMIT WORK;
+	EXEC SQL AT test0 CREATE TABLE test_thread(message TEXT);
+	EXEC SQL AT test0 COMMIT WORK;
+	EXEC SQL DISCONNECT test0;
+
+	pthread_create(&thread1, NULL, (void * (*)(void *)) ins1, NULL);
+	pthread_create(&thread2, NULL, (void * (*)(void *)) ins2, NULL);
+	pthread_join(thread1, NULL);
+	pthread_join(thread2, NULL);
+
+	EXEC SQL CONNECT TO:dbname AS test3;
+	EXEC SQL AT test3 SELECT COUNT(*) INTO :rows FROM test_thread;
+	EXEC SQL AT test3 COMMIT WORK;
+	EXEC SQL DISCONNECT test3;
+
+	if (rows == iterations)
+		printf("\nSuccess.\n");
+	else
+		printf("\nFailure.\n");
+	return 0;
+}
+
+void
+ins1(void)
+{
+	int			i;
+	EXEC SQL WHENEVER sqlerror sqlprint;
+	EXEC SQL CONNECT TO:dbname AS test1;
+
+	for (i = 0; i < iterations / 2; i++)
+	{
+		printf("thread 1 : inserting\n");
+		EXEC SQL AT test1 INSERT INTO test_thread VALUES('thread1');
+
+		printf("thread 1 : insert done\n");
+	}
+	EXEC SQL AT test1 COMMIT WORK;
+	EXEC SQL DISCONNECT test1;
+
+	printf("thread 1 : done!\n");
+}
+
+
+void
+ins2(void)
+{
+	int			i;
+	EXEC SQL WHENEVER sqlerror sqlprint;
+	EXEC SQL CONNECT TO:dbname AS test2;
+
+	for (i = 0; i < iterations / 2; i++)
+	{
+		printf("thread  2: inserting\n");
+		EXEC SQL AT test2 INSERT INTO test_thread VALUES('thread2');
+
+		printf("thread  2: insert done\n");
+	}
+	EXEC SQL AT test2 COMMIT WORK;
+	EXEC SQL DISCONNECT test2;
+
+	printf("thread  2: done!\n");
+}

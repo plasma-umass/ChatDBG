@@ -1,0 +1,246 @@
+#
+# Test of alter table
+#
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+create table t1 (
+col1 int not null auto_increment primary key,
+col2 varchar(30) not null,
+col3 varchar (20) not null,
+col4 varchar(4) not null,
+col5 enum('PENDING', 'ACTIVE', 'DISABLED') not null,
+col6 int not null, to_be_deleted int);
+insert into t1 values (2,4,3,5,"PENDING",1,7);
+alter table t1
+add column col4_5 varchar(20) not null after col4,
+add column col7 varchar(30) not null after col5,
+add column col8 datetime not null, drop column to_be_deleted,
+change column col2 fourth varchar(30) not null after col3,
+modify column col6 int not null first;
+select * from t1;
+drop table t1;
+
+create table t1 (bandID MEDIUMINT UNSIGNED NOT NULL PRIMARY KEY, payoutID SMALLINT UNSIGNED NOT NULL);
+insert into t1 (bandID,payoutID) VALUES (1,6),(2,6),(3,4),(4,9),(5,10),(6,1),(7,12),(8,12);
+alter table t1 add column new_col int, order by payoutid,bandid;
+select * from t1;
+alter table t1 order by bandid,payoutid;
+select * from t1;
+drop table t1;
+
+# Check that pack_keys and dynamic length rows are not forced. 
+
+CREATE TABLE t1 (
+GROUP_ID int(10) unsigned DEFAULT '0' NOT NULL,
+LANG_ID smallint(5) unsigned DEFAULT '0' NOT NULL,
+NAME varchar(80) DEFAULT '' NOT NULL,
+PRIMARY KEY (GROUP_ID,LANG_ID),
+KEY NAME (NAME));
+#show table status like "t1";
+ALTER TABLE t1 CHANGE NAME NAME CHAR(80) not null;
+SHOW FULL COLUMNS FROM t1;
+DROP TABLE t1;
+
+#
+# Test of ALTER TABLE ... ORDER BY
+#
+
+create table t1 (n int);
+insert into t1 values(9),(3),(12),(10);
+alter table t1 order by n;
+select * from t1;
+drop table t1;
+
+CREATE TABLE t1 (
+  id int(11) unsigned NOT NULL default '0',
+  category_id tinyint(4) unsigned NOT NULL default '0',
+  type_id tinyint(4) unsigned NOT NULL default '0',
+  body text NOT NULL,
+  user_id int(11) unsigned NOT NULL default '0',
+  status enum('new','old') NOT NULL default 'new',
+  PRIMARY KEY (id)
+) TYPE=MyISAM;
+
+ALTER TABLE t1 ORDER BY t1.id, t1.status, t1.type_id, t1.user_id, t1.body;
+DROP TABLE t1;
+
+#
+# The following combination found a hang-bug in MyISAM
+#
+
+CREATE TABLE t1 (AnamneseId int(10) unsigned NOT NULL auto_increment,B BLOB,PRIMARY KEY (AnamneseId)) type=myisam;
+insert into t1 values (null,"hello");
+LOCK TABLES t1 WRITE;
+ALTER TABLE t1 ADD Column new_col int not null;
+UNLOCK TABLES;
+OPTIMIZE TABLE t1;
+DROP TABLE t1;
+
+#
+# ALTER TABLE ... ENABLE/DISABLE KEYS
+
+create table t1 (n1 int not null, n2 int, n3 int, n4 float,
+                unique(n1),
+                key (n1, n2, n3, n4),
+                key (n2, n3, n4, n1),
+                key (n3, n4, n1, n2),
+                key (n4, n1, n2, n3) );
+alter table t1 disable keys;
+show keys from t1;
+#let $1=10000;
+let $1=10;
+while ($1)
+{
+ eval insert into t1 values($1,RAND()*1000,RAND()*1000,RAND());
+ dec $1;
+}
+alter table t1 enable keys;
+show keys from t1;
+drop table t1;
+
+#
+# Drop and add an auto_increment column
+#
+
+create table t1 (i int unsigned not null auto_increment primary key);
+insert into t1 values (null),(null),(null),(null);
+alter table t1 drop i,add i int unsigned not null auto_increment, drop primary key, add primary key (i);
+select * from t1;
+drop table t1;
+
+#
+# Alter table and rename
+#
+
+create table t1 (i int unsigned not null auto_increment primary key);
+alter table t1 rename t2;
+alter table t2 rename t1, add c char(10) comment "no comment";
+show columns from t1;
+drop table t1;
+
+# implicit analyze
+
+create table t1 (a int, b int);
+let $1=100;
+while ($1)
+{
+ eval insert into t1 values(1,$1), (2,$1), (3, $1);
+ dec $1;
+}
+alter table t1 add unique (a,b), add key (b);
+show keys from t1;
+analyze table t1;
+show keys from t1;
+drop table t1;
+
+#
+# Test of ALTER TABLE DELAYED
+#
+
+CREATE TABLE t1 (i int(10), index(i) );
+ALTER TABLE t1 DISABLE KEYS;
+INSERT DELAYED INTO t1 VALUES(1),(2),(3);
+ALTER TABLE t1 ENABLE KEYS;
+drop table t1;
+
+#
+# Test that data get converted when character set is changed
+# Test that data doesn't get converted when src or dst is BINARY/BLOB
+#
+set names koi8r;
+create table t1 (a char(10) character set koi8r);
+insert into t1 values ('тест');
+select a,hex(a) from t1;
+alter table t1 change a a char(10) character set cp1251;
+select a,hex(a) from t1;
+alter table t1 change a a char(10) binary;
+select a,hex(a) from t1;
+alter table t1 change a a char(10) character set cp1251;
+select a,hex(a) from t1;
+alter table t1 change a a char(10) character set koi8r;
+select a,hex(a) from t1;
+alter table t1 change a a varchar(10) character set cp1251;
+select a,hex(a) from t1;
+alter table t1 change a a char(10) character set koi8r;
+select a,hex(a) from t1;
+alter table t1 change a a text character set cp1251;
+select a,hex(a) from t1;
+alter table t1 change a a char(10) character set koi8r;
+select a,hex(a) from t1;
+
+#
+# Test ALTER TABLE .. CHARACTER SET ..
+#
+show create table t1;
+alter table t1 DEFAULT CHARACTER SET latin1;
+show create table t1;
+alter table t1 CHARACTER SET latin1;
+show create table t1;
+alter table t1 DEFAULT CHARACTER SET cp1251;
+show create table t1;
+
+drop table t1;
+
+#
+# Test ALTER TABLE ENABLE/DISABLE keys when things are locked
+#
+
+CREATE TABLE t1 (
+  Host varchar(16) binary NOT NULL default '',
+  User varchar(16) binary NOT NULL default '',
+  PRIMARY KEY  (Host,User)
+) TYPE=MyISAM;
+
+ALTER TABLE t1 DISABLE KEYS;
+LOCK TABLES t1 WRITE;
+INSERT INTO t1 VALUES ('localhost','root'),('localhost',''),('games','monty');
+SHOW INDEX FROM t1;
+ALTER TABLE t1 ENABLE KEYS;
+UNLOCK TABLES;
+CHECK TABLES t1;
+DROP TABLE t1;
+
+#
+# Test with two keys
+#
+
+CREATE TABLE t1 (
+  Host varchar(16) binary NOT NULL default '',
+  User varchar(16) binary NOT NULL default '',
+  PRIMARY KEY  (Host,User),
+  KEY  (Host)
+) TYPE=MyISAM;
+
+ALTER TABLE t1 DISABLE KEYS;
+SHOW INDEX FROM t1;
+LOCK TABLES t1 WRITE;
+INSERT INTO t1 VALUES ('localhost','root'),('localhost','');
+SHOW INDEX FROM t1;
+ALTER TABLE t1 ENABLE KEYS;
+SHOW INDEX FROM t1;
+UNLOCK TABLES;
+CHECK TABLES t1;
+
+# Test RENAME with LOCK TABLES
+LOCK TABLES t1 WRITE;
+ALTER TABLE t1 RENAME t2;
+UNLOCK TABLES;
+select * from t2;
+DROP TABLE t2;
+
+#
+# Test disable keys with locking
+#
+CREATE TABLE t1 (
+  Host varchar(16) binary NOT NULL default '',
+  User varchar(16) binary NOT NULL default '',
+  PRIMARY KEY  (Host,User),
+  KEY  (Host)
+) TYPE=MyISAM;
+
+LOCK TABLES t1 WRITE;
+ALTER TABLE t1 DISABLE KEYS;
+SHOW INDEX FROM t1;
+DROP TABLE t1;

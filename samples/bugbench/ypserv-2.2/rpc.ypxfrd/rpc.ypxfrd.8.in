@@ -1,0 +1,112 @@
+.\" -*- nroff -*-
+.TH RPC.YPXFRD 8 "August 2001" "YP Server" "Reference Manual"
+.SH NAME
+rpc.ypxfrd \- NIS map transfer server
+.SH SYNOPSIS
+.B @SBINDIR@/rpc.ypxfrd
+[
+.B \-d path 
+]
+[
+.B \-p port
+]
+[
+.B \-\-debug
+]
+.br
+.B @SBINDIR@/rpc.ypxfrd 
+.B \-\-version
+.LP
+.SH DESCRIPTION
+.LP
+.B rpc.ypxfrd
+is used for speed up the transfer of very large NIS maps from a NIS
+master to the NIS slave server. If a  NIS slave server receives a
+message that there is a new map, it will start 
+.B ypxfr
+for transfering the new map.
+.B ypxfr 
+will read the contents of a map from the master server using the yp_all() 
+function. This process can take several minutes when there are very large
+maps which have to be stored by the database library.
+.LP
+The
+.B rpc.ypxfrd
+server speeds up the transfer process by allowing NIS slave servers to
+simply copy the master server's map files rather than building their
+own from scratch.
+.B rpc.ypxfrd
+uses an RPC-based file transfer protocol, so that there is no need
+for building a new map.
+
+.B rpc.ypxfrd
+could be started by inetd. But since it starts very slowly,
+it should be started after
+.B ypserv
+from /etc/init.d/ypxfrd.
+.SH OPTIONS
+.TP
+.B \-\-debug
+Causes the server to run in debugging mode. In debug mode, the server 
+does not background itself and prints extra status messages to stderr 
+for each request that it revceives.
+.TP
+.BI \-d " directory"
+.B rpc.ypxfrd
+is using this directory instead of @YPMAPDIR@
+.TP
+.BI \-p " port"
+.B rpc.ypxfrd
+will bind itself to this port,
+which makes it possible to have a router filter packets
+to the NIS ports. This can restricted the access to the NIS server from
+hosts on the Internet.
+.TP
+.B \-\-version
+Prints the version number
+.SH SECURITY
+.B rpc.ypxfrd
+uses the same functions for checking a host as
+.B ypserv.
+At first,
+.B rpc.ypxfrd
+will check a request from an address with 
+.B @YPMAPDIR@/securenets
+or the tcp wrapper.
+If the host is allowed to connect to the server, 
+.B rpc.ypxfrd
+will uses the rules from
+.B @sysconfdir@/ypserv.conf
+to check the requested map. If a mapname doesn't match a rule, 
+.B rpc.ypxfrd
+will look for the YP_SECURE key in the map. If it exists,
+.B rpc.ypxfrd
+will only allow requests on a reserved port.
+.SH FILES
+@sysconfdir@/ypserv.conf
+@YPMAPDIR@/securenets
+.SH "SEE ALSO"
+.BR ypserv (8),
+.BR makedbm (8),
+.BR yppush (8),
+.BR ypxfr (8)
+.LP
+.SH BUGS
+The FreeBSD
+.B ypxfrd
+protocol is not compatible with that used by SunOS. This is unfortunate
+but unavoidable: Sun's protocol is not freely available, and even if it
+were it would probably not be useful since the SunOS NIS v2 implimentation
+uses the original ndbm package for its map databases whereas the other
+implimentation uses GNU DBM or Berkeley DB. These packages uses vastly 
+different file formats. Furthermore, ndbm and gdbm are byte-order sensitive 
+and not very smart about it, meaning that a gdbm or ndbm database created on 
+a big endian system can't be read on a little endian system. The FreeBSD
+.B ypxfrd
+protocol checks, if both, master and slave, uses the same database packages
+and, if necessary, the byte order of the system.
+.LP
+.SH AUTHOR
+ypxfrd protocol and FreeBSD Implementation: Bill Paul <wpaul@ctr.columbia.edu>
+.br
+Linux Implementation: Thorsten Kukuk <kukuk@suse.de>

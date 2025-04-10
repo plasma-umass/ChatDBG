@@ -1,0 +1,344 @@
+2002-12-19  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.am: Remove reference to options.h.
+	* startserver.c: Replace reference to options.h with config.h.
+	* options.h: Remove file and move relevant content...
+	* config.h: ...here.
+
+	* Makefile.in: Regenerated.
+
+2002-12-06  Derek Price  <derek@ximbiot.com>
+
+	* filesubr.c: Change some calls to malloc to use xmalloc.
+	* filutils.c: Ditto.
+	(Reported by Dan Peterson <dbpete@aol.com>.)
+
+2002-12-06  Derek Price  <derek@ximbiot.com>
+
+	* filesubr.c: Change some calls to strdup to use xstrdup.
+	(Reported by Dan Peterson <dbpete@aol.com>.)
+
+2002-09-24  Derek Price  <derek@ximbiot.com>
+
+	* options.h: Remove prototype of STDC exit().  Move definition of
+	NO_SOCKET_TO_FD & include of "vms.h"...
+	* config.h: here.
+
+2002-09-24  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.in: Regenerated using Automake 1.6.3.
+
+2002-09-24  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.in: Regenerated.
+
+2002-09-24  Larry Jones  <lawrence.jones@eds.com>
+
+	* options.h: Remove PATCH_PROGRAM.
+
+2002-08-16  Derek Price  <derek@ximbiot.com>
+
+	* options.h: Remove RELATIVE_REPOS & move CVS_BADROOT...
+	* config.h: ...here.
+
+2002-05-23  Larry Jones  <lawrence.jones@eds.com>
+
+	* filesubr.c (strcat_filename_onto_homedir): Make arguments const,
+	move more code here from callers, change all callers.
+
+2002-05-22  Derek Price  <oberon@umich.edu>
+
+	* config.h: Remove obsolete definition of NO_SLASH_AFTER_HOMEDIR.
+	* filesubr.c (strcat_filename_onto_homedir): New function.
+
+2002-04-30  Derek Price  <oberon@umich.edu>
+
+	* Makefile.in: Regenerated with automake 1.6.
+
+2001-09-04  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated with automake 1.5.
+
+2001-08-07  Derek Price  <dprice@collab.net>
+
+	* build_vms.com: Verify.
+	* filesubr.c: Cut/paste 1.11.1 cvs_temp_file, cvs_temp_name from
+	../src/filesubr.c.   Include assert.h so that assert's work.
+	(Patch from Mike Marciniszyn <Mike.Marciniszyn@sanchez.com>.)
+
+2001-08-06  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated.
+
+2001-07-04  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated with new Automake release candidate 1.4h.
+
+2001-06-28  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated with new version of Automake.
+
+2001-04-25  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated using AM 1.4e as of today at 18:10 -0400.
+
+2001-03-14  Derek Price  <derek.price@openavenue.com>
+
+        * Makefile.in: Regenerated
+
+2000-02-06  Derek Price  <derek.price@openavenue.com>
+	    Rex Jolliff  <Rex_Jolliff@notes.ymp.gov>
+	    Shawn Smith  <Shawn_Smith@notes.ymp.gov>
+
+	* filesubr.c: Changes to handle VMS DEC C 5.7 {open,read,close}dir
+	(expand_wild): Handle comma-separated lists of files for VMS 7.2 and
+	DEC C 5.7.
+	* config.h: Changes to handle VMS DEC C 5.7 {open,read,close}dir
+	problems.
+	* ndir.c: ditto
+	* ndir.h: ditto
+
+2001-01-10  Derek Price  <derek.price@openavenue.com>
+	    Rex Jolliff  <Rex_Jolliff@notes.ymp.gov>
+	    Shawn Smith  <Shawn_Smith@notes.ymp.gov>
+ 
+	* filesubr.c (expand_wild): rewrote for VMS 7.x.  Actually
+	globs vms wildcarded filespecs now.
+	* pwd.h: put the pid_t define in a conditional since it's
+	now typedefed in VMS 7.x
+	* unlink.c: provided correct prototype for unlink based on
+	version of VMS since it changes.
+	* vms.h: put conditional compilation macros around mode_t as
+	it is defined as of VMS 7.x, and fixed prototype of unlink
+	as per above.
+	* ndir.c: undefine function for 7.x+ since it is now defined by system
+	* pipe.c: ditto
+	* pwd.c: ditto
+	* rmdir.c: ditto
+	* waitpid.c: ditto
+	* config.h: various new defines & switches
+ 
+2000-12-22  Derek Price  <derek.price@openavenue.com>
+
+        * Makefile.in: Regenerated
+
+2000-12-21  Derek Price  <derek.price@openavenue.com>
+
+	* Makefile.am: New file needed by Automake
+	* Makefile.in: Regenerated
+
+1999-02-26  Jim Kingdon  <http://www.cyclic.com>
+
+	* options.h: Make RELATIVE_REPOS the default, as in
+	../src/options.h.in.
+	Remove CVS_DIFFDATE; removed from CVS on 27 Jun 1996.
+
+1998-05-12  Jim Meyering  <meyering@ascend.com>
+
+	* Makefile.in (distclean): New rule to remove Makefile.
+
+1998-04-18  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* getpass.c: Rewrite to use SYS$QIOW instead of curses.  This
+	means we don't need to clear the screen, and also the curses
+	version was sometimes dying with a traceback on VMS 7.1 (I don't
+	know why).
+
+1998-04-09  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* filesubr.c (link_file): Remove; no longer used.
+
+Tue Feb 17 02:29:24 1998  Noel Cragg  <noel@swish.red-bean.com>
+
+	* filesubr.c (last_component): return the top-level directory when
+ 	asked about the top-level directory.
+
+Tue Jan 13 13:17:33 1998  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* options.h (DIFF, RCSBIN_DFLT): Remove; no longer used.
+
+Sat Dec 27 16:57:41 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* options.h (HAVE_RCS5): Remove; no longer used.
+
+	* config.h (LINES_CRLF_TERMINATED): Remove; no longer used.
+
+Sat Nov 29 22:21:19 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	See lib/ChangeLog for rationale:
+	* options.h: Remove declaration of getwd
+	* getwd.c: Implement xgetwd not getwd.
+	* stat.c: Call xgetwd not getwd.
+
+Thu Sep 25 15:26:43 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* misc.c, misc.h (fatal, xmalloc, xrealloc): Remove; nowhere used.
+
+	* ndir.c, ndir.h: Change return type of closedir from void to int.
+
+	* config.h (HAVE_NDIR_H): Define.
+	* vms.h: Add comment about the include of ndir.h.
+	* ndir.h: Protect against multiple inclusion.
+
+Tue, 9 Sep 1997  Jim Kingdon
+
+	* config.h: Define HAVE_VPRINTF.
+
+	* pwd.h, vms.h: Define pid_t and mode_t.
+
+Tue Sep  9 18:53:33 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* pwd.h, pwd.c: Remove getpwnam per change to expand_path.
+	* config.h: Define GETPWNAM_MISSING.
+
+	* pwd.c (getpwuid): Declare argument as unsigned int not uid_t.
+
+	* config.h (SYSTEM_GETCALLER): Define.
+	* pwd.c (getpwuid, getpwnam): Always return NULL (see comment
+	for rationale).
+	* options.h: Don't define CVS_BADROOT.
+	* pwd.h: Nuke uid_t and related changes.
+
+	* filesubr.c (fnfold): Further expand comment about how to handle
+	filenames like "y.tab.c".
+
+Sun Sep  7 17:38:58 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* config.h (HAVE_STRDUP): Remove; not used anywhere.
+	* misc.h, misc.c: Remove strdup per change to ../configure.in.
+
+Sun Jun  8 23:42:42 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* config.h (HAVE_MKFIFO): Remove; not used anywhere.
+
+Sun May 11 11:49:05 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* config.h: Remove USE_DIRECT_TCP; see ../ChangeLog for rationale.
+
+Wed Mar 12 16:10:01 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* config.h (HAVE_SETVBUF): Removed; no longer used.
+
+Wed Jan 29 18:27:41 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* options.h (GREP): Remove; no longer used.
+
+Tue Jan 28 18:29:03 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* config.h: Remove SIZEOF_INT and SIZEOF_LONG; no longer needed
+	with lib/md5.c changes.
+
+Thu Jan  2 13:30:56 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* dir.h, filesubr.c, filutils.c, filutils.h, misc.c, misc.h,
+	ndir.c, pipe.c, pipe.h, waitpid.c: Remove "675" paragraph;
+	see ../ChangeLog for rationale.
+
+Wed Jan  1 22:50:44 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* options.h: Reword comment for TMPDIR_DFLT to make it clear that
+	this isn't specific to the pserver server.
+
+Tue Nov 19 17:13:55 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* ndir.c (opendir): Change strip_path to strip_trailing_slashes
+	per corresponding change to src.
+	* stat.c (wrapped_stat): Likewise.
+
+Sat Oct 12 19:36:42 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* vms.h: Don't declare/define mode_t and rmdir; they conflict with
+	declarations in system include files on VAX/VMS 6.2.
+	* pwd.h: #include sys/types.h instead of trying to define uid_t,
+	gid_t and pid_t ourselves.
+
+Tue Oct  8 12:37:45 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* options.h: Remove; no longer used.
+
+Wed Sep 25 15:09:53 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* options.h: Define TMPDIR_DFLT to sys$scratch not sys$login.
+
+Tue Sep 24 14:11:30 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* options.h: Add TMPDIR_DFLT.
+
+	* Makefile.in (DISTFILES): Add getpass.c.
+
+Thu Sep 12 1996  Jim Kingdon  <kingdon@cyclic.com>
+
+	* config.h: Define ARGV0_NOT_PROGRAM_NAME.
+
+Thu Sep 12 14:56:42 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* config.h, filesubr.c: Add FOLD_FN_CHAR, VMS_filename_classes,
+	fncmp, and fnfold.  This is copied from the NT port except various
+	comments were changed and '/' is not considered the same as '\'.
+
+Wed Sep 11 15:53:18 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* config.h: Define NO_SLASH_AFTER_HOME.
+
+	* options.h: Define AUTH_CLIENT_SUPPORT.
+	* build_vms.com: Add getpass.c.
+	* getpass.c: New file.
+
+	* config.h: Define getopt, optind, optopt, optarg, and opterr to
+	avoid name conflicts with system libraries.
+
+	* filesubr.c (expand_wild): Added.
+
+Wed Sep 11 11:12:01 1996  Jim Blandy  <jimb@totoro.cyclic.com>
+
+	* Makefile.in (DISTFILES): Omit filesubr.c.rej.
+
+Tue Sep 10 19:15:47 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in: New file.
+
+	* config.h (START_SERVER_RETURNS_SOCKET, SEND_NEVER_PARTIAL):
+	Define.  This just preserves the behavior the VMS port has had all
+	along.
+
+Mon Aug 26 12:51:52 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* filesubr.c (mkdir_if_needed): Added.
+
+Tue May 14 13:38:51 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* filesubr.c (cvs_temp_name): New function.
+
+Tue Mar 19 17:49:16 1996  Norbert Kiesel  <nk@col.sw-ley.de>
+
+	* startserver.c (vms_start_server): Added support for
+	  CVS_RCMD_PORT (and thus made consistent with WindowsNT and Mac)
+
+Fri Mar  1 00:10:06 1996  Benjamin J. Lee  <benjamin@cyclic.com>
+
+	* startserver.c, rcmd.c: Made privileged/non-privileged
+	rsh communication more adaptive.  Removed USE_PRIVILEGED_RCMD.
+
+Wed Feb 28 11:08:06 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* options.h: Remove comment about automatic generation from
+	options.h.in.
+
+	* options.h: Remove AUTH_SERVER_SUPPORT; no longer should be
+	defined in options.h.
+
+	* options.h: Remove RM and SORT; no longer used.
+
+	* config.h: Remove C_ALLOCA, CRAY_STACKSEG_END, HAVE_ALLOCA,
+	HAVE_ALLOCA_H, and STACK_DIRECTION to reflect alloca removal.
+
+	* vms.h: Remove DEATH_SUPPORT; it was removed from CVS Feb 9.
+
+	* alloca.c: Removed.
+	* build_vms.com: Remove alloca.
+	* startserver.c (vms_start_server): Use xmalloc/free, not alloca.
+
+Wed Feb 28 03:38:42 1996  Benjamin J. Lee  <benjamin@cyclic.com>
+
+	* VMS support files added.
+

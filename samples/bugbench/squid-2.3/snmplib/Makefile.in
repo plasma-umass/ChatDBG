@@ -1,0 +1,57 @@
+##
+## Makefile for libsnmp.
+## 
+## because this is for Linux with ELF only, we are building 
+## a shared lib, to be installed in /lib.
+##
+
+## set to installation prefix (overridden by configure --prefix=path):
+
+prefix		= @prefix@
+top_srcdir	= @top_srcdir@
+srcdir		= @srcdir@
+VPATH		= @srcdir@
+
+VERSION		= 3.4
+ALIB		= libsnmp.a
+
+TARG		= libsnmp.a
+
+CSRCS		= asn1.c parse.c snmp_vars.c \
+		  coexistance.c snmp_api.c snmp_error.c  \
+		  mib.c snmp_api_error.c   \
+		  snmp_msg.c \
+		  snmp_pdu.c  snmplib_debug.c
+
+OBJS		= asn1.o parse.o snmp_vars.o \
+                  coexistance.o snmp_api.o snmp_error.o  \
+                  mib.o snmp_api_error.o   \
+                  snmp_msg.o \
+                  snmp_pdu.o snmplib_debug.o
+
+CC		= @CC@
+AR_R		= @AR_R@
+RANLIB		= @RANLIB@
+AC_CFLAGS	= @CFLAGS@
+DEFS		= -DSQUID_SNMP=1
+INCLUDE		= -I../include -I$(top_srcdir)/include
+CFLAGS		= $(AC_CFLAGS) $(DEFS) $(INCLUDE)
+
+
+all:	$(TARG)
+
+install: all
+
+$(ALIB):    ${OBJS}
+	$(AR_R) $(ALIB) ${OBJS}
+	$(RANLIB) $(ALIB)
+
+##
+## special rule to include -DMIBFILEPATH=...:
+##
+
+distclean: clean
+	-rm -f Makefile
+
+clean:
+	rm -f core *.o ${TARG} shared/*.o *.a

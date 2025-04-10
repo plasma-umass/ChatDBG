@@ -1,0 +1,36 @@
+.\" -*- nroff -*-
+.TH PWUPDATE 8 "Jan 1998" "NYS YP Server" "Linux Reference Manual"
+.SH NAME
+pwupdate - updates passwd and shadow NIS map
+.SH SYNOPSIS
+.B
+@YPBINDIR@/pwupdate
+[
+.B shadow
+]
+.SH DESCRIPTION
+.B pwupdate
+is invoked by
+.BR rpc.yppasswdd (8)
+after changing the password and it should update the passwd and shadow NIS map.
+Never run it by hand.
+.SH OPTIONS
+.TP
+.B shadow
+Normally, only the passwd map will be updated. With this option,
+.B pwupdate
+will update the shadow map, too.
+.SH FILES
+.PD 0
+.TP 20
+/etc/passwd
+.TP
+/etc/shadow
+.PD
+.SH "SEE ALSO"
+.BR rpc.yppasswdd (8),
+.BR ypserv (8)
+.SH AUTHOR
+Olaf Kirch <okir@monad.swb.de>,
+.br
+Thorsten Kukuk <kukuk@suse.de>

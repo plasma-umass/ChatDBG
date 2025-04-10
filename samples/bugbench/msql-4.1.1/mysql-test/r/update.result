@@ -1,0 +1,171 @@
+drop table if exists t1,t2;
+create table t1 (a int auto_increment , primary key (a));
+insert into t1 values (NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL);
+update t1 set a=a+10 where a > 34;
+update t1 set a=a+100 where a > 0;
+update t1 set a=a+100 where a=1 and a=2;
+update t1 set a=b+100 where a=1 and a=2;
+ERROR 42S22: Unknown column 'b' in 'field list'
+update t1 set a=b+100 where c=1 and a=2;
+ERROR 42S22: Unknown column 'c' in 'where clause'
+update t1 set d=a+100 where a=1;
+ERROR 42S22: Unknown column 'd' in 'field list'
+select * from t1;
+a
+101
+102
+103
+104
+105
+106
+107
+108
+109
+110
+111
+112
+113
+114
+115
+116
+117
+118
+119
+120
+121
+122
+123
+124
+125
+126
+127
+128
+129
+130
+131
+132
+133
+134
+145
+146
+drop table t1;
+CREATE TABLE t1
+(
+place_id int (10) unsigned NOT NULL,
+shows int(10) unsigned DEFAULT '0' NOT NULL,
+ishows int(10) unsigned DEFAULT '0' NOT NULL,
+ushows int(10) unsigned DEFAULT '0' NOT NULL,
+clicks int(10) unsigned DEFAULT '0' NOT NULL,
+iclicks int(10) unsigned DEFAULT '0' NOT NULL,
+uclicks int(10) unsigned DEFAULT '0' NOT NULL,
+ts timestamp(14),
+PRIMARY KEY (place_id,ts)
+);
+INSERT INTO t1 (place_id,shows,ishows,ushows,clicks,iclicks,uclicks,ts)
+VALUES (1,0,0,0,0,0,0,20000928174434);
+UPDATE t1 SET shows=shows+1,ishows=ishows+1,ushows=ushows+1,clicks=clicks+1,iclicks=iclicks+1,uclicks=uclicks+1 WHERE place_id=1 AND ts>="2000-09-28 00:00:00";
+select place_id,shows from t1;
+place_id	shows
+1	1
+drop table t1;
+CREATE TABLE t1 (
+lfdnr int(10) unsigned NOT NULL default '0',
+ticket int(10) unsigned NOT NULL default '0',
+client varchar(255) NOT NULL default '',
+replyto varchar(255) NOT NULL default '',
+subject varchar(100) NOT NULL default '',
+timestamp int(10) unsigned NOT NULL default '0',
+tstamp timestamp(14) NOT NULL,
+status int(3) NOT NULL default '0',
+type varchar(15) NOT NULL default '',
+assignment int(10) unsigned NOT NULL default '0',
+fupcount int(4) unsigned NOT NULL default '0',
+parent int(10) unsigned NOT NULL default '0',
+activity int(10) unsigned NOT NULL default '0',
+priority tinyint(1) unsigned NOT NULL default '1',
+cc varchar(255) NOT NULL default '',
+bcc varchar(255) NOT NULL default '',
+body text NOT NULL,
+comment text,
+header text,
+PRIMARY KEY  (lfdnr),
+KEY k1 (timestamp),
+KEY k2 (type),
+KEY k3 (parent),
+KEY k4 (assignment),
+KEY ticket (ticket)
+) TYPE=MyISAM;
+INSERT INTO t1 VALUES (773,773,'','','',980257344,20010318180652,0,'Open',10,0,0,0,1,'','','','','');
+alter table t1 change lfdnr lfdnr int(10) unsigned not null auto_increment;
+update t1 set status=1 where type='Open';
+select status from t1;
+status
+1
+drop table t1;
+create table t1 (a int not null, b int not null, key (a));
+insert into t1 values (1,1),(1,2),(1,3),(3,1),(3,2),(3,3),(3,1),(3,2),(3,3),(2,1),(2,2),(2,3);
+SET @tmp=0;
+update t1 set b=(@tmp:=@tmp+1) order by a;
+update t1 set b=99 where a=1 order by b asc limit 1;
+select * from t1 order by a,b;
+a	b
+1	2
+1	3
+1	99
+2	4
+2	5
+2	6
+3	7
+3	8
+3	9
+3	10
+3	11
+3	12
+update t1 set b=100 where a=1 order by b desc limit 2;
+update t1 set a=a+10+b where a=1 order by b;
+select * from t1 order by a,b;
+a	b
+2	4
+2	5
+2	6
+3	7
+3	8
+3	9
+3	10
+3	11
+3	12
+13	2
+111	100
+111	100
+create table t2 (a int not null, b int not null);
+insert into t2 values (1,1),(1,2),(1,3);
+update t1 set b=(select distinct 1 from (select * from t2) a);
+drop table t1,t2;
+CREATE TABLE t1 (
+`id_param` smallint(3) unsigned NOT NULL default '0',
+`nom_option` char(40) NOT NULL default '',
+`valid` tinyint(1) NOT NULL default '0',
+KEY `id_param` (`id_param`,`nom_option`)
+) TYPE=MyISAM;
+INSERT INTO t1 (id_param,nom_option,valid) VALUES (185,'600x1200',1);
+UPDATE t1 SET nom_option='test' WHERE id_param=185 AND nom_option='600x1200' AND valid=1 LIMIT 1;
+select * from t1;
+id_param	nom_option	valid
+185	test	1
+drop table t1;
+create table t1 (F1 VARCHAR(30), F2 VARCHAR(30), F3 VARCHAR(30), cnt int, groupid int, KEY groupid_index (groupid));
+insert into t1 (F1,F2,F3,cnt,groupid) values ('0','0','0',1,6),
+('0','1','2',1,5), ('0','2','0',1,3), ('1','0','1',1,2),
+('1','2','1',1,1), ('1','2','2',1,1), ('2','0','1',2,4),
+('2','2','0',1,7);
+delete from t1 using t1 m1,t1 m2 where m1.groupid=m2.groupid and (m1.cnt < m2.cnt or m1.cnt=m2.cnt and m1.F3>m2.F3);
+select * from t1;
+F1	F2	F3	cnt	groupid
+0	0	0	1	6
+0	1	2	1	5
+0	2	0	1	3
+1	0	1	1	2
+1	2	1	1	1
+2	0	1	2	4
+2	2	0	1	7
+drop table t1;

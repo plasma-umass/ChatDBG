@@ -1,0 +1,375 @@
+#
+#  Makefile for the Squid Object Cache server
+#
+#  $Id: Makefile.in,v 1.176.2.2 1999/10/19 21:28:35 wessels Exp $
+#
+#  Uncomment and customize the following to suit your needs:
+#
+
+prefix		= @prefix@
+exec_prefix	= @exec_prefix@
+exec_suffix	= @exec_suffix@
+cgi_suffix	= @cgi_suffix@
+top_srcdir	= @top_srcdir@
+bindir		= @bindir@
+libexecdir      = @libexecdir@
+sysconfdir	= @sysconfdir@
+localstatedir   = @localstatedir@
+srcdir		= @srcdir@
+VPATH		= @srcdir@
+
+# Gotta love the DOS legacy
+#
+SQUID_EXE	= squid$(exec_suffix)
+CLIENT_EXE	= client$(exec_suffix)
+DNSSERVER_EXE	= dnsserver$(exec_suffix)
+UNLINKD_EXE	= unlinkd$(exec_suffix)
+PINGER_EXE	= pinger$(exec_suffix)
+CACHEMGR_EXE	= cachemgr$(cgi_suffix)
+
+DEFAULT_PREFIX		= $(prefix)
+DEFAULT_CONFIG_FILE     = $(sysconfdir)/squid.conf
+DEFAULT_MIME_TABLE	= $(sysconfdir)/mime.conf
+DEFAULT_DNSSERVER       = $(libexecdir)/$(DNSSERVER_EXE)
+DEFAULT_CACHE_LOG       = $(localstatedir)/logs/cache.log
+DEFAULT_ACCESS_LOG      = $(localstatedir)/logs/access.log
+DEFAULT_STORE_LOG       = $(localstatedir)/logs/store.log
+DEFAULT_PID_FILE        = $(localstatedir)/logs/squid.pid
+DEFAULT_SWAP_DIR        = $(localstatedir)/cache
+DEFAULT_PINGER		= $(libexecdir)/$(PINGER_EXE)
+DEFAULT_UNLINKD		= $(libexecdir)/$(UNLINKD_EXE)
+DEFAULT_ICON_DIR	= $(sysconfdir)/icons
+DEFAULT_ERROR_DIR	= $(sysconfdir)/errors
+DEFAULT_MIB_PATH	= $(sysconfdir)/mib.txt
+
+CC		= @CC@
+MAKEDEPEND	= @MAKEDEPEND@
+INSTALL		= @INSTALL@
+INSTALL_BIN 	= @INSTALL_PROGRAM@
+INSTALL_FILE 	= @INSTALL_DATA@
+INSTALL_SUID	= @INSTALL_PROGRAM@ -o root -m 4755
+RANLIB		= @RANLIB@
+LN_S		= @LN_S@
+PERL            = @PERL@
+CRYPTLIB	= @CRYPTLIB@
+REGEXLIB	= @REGEXLIB@
+PTHREADLIB	= @PTHREADLIB@
+SNMPLIB		= @SNMPLIB@
+MALLOCLIB	= @LIB_MALLOC@
+AC_CFLAGS	= @CFLAGS@
+LDFLAGS		= @LDFLAGS@
+XTRA_LIBS	= @XTRA_LIBS@
+XTRA_OBJS 	= @XTRA_OBJS@
+MV		= @MV@
+RM		= @RM@
+SHELL		= /bin/sh
+
+
+INCLUDE		= -I. -I../include -I$(top_srcdir)/include
+CFLAGS 		= $(AC_CFLAGS) $(INCLUDE) $(DEFINES)
+SQUID_LIBS	= -L../lib $(CRYPTLIB) $(REGEXLIB) @SQUID_PTHREAD_LIB@ \
+		  $(SNMPLIB) $(MALLOCLIB) -lmiscutil $(XTRA_LIBS)
+CLIENT_LIBS	= -L../lib -lmiscutil $(XTRA_LIBS)
+DNSSERVER_LIBS	= -L../lib -lmiscutil $(XTRA_LIBS)
+PINGER_LIBS	= -L../lib -lmiscutil $(XTRA_LIBS)
+STD_APP_LIBS    = -L../lib -lmiscutil $(XTRA_LIBS)
+
+PROGS           = $(SQUID_EXE) $(CLIENT_EXE)
+UTILS           = $(DNSSERVER_EXE) $(UNLINKD_EXE)
+SUID_UTILS	= $(PINGER_EXE)
+CGIPROGS	= $(CACHEMGR_EXE)
+OBJS	 	= \
+		access_log.o \
+		acl.o \
+		asn.o \
+		@ASYNC_OBJS@ \
+		authenticate.o \
+		cache_cf.o \
+		CacheDigest.o \
+		cache_manager.o \
+		carp.o \
+		cbdata.o \
+		client_db.o \
+		client_side.o \
+		comm.o \
+		comm_select.o \
+		debug.o \
+		@DELAY_OBJS@ \
+		disk.o \
+		dns.o \
+		dns_internal.o \
+		errorpage.o \
+		ETag.o \
+		event.o \
+		fd.o \
+		filemap.o \
+		forward.o \
+		fqdncache.o \
+		ftp.o \
+		globals.o \
+		gopher.o \
+		helper.o \
+		@HTCP_OBJS@ \
+		http.o \
+		HttpStatusLine.o \
+		HttpHdrCc.o \
+		HttpHdrRange.o \
+		HttpHdrContRange.o \
+		HttpHeader.o \
+		HttpHeaderTools.o \
+		HttpBody.o \
+		HttpMsg.o \
+		HttpReply.o \
+		HttpRequest.o \
+		icmp.o \
+		icp_v2.o \
+		icp_v3.o \
+		ident.o \
+		internal.o \
+		ipc.o \
+		ipcache.o \
+		@LEAKFINDER_OBJS@ \
+		main.o \
+		mem.o \
+		MemPool.o \
+		MemBuf.o \
+		mime.o \
+		multicast.o \
+		neighbors.o \
+		net_db.o \
+		Packer.o \
+		pconn.o \
+		peer_digest.o \
+		peer_select.o \
+		pump.o \
+		redirect.o \
+		refresh.o \
+		send-announce.o \
+		@SNMP_OBJS@ \
+		ssl.o \
+		stat.o \
+		StatHist.o \
+		String.o \
+		stmem.o \
+		store.o \
+		store_io.o \
+		store_io_ufs.o \
+		store_client.o \
+		store_digest.o \
+		store_dir.o \
+		store_dir_ufs.o \
+		store_key_md5.o \
+		store_log.o \
+		store_rebuild.o \
+		store_swapin.o \
+		store_swapmeta.o \
+		store_swapout.o \
+		string_arrays.o \
+		tools.o \
+		unlinkd.o \
+		url.o \
+		urn.o \
+		useragent.o \
+		wais.o \
+		wccp.o \
+		whois.o \
+		$(XTRA_OBJS)
+
+SNMP_OBJS	= \
+		snmp_core.o \
+		snmp_agent.o
+
+HTCP_OBJS	= htcp.o
+
+DELAY_OBJS	= delay_pools.o
+
+ASYNC_OBJS	= \
+		aiops.o \
+		async_io.o \
+		store_io_asyncufs.o
+
+LEAKFINDER_OBJS	= \
+		leakfinder.o
+
+DEFAULTS        = \
+	-DDEFAULT_CONFIG_FILE=\"$(DEFAULT_CONFIG_FILE)\"
+
+all:    squid.conf $(PROGS) $(UTILS) $(SUID_UTILS) $(CGIPROGS)
+
+$(OBJS): $(top_srcdir)/include/version.h
+
+$(SNMP_OBJS): ../snmplib/libsnmp.a $(top_srcdir)/include/cache_snmp.h
+
+$(SQUID_EXE): $(OBJS)
+	$(CC) -o $@ $(LDFLAGS) $(OBJS) $(SQUID_LIBS)
+
+globals.o: globals.c Makefile
+	$(CC) -c $< $(CFLAGS) -I$(srcdir) $(DEFAULTS)
+
+globals.c: globals.h mk-globals-c.pl
+	$(PERL) $(srcdir)/mk-globals-c.pl < $(srcdir)/globals.h > $@
+
+string_arrays.c: enums.h mk-string-arrays.pl
+	$(PERL) $(srcdir)/mk-string-arrays.pl < $(srcdir)/enums.h > $@
+
+$(CLIENT_EXE): client.o
+	$(CC) -o $@ $(LDFLAGS) client.o $(CLIENT_LIBS)
+
+$(DNSSERVER_EXE): dnsserver.o
+	$(CC) -o $@ $(LDFLAGS) dnsserver.o $(DNSSERVER_LIBS)
+
+$(CACHEMGR_EXE): cachemgr.o
+	$(CC) -o $@ $(LDFLAGS) cachemgr.o $(CLIENT_LIBS)
+
+$(PINGER_EXE): pinger.o debug.o globals.o
+	$(CC) -o $@ $(LDFLAGS) pinger.o debug.o globals.o $(PINGER_LIBS)
+
+$(UNLINKD_EXE): unlinkd-daemon.o
+	$(CC) $(LDFLAGS) unlinkd-daemon.o -o $@
+
+unlinkd-daemon.o: unlinkd.c
+	$(CC) -c $(CFLAGS) -DUNLINK_DAEMON $(srcdir)/unlinkd.c -o $@
+
+cache_diff: cache_diff.o debug.o globals.o store_key_md5.o
+	$(CC) -o $@ $(LDFLAGS) $@.o debug.o globals.o store_key_md5.o $(STD_APP_LIBS)
+
+test_cache_digest: test_cache_digest.o CacheDigest.o debug.o globals.o store_key_md5.o
+	$(CC) -o $@ $(LDFLAGS) $@.o CacheDigest.o debug.o globals.o store_key_md5.o $(STD_APP_LIBS)
+
+cache_cf.o: cf_parser.c
+
+squid.conf cf_parser.c: cf.data cf_gen
+	./cf_gen cf.data
+
+cf_gen: cf_gen.o
+	$(CC) -o $@ $(LDFLAGS) cf_gen.o $(STD_APP_LIBS)
+
+cf.data: cf.data.pre Makefile
+	sed "\
+	s%@DEFAULT_MIME_TABLE@%$(DEFAULT_MIME_TABLE)%g;\
+	s%@DEFAULT_DNSSERVER@%$(DEFAULT_DNSSERVER)%g;\
+	s%@DEFAULT_UNLINKD@%$(DEFAULT_UNLINKD)%g;\
+	s%@DEFAULT_PINGER@%$(DEFAULT_PINGER)%g;\
+	s%@DEFAULT_CACHE_LOG@%$(DEFAULT_CACHE_LOG)%g;\
+	s%@DEFAULT_ACCESS_LOG@%$(DEFAULT_ACCESS_LOG)%g;\
+	s%@DEFAULT_STORE_LOG@%$(DEFAULT_STORE_LOG)%g;\
+	s%@DEFAULT_PID_FILE@%$(DEFAULT_PID_FILE)%g;\
+	s%@DEFAULT_SWAP_DIR@%$(DEFAULT_SWAP_DIR)%g;\
+	s%@DEFAULT_ICON_DIR@%$(DEFAULT_ICON_DIR)%g;\
+	s%@DEFAULT_MIB_PATH@%$(DEFAULT_MIB_PATH)%g;\
+	s%@DEFAULT_ERROR_DIR@%$(DEFAULT_ERROR_DIR)%g;\
+	s%@DEFAULT_PREFIX@%$(DEFAULT_PREFIX)%g;"\
+	< $(srcdir)/cf.data.pre >$@
+
+install-mkdirs:
+	-@if test ! -d $(prefix); then \
+		echo "mkdir $(prefix)"; \
+		mkdir $(prefix); \
+	fi
+	-@if test ! -d $(exec_prefix); then \
+		echo "mkdir $(exec_prefix)"; \
+		mkdir $(exec_prefix); \
+	fi
+	-@if test ! -d $(bindir); then \
+		echo "mkdir $(bindir)"; \
+		mkdir $(bindir); \
+	fi
+	-@if test ! -d $(libexecdir); then \
+		echo "mkdir $(libexecdir)"; \
+		mkdir $(libexecdir); \
+	fi
+	-@if test ! -d $(sysconfdir); then \
+		echo "mkdir $(sysconfdir)"; \
+		mkdir $(sysconfdir); \
+	fi
+	-@if test ! -d $(localstatedir); then \
+		echo "mkdir $(localstatedir)"; \
+		mkdir $(localstatedir); \
+	fi
+	-@if test ! -d $(localstatedir)/logs; then \
+		echo "mkdir $(localstatedir)/logs"; \
+		mkdir $(localstatedir)/logs; \
+	fi
+
+# Michael Lupp <mike@nemesis.saar.de> wants to know about additions
+# to the install target.
+install: all install-mkdirs
+	@for f in $(PROGS); do \
+		if test -f $(bindir)/$$f; then \
+			echo $(MV) $(bindir)/$$f $(bindir)/-$$f; \
+			$(MV) $(bindir)/$$f $(bindir)/-$$f; \
+		fi; \
+		echo $(INSTALL_BIN) $$f $(bindir); \
+		$(INSTALL_BIN) $$f $(bindir); \
+		if test -f $(bindir)/-$$f; then \
+			echo $(RM) -f $(bindir)/-$$f; \
+			$(RM) -f $(bindir)/-$$f; \
+		fi; \
+	done
+	@for f in $(UTILS); do \
+		if test -f $(libexecdir)/$$f; then \
+			echo $(MV) $(libexecdir)/$$f $(libexecdir)/-$$f; \
+			$(MV) $(libexecdir)/$$f $(libexecdir)/-$$f; \
+		fi; \
+		echo $(INSTALL_BIN) $$f $(libexecdir); \
+		$(INSTALL_BIN) $$f $(libexecdir); \
+		if test -f $(libexecdir)/-$$f; then \
+			echo $(RM) -f $(libexecdir)/-$$f; \
+			$(RM) -f $(libexecdir)/-$$f; \
+		fi; \
+	done
+	@for f in $(CGIPROGS); do \
+		if test -f $(libexecdir)/$$f; then \
+			echo $(MV) $(libexecdir)/$$f $(libexecdir)/-$$f; \
+			$(MV) $(libexecdir)/$$f $(libexecdir)/-$$f; \
+		fi; \
+		echo $(INSTALL_BIN) $$f $(libexecdir); \
+		$(INSTALL_BIN) $$f $(libexecdir); \
+		if test -f $(libexecdir)/-$$f; then \
+			echo $(RM) -f $(libexecdir)/-$$f; \
+			$(RM) -f $(libexecdir)/-$$f; \
+		fi; \
+	done
+	$(INSTALL_FILE) $(srcdir)/mib.txt $(DEFAULT_MIB_PATH)
+	$(INSTALL_FILE) squid.conf $(sysconfdir)/squid.conf.default
+	@if test -f $(sysconfdir)/squid.conf ; then \
+		echo "$@ will not overwrite existing $(sysconfdir)/squid.conf" ; \
+	else \
+		echo "$(INSTALL_FILE) squid.conf $(sysconfdir)"; \
+		$(INSTALL_FILE) squid.conf $(sysconfdir); \
+	fi
+
+	$(INSTALL_FILE) $(srcdir)/mime.conf $(sysconfdir)/mime.conf.default
+	@if test -f $(sysconfdir)/mime.conf ; then \
+		echo "$@ will not overwrite existing $(sysconfdir)/mime.conf" ; \
+	else \
+		echo "$(INSTALL_FILE) $(srcdir)/mime.conf $(sysconfdir)"; \
+		$(INSTALL_FILE) $(srcdir)/mime.conf $(sysconfdir); \
+	fi
+
+install-pinger:
+	@f=pinger; \
+	if test -f $(libexecdir)/$$f; then \
+		echo $(MV) $(libexecdir)/$$f $(libexecdir)/-$$f; \
+		$(MV) $(libexecdir)/$$f $(libexecdir)/-$$f; \
+	fi; \
+	echo $(INSTALL_SUID) $$f $(libexecdir); \
+	$(INSTALL_SUID) $$f $(libexecdir) || exit 1; \
+	if test -f $(libexecdir)/-$$f; then \
+		echo $(RM) -f $(libexecdir)/-$$f; \
+		$(RM) -f $(libexecdir)/-$$f; \
+	fi
+
+clean: 
+	-rm -rf *.o *pure_* core $(PROGS) $(UTILS) $(CGIPROGS) $(SUID_UTILS)
+	-rm -f cf_gen cf_parser.c cf.data globals.c string_arrays.c
+
+distclean:	clean
+	-rm -f Makefile squid.conf squid.conf.pre
+	-rm -f Makefile.bak
+
+tags:
+	ctags *.[ch] ../include/*.h ../lib/*.[ch]
+
+depend:
+	$(MAKEDEPEND) -I../include -I. -fMakefile *.c

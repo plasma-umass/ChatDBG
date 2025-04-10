@@ -1,0 +1,196 @@
+2002-09-24  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.in: Regenerated using Automake 1.6.3.
+
+2002-09-24  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.in: Regenerated.
+
+2002-04-30  Derek Price  <oberon@umich.edu>
+
+	* Makefile.in: Regenerated with automake 1.6.
+
+2001-09-04  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated with automake 1.5.
+
+2001-08-06  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated.
+
+2001-07-04  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated with new Automake release candidate 1.4h.
+
+2001-06-28  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated with new version of Automake.
+
+2001-04-25  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated using AM 1.4e as of today at 18:10 -0400.
+
+2001-03-14  Derek Price  <derek.price@openavenue.com>
+
+        * Makefile.in: Regenerated
+
+2000-12-22  Derek Price  <derek.price@openavenue.com>
+
+        * Makefile.in: Regenerated
+
+2000-12-21  Derek Price  <derek.price@openavenue.com>
+
+	* Makefile.am: New file needed by Automake
+	* Makefile.in: Regenerated
+
+1999-04-09  Jim Kingdon  <http://www.cyclic.com>
+
+	* Makefile.in (DISTFILES): Add SCC.dsp.
+
+1998-09-21  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README.txt: Also mention HAHTsite.
+
+1998-03-22  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* pubscc.h: Describe how SccGetCommandOptions works.
+
+1998-03-10  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README.txt: Update and clarify various minor points.
+
+Tue Jan 27 12:54:05 1998  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README.txt: Update bug-cvs address to gnu.org.
+
+Thu Dec 11 22:17:45 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README.txt: Add Access to list of development environments which
+	implement SCC.
+
+Wed Oct 29 11:45:20 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README.txt: CVSwiz runs the command line CVS; it is not an
+	independent implementation of the protocol.
+
+Sun Oct 26 14:57:33 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README.txt: Add section "OTHER INTERFACES".
+
+Tue Oct 21 23:25:43 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README.txt (TOOLS IMPLEMENTING THE SCC): Add comment about
+	Powerbuilder versions.
+
+Mon Sep  8 08:52:39 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README.txt (TOOLS IMPLEMENTING THE SCC): Be a little more
+	specific about Powersoft and CodeWright.
+
+	* Makefile.in (DISTFILES): Add pubscc.h.  Thanks to Frederic Van
+	Haren for pointing this out.
+
+Tue Sep  2 13:39:17 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README.txt (SPECIFICATIONS OR OTHER DOCUMENTS DESCRIBING THE
+	SCC): New section.
+
+Mon Aug  4 10:46:59 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* pubscc.h: Add comment listing new CodeWright 5.00c functions.
+	Add comment about CodeWright calling SccQueryInfo without
+	SCC_cap_QueryInfo set.  Thanks to Frederic Van Haren for
+	pointing out these issues.
+
+4 Aug 1997  Jim Kingdon
+
+	Changes for Visual C++ 5.0:
+	* SCC.dsp: New file.
+	* .cvsignore: add SCC.dsw SCC.opt SCC.plg Release.
+
+	* scc.c (SccGet): Replace #if 0'd code with a comment and
+	adjust to avoid compiler warning.
+
+Mon Aug  4 09:58:11 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* scc.c: Split out the interface declarations into a new file
+	pubscc.h.  This should make it easier to handle multiple
+	scc.c-equivalents.
+
+Mon Jul 14 15:58:25 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* scc.c: Add many comments and defines to document additional
+	aspects of the SCC API.
+
+7 Jul 1997  Frederic Van Haren  <Frederic.Van.Haren@lhs.be>
+
+	* scc.c (SccHistory): file_names is LPSTR * not LPSTR.
+
+Mon Jul  7 16:45:16 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* scc.c (SccGetVersion): Change arguments from () to (void).
+	Clarify context_arg.  Also document 'window' arg.
+
+Sat Jul  5 13:01:51 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README.txt: PowerJ and Power++ are also said to implement SCC.
+
+21 Mar 1997  Jim Kingdon
+
+	* scc.c (SccCheckout): Write to debuglog and return
+	-11 instead of -14.  I though maybe that this may be
+	related to the crashes I've been seeing, but those
+	crashes persisted when I deinstalled the SCC DLL.
+
+14 Mar 1997  Jim Kingdon
+
+	* scc.c: Go back to using debuglog not outproc for
+	most debugging messages.  Developer Studio tends to
+	erase the outproc messages on an error.
+	More playing around with projects.
+	* README.txt: Describe results of this.  I am making
+	grey (source controlled) file icons appear, which is
+	exciting.
+
+4 Mar 1997  Jim Kingdon
+
+	Still some distance from being able to open a
+	project, but that's what I'm playing with:
+	* scc.c (SccOpenProject): Use outproc not debuglog
+	for debugging messages.
+	(SccGet): Add debugging messages.
+	(SccAddFromScc): Implemented.
+	(SccInitialize): Return AddFromScc in capabilities.
+	* scc.c: Change out_proc to outproc for consistency.
+
+2 Mar 1997  Jim Kingdon
+
+	* scc.c: Add a bunch of things, to SccOpenProject,
+	SccGetProjPath, and perhaps elsewhere.  The project
+	stuff doesn't really work yet, but the outproc does.
+
+27 Feb 1997  Jim Kingdon
+
+	* scc.c (SCC_max_init_path, SCC_max_name): Added.
+	(SccInitialize): Set and use more arguments.
+	(SccUninitialize): Might want to check ferror here.
+	(SccOpenProject): Print to debug log if we get here.
+
+Thu Feb 27 19:02:50 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README.txt (TOOLS IMPLEMENTING THE SCC): New section.
+
+Wed Feb 26 22:55:43 1997  David H. Hovemeyer <Hovemeyer_D@mediasoft.net>
+			  and Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* scc.c (SccGetVersion): Return the version number of the SCC
+	spec; we don't get to pick what to return here.
+	* README.txt: Update with current status.
+
+Sat Feb 15 15:19:41 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in: New file.
+
+	* README.txt: Clarify a little more what this stuff does (and more
+	the point, does not) do.
+

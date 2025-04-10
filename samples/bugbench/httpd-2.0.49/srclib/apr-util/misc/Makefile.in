@@ -1,0 +1,8 @@
+VPATH = @srcdir@
+
+INCLUDES = @APRUTIL_PRIV_INCLUDES@ @APR_INCLUDES@ @APRUTIL_INCLUDES@
+
+TARGETS = apr_date.lo apr_rmm.lo apr_reslist.lo apr_queue.lo apu_version.lo
+
+# bring in rules.mk for standard functionality
+@INCLUDE_RULES@

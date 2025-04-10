@@ -1,0 +1,52 @@
+drop table if exists t1, t2;
+CREATE TABLE t1 (
+id           VARCHAR(255) NOT NULL PRIMARY KEY,
+sujet        VARCHAR(255),
+motsclefs    TEXT,
+texte        MEDIUMTEXT,
+FULLTEXT(sujet, motsclefs, texte)
+);
+INSERT INTO t1 VALUES('123','toto','essai','test');
+INSERT INTO t1 VALUES('456','droit','penal','lawyer');
+INSERT INTO t1 VALUES('789','aaaaa','bbbbb','cccccc');
+CREATE TABLE t2 (
+id         VARCHAR(255) NOT NULL,
+author     VARCHAR(255) NOT NULL
+);
+INSERT INTO t2 VALUES('123', 'moi');
+INSERT INTO t2 VALUES('123', 'lui');
+INSERT INTO t2 VALUES('456', 'lui');
+select match(t1.texte,t1.sujet,t1.motsclefs) against('droit')
+from t1 left join t2 on t2.id=t1.id;
+match(t1.texte,t1.sujet,t1.motsclefs) against('droit')
+0
+0
+0.67003107070923
+0
+select match(t1.texte,t1.sujet,t1.motsclefs) against('droit' IN BOOLEAN MODE)
+from t1 left join t2 on t2.id=t1.id;
+match(t1.texte,t1.sujet,t1.motsclefs) against('droit' IN BOOLEAN MODE)
+0
+0
+1
+0
+drop table t1, t2;
+create table t1 (venue_id int(11) default null, venue_text varchar(255) default null, dt datetime default null) type=myisam;
+insert into t1 (venue_id, venue_text, dt) values (1, 'a1', '2003-05-23 19:30:00'),(null, 'a2', '2003-05-23 19:30:00');
+create table t2 (name varchar(255) not null default '', entity_id int(11) not null auto_increment, primary key  (entity_id), fulltext key name (name)) type=myisam;
+insert into t2 (name, entity_id) values ('aberdeen town hall', 1), ('glasgow royal concert hall', 2), ('queen\'s hall, edinburgh', 3);
+select * from t1 left join t2 on venue_id = entity_id where match(name) against('aberdeen' in boolean mode) and dt = '2003-05-23 19:30:00';
+venue_id	venue_text	dt	name	entity_id
+1	a1	2003-05-23 19:30:00	aberdeen town hall	1
+select * from t1 left join t2 on venue_id = entity_id where match(name) against('aberdeen') and dt = '2003-05-23 19:30:00';
+venue_id	venue_text	dt	name	entity_id
+1	a1	2003-05-23 19:30:00	aberdeen town hall	1
+select * from t1 left join t2 on (venue_id = entity_id and match(name) against('aberdeen' in boolean mode)) where dt = '2003-05-23 19:30:00';
+venue_id	venue_text	dt	name	entity_id
+1	a1	2003-05-23 19:30:00	aberdeen town hall	1
+NULL	a2	2003-05-23 19:30:00	NULL	NULL
+select * from t1 left join t2 on (venue_id = entity_id and match(name) against('aberdeen')) where dt = '2003-05-23 19:30:00';
+venue_id	venue_text	dt	name	entity_id
+1	a1	2003-05-23 19:30:00	aberdeen town hall	1
+NULL	a2	2003-05-23 19:30:00	NULL	NULL
+drop table t1,t2;

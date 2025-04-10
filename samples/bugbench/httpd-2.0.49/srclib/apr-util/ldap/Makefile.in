@@ -1,0 +1,8 @@
+VPATH = @srcdir@
+
+INCLUDES = @APRUTIL_PRIV_INCLUDES@ @APR_INCLUDES@ @APRUTIL_INCLUDES@
+
+TARGETS = apr_ldap_compat.lo apr_ldap_url.lo
+
+# bring in rules.mk for standard functionality
+@INCLUDE_RULES@

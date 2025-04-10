@@ -1,0 +1,31 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+drop table if exists t11;
+drop table if exists t11;
+create table t2 (n int);
+insert into t2 values(4);
+create table t2 (s char(20));
+load data infile '../../std_data/words.dat' into table t2;
+insert into t2 values('five');
+create table t1 (m int);
+insert into t1 values(15),(16),(17);
+update t1 set m=20 where m=16;
+delete from t1 where m=17;
+create table t11 select * from t1;
+select * from t1;
+m
+15
+20
+select * from t2;
+n
+4
+select * from t11;
+ERROR 42S02: Table 'test.t11' doesn't exist
+drop table if exists t1,t2,t11;
+show slave status;
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
+#	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	1281	slave-relay-bin.000002	1325	master-bin.000001	Yes	Yes			test.t1				0		0	1281	1325	None		0	No						#

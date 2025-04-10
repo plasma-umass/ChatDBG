@@ -1,0 +1,82 @@
+drop table if exists t1,t2;
+create table t1 (name char(20) not null, primary key (name));
+create table t2 (name char(20) binary not null, primary key (name));
+insert into t1 values ("å");
+insert into t1 values ("ä");
+insert into t1 values ("ö");
+insert into t2 select * from t1;
+select * from t1 order by name;
+name
+å
+ä
+ö
+select concat("*",name,"*") from t1 order by 1;
+concat("*",name,"*")
+*å*
+*ä*
+*ö*
+select min(name),min(concat("*",name,"*")),max(name),max(concat("*",name,"*")) from t1;
+min(name)	min(concat("*",name,"*"))	max(name)	max(concat("*",name,"*"))
+å	*å*	ö	*ö*
+select * from t2 order by name;
+name
+ä
+å
+ö
+select concat("*",name,"*") from t2 order by 1;
+concat("*",name,"*")
+*ä*
+*å*
+*ö*
+select min(name),min(concat("*",name,"*")),max(name),max(concat("*",name,"*")) from t2;
+min(name)	min(concat("*",name,"*"))	max(name)	max(concat("*",name,"*"))
+ä	*ä*	ö	*ö*
+select name from t1 where name between 'Ä' and 'Ö';
+name
+ä
+ö
+select name from t2 where name between 'ä' and 'ö';
+name
+ä
+å
+ö
+select name from t2 where name between 'Ä' and 'Ö';
+name
+drop table t1,t2;
+create table t1 (a char(10) not null, b char(10) binary not null,key (a), key(b));
+insert into t1 values ("hello ","hello "),("hello2 ","hello2 ");
+select concat("-",a,"-",b,"-") from t1 where a="hello";
+concat("-",a,"-",b,"-")
+-hello-hello-
+select concat("-",a,"-",b,"-") from t1 where a="hello ";
+concat("-",a,"-",b,"-")
+-hello-hello-
+select concat("-",a,"-",b,"-") from t1 ignore index (a) where a="hello ";
+concat("-",a,"-",b,"-")
+-hello-hello-
+select concat("-",a,"-",b,"-") from t1 where b="hello";
+concat("-",a,"-",b,"-")
+-hello-hello-
+select concat("-",a,"-",b,"-") from t1 where b="hello ";
+concat("-",a,"-",b,"-")
+-hello-hello-
+select concat("-",a,"-",b,"-") from t1 ignore index (b) where b="hello ";
+concat("-",a,"-",b,"-")
+-hello-hello-
+alter table t1 modify b tinytext not null, drop key b, add key (b(100));
+select concat("-",a,"-",b,"-") from t1 where b="hello ";
+concat("-",a,"-",b,"-")
+select concat("-",a,"-",b,"-") from t1 ignore index (b) where b="hello ";
+concat("-",a,"-",b,"-")
+-hello-hello-
+drop table t1;
+create table t1 (b char(8));
+insert into t1 values(NULL);
+select b from t1 where binary b like '';
+b
+select b from t1 group by binary b like '';
+b
+NULL
+select b from t1 having binary b like '';
+b
+drop table t1;

@@ -1,0 +1,17 @@
+To build and install the Squid Cache, type:
+
+	% ./configure --prefix=/usr/local/squid
+        % make all
+        % make install
+
+To run a Cache, you will need to:
+
+	1. customize the squid.conf configuration file:
+	      % vi /usr/local/squid/etc/squid.conf
+
+	2. start the cache:
+	      % /usr/local/squid/bin/squid
+
+If you want to use the WWW interface to the Cache Manager, copy
+the cachemgr.cgi program into your httpd server's cgi-bin
+directory.

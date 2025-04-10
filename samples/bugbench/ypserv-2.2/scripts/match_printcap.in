@@ -1,0 +1,34 @@
+#!/bin/sh
+#
+# Extracts printer information from the NIS printcap map, which must
+# have been created with the create_printcap filter.
+#
+# Copyright (C) 1999  Massimo Dal Zotto <dz@cs.unitn.it>
+# This file is distributed under the GNU General Public License version 2 
+
+delim="_"		# delimiter used in nis map key
+space=""		# space replacement in nis map key
+
+case "$1" in
+    -a|-all|--all)
+	# Invoked interactively, dump the entire printer NIS map.
+	# This is different than matching the key "all".
+	ypcat printcap | sort | sed 's/.*[0-9]*|//' | uniq
+	exit 0
+	;;
+    -*|"")
+	# Called by lprng, read key from stdin
+	read key
+	;;
+    *)
+	# Invoked interactively, used only for testing
+	key="$1"
+	;;
+esac
+key="$(echo "$key" | sed "s/ /${space}/g")"
+
+n=1
+while ypmatch "${key}${delim}${n}" printcap 2>/dev/null; do
+    n=$[$n + 1]
+done \
+| sed "s/^.*${delim}[0-9]*|//"

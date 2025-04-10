@@ -1,0 +1,88 @@
+#!@BASH@
+# pwupdate	- update NIS passwd maps.
+#		  Copyright (C) 1997, 1998 Thorsten Kukuk
+#		  (C) 1994 Olaf Kirch, <okir@monad.swb.de>
+#		  This software is covered by the GNU GPL.
+#
+# This script is invoked by rpc.yppasswdd after changing the password in
+# /etc/shadow or /etc/passwd and it should update the passwd.* and shadow.*
+# maps for all domains served by this host. 
+# We make a feeble attempt at locking, so as to avoid concurrent builds on 
+# the databases. However, this locking does _not_ guard us against the 
+# NIS maintainer running make while we build our maps. 
+### variables
+YPMAPDIR=@YPMAPDIR@
+
+# Use lock in YPMAPDIR, for security (guessable temp file name).
+# We should use the system lock directory (eg /var/lock) and a safer
+# locking method instead.
+tmp=$YPMAPDIR/ypwd.upd.$$
+lock=$YPMAPDIR/yppasswd.lock
+
+mailinfo ()
+{
+	if [ -x /bin/mailx -o /usr/bin/mailx ]; then
+		mailx -s "$1" $2
+	else
+		(echo "Subject: $1"; echo; cat) | /usr/sbin/sendmail $2
+	fi
+}
+
+echo $$ > $tmp
+i=0;
+while ! ln $tmp $lock; do
+    sleep 10;
+    i=`expr $i + 1`;
+    if [ $i -gt 60 ]; then
+        echo "NIS passwd maps seem permanently locked" |
+            mailinfo "Could not remake NIS passwd.* maps" root
+	rm -f $tmp
+        exit 2
+    fi
+done
+
+# Use temp files in YPMAPDIR, for security (guessable temp file name)
+mtemp=$YPMAPDIR/ypw.tmp.$$
+merr=$YPMAPDIR/ypw.err.$$
+domain=`domainname`
+
+cd $YPMAPDIR
+for dir in *; do
+    if [ -d $dir -a "$dir" != "binding" ]; then
+	(
+	    # Find out where the Makefile is.
+	    # If this directory does not have its own Makefile, and
+	    # it is not our default domain directory, skip it.
+	    if [ -f $dir/Makefile ]; then
+		makefile=Makefile
+	    else
+		[ "$dir" != "$domain" ] && continue
+		makefile=../Makefile
+	    fi
+	    cd $dir &&
+	    if ! @MAKE@ -f $makefile -k passwd > $mtemp 2>&1; then
+		echo "Errors in `pwd`:"
+		cat $mtemp
+		echo
+	    fi >> $merr
+	    if [ $1x = "shadow"x ]; then
+		if ! @MAKE@ -f $makefile -k shadow > $mtemp 2>&1; then
+		    echo "Errors in `pwd`:"
+		    cat $mtemp
+		    echo
+		fi >> $merr
+	    fi
+	)
+    fi
+done
+
+if [ -s $merr ]; then
+    (
+    echo "The following errors occurred while remaking the NIS passwd maps"
+    echo
+    cat $merr
+    ) | mailinfo "Errors while remaking NIS passwd.* maps" root
+fi
+rm -f $mtemp $merr
+
+rm -f $tmp $lock

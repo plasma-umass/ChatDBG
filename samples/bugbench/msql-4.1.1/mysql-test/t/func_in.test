@@ -1,0 +1,84 @@
+# Initialise
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+#
+# test of IN (NULL)
+#
+
+select 1 in (1,2,3);
+select 10 in (1,2,3);
+select NULL in (1,2,3);
+select 1 in (1,NULL,3);
+select 3 in (1,NULL,3);
+select 10 in (1,NULL,3);
+select 1.5 in (1.5,2.5,3.5);
+select 10.5 in (1.5,2.5,3.5);
+select NULL in (1.5,2.5,3.5);
+select 1.5 in (1.5,NULL,3.5);
+select 3.5 in (1.5,NULL,3.5);
+select 10.5 in (1.5,NULL,3.5);
+
+CREATE TABLE t1 (a int, b int, c int);
+insert into t1 values (1,2,3), (1,NULL,3);
+select 1 in (a,b,c) from t1;
+select 3 in (a,b,c) from t1;
+select 10 in (a,b,c) from t1;
+select NULL in (a,b,c) from t1;
+drop table t1;
+CREATE TABLE t1 (a float, b float, c float);
+insert into t1 values (1.5,2.5,3.5), (1.5,NULL,3.5);
+select 1.5 in (a,b,c) from t1;
+select 3.5 in (a,b,c) from t1;
+select 10.5 in (a,b,c) from t1;
+drop table t1;
+CREATE TABLE t1 (a varchar(10), b varchar(10), c varchar(10));
+insert into t1 values ('A','BC','EFD'), ('A',NULL,'EFD');
+select 'A' in (a,b,c) from t1;
+select 'EFD' in (a,b,c) from t1;
+select 'XSFGGHF' in (a,b,c) from t1;
+drop table t1;
+
+CREATE TABLE t1 (field char(1));
+INSERT INTO t1 VALUES ('A'),(NULL);
+SELECT * from t1 WHERE field IN (NULL);
+SELECT * from t1 WHERE field NOT IN (NULL);
+SELECT * from t1 where field = field;
+SELECT * from t1 where field <=> field;
+DELETE FROM t1 WHERE field NOT IN (NULL);
+SELECT * FROM t1;
+drop table t1;
+
+create table t1 (id int(10) primary key);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9);
+select * from t1 where id in (2,5,9);
+drop table t1;
+
+create table t1 (
+a char(1) character set latin1 collate latin1_general_ci,
+b char(1) character set latin1 collate latin1_swedish_ci,
+c char(1) character set latin1 collate latin1_danish_ci
+);
+insert into t1 values ('A','B','C');
+insert into t1 values ('a','c','c');
+--error 1266
+select * from t1 where a in (b);
+--error 1269
+select * from t1 where a in (b,c);
+--error 1270
+select * from t1 where 'a' in (a,b,c);
+select * from t1 where 'a' in (a);
+select * from t1 where a in ('a');
+select * from t1 where 'a' collate latin1_general_ci in (a,b,c);
+select * from t1 where 'a' collate latin1_bin in (a,b,c);
+select * from t1 where 'a' in (a,b,c collate latin1_bin);
+explain extended select * from t1 where 'a' in (a,b,c collate latin1_bin);
+drop table t1;
+
+select '1.0' in (1,2);
+select 1 in ('1.0',2);
+select 1 in (1,'2.0');
+select 1 in ('1.0',2.0);
+select 1 in (1.0,'2.0');
+select 1 in ('1.1',2);
+select 1 in ('1.1',2.0);

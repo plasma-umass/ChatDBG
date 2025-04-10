@@ -1,0 +1,8 @@
+VPATH = @srcdir@
+
+INCLUDES = @APRUTIL_PRIV_INCLUDES@ @APR_INCLUDES@ @APRUTIL_INCLUDES@
+
+TARGETS = sdbm.lo sdbm_hash.lo sdbm_lock.lo sdbm_pair.lo
+
+# bring in rules.mk for standard functionality
+@INCLUDE_RULES@

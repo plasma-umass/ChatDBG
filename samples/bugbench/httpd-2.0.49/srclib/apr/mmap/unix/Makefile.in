@@ -1,0 +1,13 @@
+srcdir = @srcdir@
+VPATH = @srcdir@
+
+TARGETS = mmap.lo common.lo
+
+# bring in rules.mk for standard functionality
+@INCLUDE_RULES@
+
+DEFOSDIR=$(INCDIR)/arch/@DEFAULT_OSDIR@
+INCDIR=../../include
+INCLUDES=-I$(INCDIR) -I$(DEFOSDIR)
+
+# DO NOT REMOVE

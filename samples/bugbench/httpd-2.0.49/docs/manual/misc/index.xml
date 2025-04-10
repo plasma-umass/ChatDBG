@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE manualpage SYSTEM "../style/manualpage.dtd">
+<?xml-stylesheet type="text/xsl" href="../style/manual.en.xsl"?>
+
+<!--
+ Copyright 2002-2004 The Apache Software Foundation
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<manualpage metafile="index.xml.meta">
+  <parentdocument href="../"/>
+
+  <title>Apache Miscellaneous Documentation</title>
+
+  <summary>
+
+    <p>Below is a list of additional documentation pages that apply
+    to the Apache web server development project.</p>
+
+    <note type="warning"><title>Warning</title>
+    <p>Some of the documents below have not been fully updated
+    to take into account changes made in the 2.0 version of the
+    Apache HTTP Server. Some of the information may still be
+    relevant, but please use it with care.</p>
+    </note>
+
+    <dl>
+      <dt><a href="custom_errordocs.html">How to use XSSI and
+      Negotiation for custom ErrorDocuments</a></dt>
+
+      <dd>
+        <p>Describes a solution which uses XSSI and negotiation to
+        custom-tailor the Apache ErrorDocuments to taste, adding the
+        advantage of returning internationalized versions of the
+        error messages depending on the client's language
+        preferences.</p>
+      </dd>
+
+      <dt><a href="descriptors.html">File Descriptor use in
+      Apache</a></dt>
+
+      <dd>
+        <p>Describes how Apache uses file descriptors and talks
+        about various limits imposed on the number of descriptors
+        available by various operating systems.</p>
+      </dd>
+
+      <dt><a
+      href="fin_wait_2.html"><code>FIN_WAIT_2</code></a></dt>
+
+      <dd>
+        <p>A description of the causes of Apache processes going
+        into the <code>FIN_WAIT_2</code> state, and what you can do
+        about it.</p>
+      </dd>
+
+      <dt><a href="known_client_problems.html">Known Client
+      Problems</a></dt>
+
+      <dd>
+        <p>A list of problems in HTTP clients which can be mitigated
+        by Apache.</p>
+      </dd>
+
+      <dt><a href="perf-tuning.html">Performance Notes - Apache
+      Tuning</a></dt>
+
+      <dd>
+        <p>Notes about how to (run-time and compile-time) configure
+        Apache for highest performance. Notes explaining why Apache
+        does some things, and why it doesn't do other things (which
+        make it slower/faster).</p>
+      </dd>
+
+      <dt><a href="security_tips.html">Security Tips</a></dt>
+
+      <dd>
+        <p>Some "do"s - and "don't"s - for keeping your Apache web
+        site secure.</p>
+      </dd>
+
+      <dt><a href="rewriteguide.html">URL Rewriting Guide</a></dt>
+      <dd>
+        <p>This document supplements the <module>mod_rewrite</module>
+        <a href="../mod/mod_rewrite.html">reference documentation</a>.
+        It describes how one can use Apache's <module>mod_rewrite</module>
+        to solve typical URL-based problems webmasters are usually confronted
+        with in practice.</p>
+      </dd>
+
+      <dt><a href="tutorials.html">Apache Tutorials</a></dt>
+
+      <dd>
+        <p>A list of external resources which help to accomplish common
+        tasks with the Apache HTTP server.</p>
+      </dd>
+
+      <dt><a href="relevant_standards.html">Relevant Standards</a></dt>
+
+      <dd>
+        <p>This document acts as a reference page for most of the relevant
+        standards that Apache follows.</p>
+      </dd>
+    </dl>
+  </summary>
+
+</manualpage>

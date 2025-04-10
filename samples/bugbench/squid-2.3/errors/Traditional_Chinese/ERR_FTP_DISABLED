@@ -1,0 +1,25 @@
+<HTML><HEAD>
+<TITLE>錯誤：欲連結之網址（URL）無法正確的傳回</TITLE>
+</HEAD><BODY>
+<H1>錯誤</H1>
+<H2>欲連結之網址（URL）無法正確的傳回</H2>
+<HR>
+<P>
+當嘗試傳回下面的網址（URL）時：
+<A HREF="%U">%U</A>
+<P>
+發生了下列的錯誤：
+<UL>
+<LI>
+<STRONG>
+FTP is Disabled
+<LI>
+禁止使用檔案傳輸
+</STRONG>
+</UL>
+
+<P>
+This cache does not support FTP.
+</P><P>
+本快取伺服器並未開放支援檔案傳輸服務。
+</P>

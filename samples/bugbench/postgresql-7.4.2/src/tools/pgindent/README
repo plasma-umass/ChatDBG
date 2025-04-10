@@ -1,0 +1,50 @@
+This can format all PostgreSQL *.c and *.h files, but excludes *.y, and *.l
+files.
+
+Get the list of typedef's included in pgindent by running this on the
+pgsql/bin directory:
+
+	/src/tools/find_typedef
+
+and update the list in pgindent.  This requires the binaries have debug 
+symbols.
+
+From the top directory, run:
+
+  find . -name '*.[ch]' -type f -print | egrep -v '\+\+|s_lock.h' | xargs -n100 pgindent
+
+The stock BSD indent has two bugs.  First, a comment after the word 'else'
+causes the rest of the file to be ignored.  Second, it silently ignores
+typedefs after getting the first 100.
+
+Both problems are worked-around in this script.  We also include a patch
+for the second bug in:
+
+	/src/tools/pgindent/indent.bsd.patch
+
+Even with the workaround, installation of the patch produces better
+output.  You can get a patched BSD indent from ftp://ftp.postgresql.org/pub/dev.
+
+GNU indent, version 2.2.6, has several problems, and is not recommended.
+These bugs become pretty major when you are doing >400k lines of code.
+If you don't believe me, take a directory and make a copy.  Run pgindent
+on the copy using GNU indent, and do a diff -r. You will see what I
+mean. GNU indent does some things better, but mangles too.
+
+
+---------------------------------------------------------------------------
+
+For java, we use astyle, http://astyle.sourceforge.net/, with the
+following options:
+
+	find . \( -name '*.java' -o -name '*.java.in' \) -print |
+		xargs -n100 pgjindent
+
+---------------------------------------------------------------------------
+
+For cpp, we use astyle, http://astyle.sourceforge.net/, with the
+following options:
+
+	find src/interfaces/libpq++ -name '*.[ch]' -print |
+		xargs -n100 pgcppindent
+

@@ -1,0 +1,266 @@
+--
+-- ERRORS
+--
+-- bad in postquel, but ok in postsql
+select 1;
+ ?column? 
+----------
+        1
+(1 row)
+
+--
+-- UNSUPPORTED STUFF
+ 
+-- doesn't work 
+-- attachas nonesuch
+--
+-- doesn't work 
+-- notify pg_class
+--
+--
+-- SELECT
+ 
+-- missing relation name 
+select;
+ERROR:  syntax error at or near ";" at character 7
+-- no such relation 
+select * from nonesuch;
+ERROR:  relation "nonesuch" does not exist
+-- missing target list
+select from pg_database;
+ERROR:  syntax error at or near "from" at character 8
+-- bad name in target list
+select nonesuch from pg_database;
+ERROR:  column "nonesuch" does not exist
+-- bad attribute name on lhs of operator
+select * from pg_database where nonesuch = pg_database.datname;
+ERROR:  column "nonesuch" does not exist
+-- bad attribute name on rhs of operator
+select * from pg_database where pg_database.datname = nonesuch;
+ERROR:  column "nonesuch" does not exist
+-- bad select distinct on syntax, distinct attribute missing
+select distinct on (foobar) from pg_database;
+ERROR:  syntax error at or near "from" at character 29
+-- bad select distinct on syntax, distinct attribute not in target list
+select distinct on (foobar) * from pg_database;
+ERROR:  column "foobar" does not exist
+--
+-- DELETE
+ 
+-- missing relation name (this had better not wildcard!) 
+delete from;
+ERROR:  syntax error at or near ";" at character 12
+-- no such relation 
+delete from nonesuch;
+ERROR:  relation "nonesuch" does not exist
+--
+-- DROP
+ 
+-- missing relation name (this had better not wildcard!) 
+drop table;
+ERROR:  syntax error at or near ";" at character 11
+-- no such relation 
+drop table nonesuch;
+ERROR:  table "nonesuch" does not exist
+--
+-- ALTER TABLE
+ 
+-- relation renaming 
+-- missing relation name 
+alter table rename;
+ERROR:  syntax error at or near ";" at character 19
+-- no such relation 
+alter table nonesuch rename to newnonesuch;
+ERROR:  relation "nonesuch" does not exist
+-- no such relation 
+alter table nonesuch rename to stud_emp;
+ERROR:  relation "nonesuch" does not exist
+-- conflict 
+alter table stud_emp rename to aggtest;
+ERROR:  relation "aggtest" already exists
+-- self-conflict 
+alter table stud_emp rename to stud_emp;
+ERROR:  relation "stud_emp" already exists
+-- attribute renaming 
+-- no such relation 
+alter table nonesuchrel rename column nonesuchatt to newnonesuchatt;
+ERROR:  relation "nonesuchrel" does not exist
+-- no such attribute 
+alter table emp rename column nonesuchatt to newnonesuchatt;
+ERROR:  column "nonesuchatt" does not exist
+-- conflict 
+alter table emp rename column salary to manager;
+ERROR:  column "manager" of relation "stud_emp" already exists
+-- conflict 
+alter table emp rename column salary to oid;
+ERROR:  column "oid" of relation "stud_emp" already exists
+--
+-- TRANSACTION STUFF
+ 
+-- not in a xact 
+abort;
+WARNING:  there is no transaction in progress
+-- not in a xact 
+end;
+WARNING:  there is no transaction in progress
+--
+-- CREATE AGGREGATE
+-- sfunc/finalfunc type disagreement 
+create aggregate newavg2 (sfunc = int4pl,
+			  basetype = int4,
+			  stype = int4,
+			  finalfunc = int2um,
+			  initcond = '0');
+ERROR:  function int2um(integer) does not exist
+-- left out basetype
+create aggregate newcnt1 (sfunc = int4inc,
+			  stype = int4,
+			  initcond = '0');
+ERROR:  aggregate basetype must be specified
+--
+-- DROP INDEX
+ 
+-- missing index name 
+drop index;
+ERROR:  syntax error at or near ";" at character 11
+-- bad index name 
+drop index 314159;
+ERROR:  syntax error at or near "314159" at character 12
+-- no such index 
+drop index nonesuch;
+ERROR:  index "nonesuch" does not exist
+--
+-- DROP AGGREGATE
+ 
+-- missing aggregate name 
+drop aggregate;
+ERROR:  syntax error at or near ";" at character 15
+-- missing aggregate type
+drop aggregate newcnt1;
+ERROR:  syntax error at or near ";" at character 23
+-- bad aggregate name 
+drop aggregate 314159 (int);
+ERROR:  syntax error at or near "314159" at character 16
+-- bad aggregate type
+drop aggregate newcnt (nonesuch);
+ERROR:  type "nonesuch" does not exist
+-- no such aggregate 
+drop aggregate nonesuch (int4);
+ERROR:  aggregate nonesuch(integer) does not exist
+-- no such aggregate for type
+drop aggregate newcnt (float4);
+ERROR:  aggregate newcnt(real) does not exist
+--
+-- DROP FUNCTION
+ 
+-- missing function name 
+drop function ();
+ERROR:  syntax error at or near "(" at character 15
+-- bad function name 
+drop function 314159();
+ERROR:  syntax error at or near "314159" at character 15
+-- no such function 
+drop function nonesuch();
+ERROR:  function nonesuch() does not exist
+--
+-- DROP TYPE
+ 
+-- missing type name 
+drop type;
+ERROR:  syntax error at or near ";" at character 10
+-- bad type name 
+drop type 314159;
+ERROR:  syntax error at or near "314159" at character 11
+-- no such type 
+drop type nonesuch;
+ERROR:  type "nonesuch" does not exist
+--
+-- DROP OPERATOR
+ 
+-- missing everything 
+drop operator;
+ERROR:  syntax error at or near ";" at character 14
+-- bad operator name 
+drop operator equals;
+ERROR:  syntax error at or near ";" at character 21
+-- missing type list 
+drop operator ===;
+ERROR:  syntax error at or near ";" at character 18
+-- missing parentheses 
+drop operator int4, int4;
+ERROR:  syntax error at or near "," at character 19
+-- missing operator name 
+drop operator (int4, int4);
+ERROR:  syntax error at or near "(" at character 15
+-- missing type list contents 
+drop operator === ();
+ERROR:  syntax error at or near ")" at character 20
+-- no such operator 
+drop operator === (int4);
+ERROR:  missing argument
+HINT:  Use NONE to denote the missing argument of a unary operator.
+-- no such operator by that name 
+drop operator === (int4, int4);
+ERROR:  operator does not exist: integer === integer
+-- no such type1 
+drop operator = (nonesuch);
+ERROR:  missing argument
+HINT:  Use NONE to denote the missing argument of a unary operator.
+-- no such type1 
+drop operator = ( , int4);
+ERROR:  syntax error at or near "," at character 19
+-- no such type1 
+drop operator = (nonesuch, int4);
+ERROR:  type nonesuch does not exist
+-- no such type2 
+drop operator = (int4, nonesuch);
+ERROR:  type nonesuch does not exist
+-- no such type2 
+drop operator = (int4, );
+ERROR:  syntax error at or near ")" at character 24
+--
+-- DROP RULE
+ 
+-- missing rule name 
+drop rule;
+ERROR:  syntax error at or near ";" at character 10
+-- bad rule name 
+drop rule 314159;
+ERROR:  syntax error at or near "314159" at character 11
+-- no such rule 
+drop rule nonesuch on noplace;
+ERROR:  relation "noplace" does not exist
+-- bad keyword 
+drop tuple rule nonesuch;
+ERROR:  syntax error at or near "tuple" at character 6
+-- no such rule 
+drop instance rule nonesuch on noplace;
+ERROR:  syntax error at or near "instance" at character 6
+-- no such rule 
+drop rewrite rule nonesuch;
+ERROR:  syntax error at or near "rewrite" at character 6
+--
+-- Check that division-by-zero is properly caught.
+--
+select 1/0;
+ERROR:  division by zero
+select 1::int8/0;
+ERROR:  division by zero
+select 1/0::int8;
+ERROR:  division by zero
+select 1::int2/0;
+ERROR:  division by zero
+select 1/0::int2;
+ERROR:  division by zero
+select 1::numeric/0;
+ERROR:  division by zero
+select 1/0::numeric;
+ERROR:  division by zero
+select 1::float8/0;
+ERROR:  division by zero
+select 1/0::float8;
+ERROR:  division by zero
+select 1::float4/0;
+ERROR:  division by zero
+select 1/0::float4;
+ERROR:  division by zero

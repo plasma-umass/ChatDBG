@@ -1,0 +1,335 @@
+<!--
+$Header: /cvsroot/pgsql/doc/src/sgml/Attic/page.sgml,v 1.15 2003/11/01 01:56:29 petere Exp $
+-->
+
+<chapter id="page">
+
+<title>Page Files</title>
+
+<abstract>
+<para>
+A description of the database file page format.
+</para>
+</abstract>
+
+<para>
+This section provides an overview of the page format used by
+<productname>PostgreSQL</productname> tables and indexes.  (Index
+access methods need not use this page format.  At present, all index
+methods do use this basic format, but the data kept on index metapages
+usually doesn't follow the item layout rules exactly.)  TOAST tables
+and sequences are formatted just like a regular table.
+</para>
+
+<para>
+In the following explanation, a
+<firstterm>byte</firstterm>
+is assumed to contain 8 bits.  In addition, the term
+<firstterm>item</firstterm>
+refers to an individual data value that is stored on a page.  In a table,
+an item is a row; in an index, an item is an index entry.
+</para>
+
+<para>
+
+<xref linkend="page-table"> shows the basic layout of a page.
+There are five parts to each page.
+
+</para>
+
+<table tocentry="1" id="page-table">
+<title>Sample Page Layout</title>
+<titleabbrev>Page Layout</titleabbrev>
+<tgroup cols="2">
+<thead>
+<row>
+<entry>
+Item
+</entry>
+<entry>Description</entry>
+</row>
+</thead>
+
+<tbody>
+
+<row>
+ <entry>PageHeaderData</entry>
+ <entry>20 bytes long. Contains general information about the page, including
+free space pointers.</entry>
+</row>
+
+<row>
+<entry>ItemPointerData</entry>
+<entry>Array of (offset,length) pairs pointing to the actual items.</entry>
+</row>
+
+<row>
+<entry>Free space</entry>
+<entry>The unallocated space. All new rows are allocated from here, generally from the end.</entry>
+</row>
+
+<row>
+<entry>Items</entry>
+<entry>The actual items themselves.</entry>
+</row>
+
+<row>
+<entry>Special Space</entry>
+<entry>Index access method specific data. Different methods store different
+data. Empty in ordinary tables.</entry>
+</row>
+
+</tbody>
+</tgroup>
+</table>
+
+ <para>
+
+  The first 20 bytes of each page consists of a page header
+  (PageHeaderData). Its format is detailed in <xref
+  linkend="pageheaderdata-table">. The first two fields deal with WAL
+  related stuff. This is followed by three 2-byte integer fields
+  (<structfield>pd_lower</structfield>, <structfield>pd_upper</structfield>,
+  and <structfield>pd_special</structfield>). These represent byte offsets to
+  the start
+  of unallocated space, to the end of unallocated space, and to the start of
+  the special space. 
+  
+ </para>
+ 
+ <table tocentry="1" id="pageheaderdata-table">
+ <title>PageHeaderData Layout</title>
+ <titleabbrev>PageHeaderData Layout</titleabbrev>
+ <tgroup cols="4">   
+ <thead>
+  <row> 
+   <entry>Field</entry>
+   <entry>Type</entry>
+   <entry>Length</entry>
+   <entry>Description</entry>
+  </row>
+ </thead>
+ <tbody>
+  <row>
+   <entry>pd_lsn</entry>
+   <entry>XLogRecPtr</entry>
+   <entry>8 bytes</entry>
+   <entry>LSN: next byte after last byte of xlog</entry>
+  </row>
+  <row>
+   <entry>pd_sui</entry>
+   <entry>StartUpID</entry>
+   <entry>4 bytes</entry>
+   <entry>SUI of last changes (currently it's used by heap AM only)</entry>
+  </row>
+  <row>
+   <entry>pd_lower</entry>
+   <entry>LocationIndex</entry>
+   <entry>2 bytes</entry>
+   <entry>Offset to start of free space.</entry>
+  </row>
+  <row>
+   <entry>pd_upper</entry>
+   <entry>LocationIndex</entry>
+   <entry>2 bytes</entry>
+   <entry>Offset to end of free space.</entry>
+  </row>
+  <row>
+   <entry>pd_special</entry>
+   <entry>LocationIndex</entry>
+   <entry>2 bytes</entry>
+   <entry>Offset to start of special space.</entry>
+  </row>
+  <row>
+   <entry>pd_pagesize_version</entry>
+   <entry>uint16</entry>
+   <entry>2 bytes</entry>
+   <entry>Page size and layout version number information.</entry>
+  </row>
+ </tbody>
+ </tgroup>
+ </table>
+
+ <para>
+  All the details may be found in src/include/storage/bufpage.h.
+ </para>
+
+ <para>  
+  Special space is a region at the end of the page that is allocated at page
+  initialization time and contains information specific to an access method. 
+  The last 2 bytes of the page header,
+  <structfield>pd_pagesize_version</structfield>, store both the page size
+  and a version indicator.  Beginning with
+  <productname>PostgreSQL</productname> 7.3 the version number is 1; prior
+  releases used version number 0.  (The basic page layout and header format
+  has not changed, but the layout of heap row headers has.)  The page size
+  is basically only present as a cross-check; there is no support for having
+  more than one page size in an installation.
+ </para>
+
+ <para>
+
+  Following the page header are item identifiers
+  (<type>ItemIdData</type>), each requiring four bytes.
+  An item identifier contains a byte-offset to
+  the start of an item, its length in bytes, and a set of attribute bits
+  which affect its interpretation.
+  New item identifiers are allocated
+  as needed from the beginning of the unallocated space.
+  The number of item identifiers present can be determined by looking at
+  <structfield>pd_lower</>, which is increased to allocate a new identifier.
+  Because an item
+  identifier is never moved until it is freed, its index may be used on a
+  long-term basis to reference an item, even when the item itself is moved
+  around on the page to compact free space.  In fact, every pointer to an
+  item (<type>ItemPointer</type>, also known as
+  <type>CTID</type>) created by
+  <productname>PostgreSQL</productname> consists of a page number and the
+  index of an item identifier.
+
+ </para>
+
+ <para>
+ 
+  The items themselves are stored in space allocated backwards from the end
+  of unallocated space.  The exact structure varies depending on what the
+  table is to contain. Tables and sequences both use a structure named
+  <type>HeapTupleHeaderData</type>, described below.
+
+ </para>
+ 
+ <para>
+ 
+  The final section is the <quote>special section</quote> which may
+  contain anything the access method wishes to store. Ordinary tables
+  do not use this at all (indicated by setting
+  <structfield>pd_special</> to equal the pagesize).
+  
+ </para>
+ 
+ <para>
+
+  All table rows are structured the same way. There is a fixed-size
+  header (occupying 23 bytes on most machines), followed by an optional null
+  bitmap, an optional object ID field, and the user data. The header is
+  detailed
+  in <xref linkend="heaptupleheaderdata-table">.  The actual user data
+  (columns of the row) begins at the offset indicated by
+  <structfield>t_hoff</>, which must always be a multiple of the MAXALIGN
+  distance for the platform.
+  The null bitmap is
+  only present if the <firstterm>HEAP_HASNULL</firstterm> bit is set in
+  <structfield>t_infomask</structfield>. If it is present it begins just after
+  the fixed header and occupies enough bytes to have one bit per data column
+  (that is, <structfield>t_natts</> bits altogether). In this list of bits, a
+  1 bit indicates not-null, a 0 bit is a null.  When the bitmap is not
+  present, all columns are assumed not-null.
+  The object ID is only present if the <firstterm>HEAP_HASOID</firstterm> bit
+  is set in <structfield>t_infomask</structfield>.  If present, it appears just
+  before the <structfield>t_hoff</> boundary.  Any padding needed to make
+  <structfield>t_hoff</> a MAXALIGN multiple will appear between the null
+  bitmap and the object ID.  (This in turn ensures that the object ID is
+  suitably aligned.)
+  
+ </para>
+ 
+ <table tocentry="1" id="heaptupleheaderdata-table">
+ <title>HeapTupleHeaderData Layout</title>
+ <titleabbrev>HeapTupleHeaderData Layout</titleabbrev>
+ <tgroup cols="4">   
+ <thead>
+  <row> 
+   <entry>Field</entry>
+   <entry>Type</entry>
+   <entry>Length</entry>
+   <entry>Description</entry>
+  </row>
+ </thead>
+ <tbody>
+  <row>
+   <entry>t_xmin</entry>
+   <entry>TransactionId</entry>
+   <entry>4 bytes</entry>
+   <entry>insert XID stamp</entry>
+  </row>
+  <row>
+   <entry>t_cmin</entry>
+   <entry>CommandId</entry>
+   <entry>4 bytes</entry>
+   <entry>insert CID stamp (overlays with t_xmax)</entry>
+  </row>
+  <row>
+   <entry>t_xmax</entry>
+   <entry>TransactionId</entry>
+   <entry>4 bytes</entry>
+   <entry>delete XID stamp</entry>
+  </row>
+  <row>
+   <entry>t_cmax</entry>
+   <entry>CommandId</entry>
+   <entry>4 bytes</entry>
+   <entry>delete CID stamp (overlays with t_xvac)</entry>
+  </row>
+  <row>
+   <entry>t_xvac</entry>
+   <entry>TransactionId</entry>
+   <entry>4 bytes</entry>
+   <entry>XID for VACUUM operation moving row version</entry>
+  </row>
+  <row>
+   <entry>t_ctid</entry>
+   <entry>ItemPointerData</entry>
+   <entry>6 bytes</entry>
+   <entry>current TID of this or newer row version</entry>
+  </row>
+  <row>
+   <entry>t_natts</entry>
+   <entry>int16</entry>
+   <entry>2 bytes</entry>
+   <entry>number of attributes</entry>
+  </row>
+  <row>
+   <entry>t_infomask</entry>
+   <entry>uint16</entry>
+   <entry>2 bytes</entry>
+   <entry>various flags</entry>
+  </row>
+  <row>
+   <entry>t_hoff</entry>
+   <entry>uint8</entry>
+   <entry>1 byte</entry>
+   <entry>offset to user data</entry>
+  </row>
+ </tbody>
+ </tgroup>
+ </table>
+
+ <para>
+   All the details may be found in src/include/access/htup.h.
+ </para>
+
+ <para>
+ 
+  Interpreting the actual data can only be done with information obtained
+  from other tables, mostly <firstterm>pg_attribute</firstterm>. The
+  particular fields are <structfield>attlen</structfield> and
+  <structfield>attalign</structfield>. There is no way to directly get a
+  particular attribute, except when there are only fixed width fields and no
+  NULLs. All this trickery is wrapped up in the functions
+  <firstterm>heap_getattr</firstterm>, <firstterm>fastgetattr</firstterm>
+  and <firstterm>heap_getsysattr</firstterm>.
+  
+ </para>
+ <para>
+
+  To read the data you need to examine each attribute in turn. First check
+  whether the field is NULL according to the null bitmap. If it is, go to
+  the next. Then make sure you have the right alignment.  If the field is a
+  fixed width field, then all the bytes are simply placed. If it's a
+  variable length field (attlen == -1) then it's a bit more complicated,
+  using the variable length structure <type>varattrib</type>.
+  Depending on the flags, the data may be either inline, compressed or in
+  another table (TOAST).
+  
+ </para>
+</chapter>

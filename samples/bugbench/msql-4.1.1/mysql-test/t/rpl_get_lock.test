@@ -1,0 +1,34 @@
+source include/master-slave.inc;
+
+create table t1(n int);
+insert into t1 values(get_lock("lock",2));
+dirty_close master;
+connection master1;
+select get_lock("lock",2);
+
+select release_lock("lock");
+#ignore 
+disable_query_log;
+let $1=2000;
+while ($1)
+{
+  do get_lock("lock",2);
+  do release_lock("lock");
+  dec $1;
+}
+enable_query_log;
+save_master_pos;
+connection slave;
+sync_with_master;
+select get_lock("lock",3);
+select * from t1;
+select is_free_lock("lock"), is_used_lock("lock");
+explain extended select is_free_lock("lock"), is_used_lock("lock");
+# Check lock functions
+select is_free_lock("lock2");
+select is_free_lock(NULL);
+connection master1;
+drop table t1;
+save_master_pos;
+connection slave;
+sync_with_master;

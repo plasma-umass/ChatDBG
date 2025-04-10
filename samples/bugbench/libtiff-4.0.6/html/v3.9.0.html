@@ -1,0 +1,261 @@
+<HTML>
+<HEAD>
+<TITLE>
+	Changes in TIFF v3.9.0
+</TITLE>
+</HEAD>
+
+<BODY BGCOLOR=white>
+<FONT FACE="Helvetica, Arial, Sans">
+<FONT FACE="Helvetica, Arial, Sans"> 
+
+<BASEFONT SIZE=4>
+<B><FONT SIZE=+3>T</FONT>IFF <FONT SIZE=+2>C</FONT>HANGE <FONT SIZE=+2>I</FONT>NFORMATION</B>
+<BASEFONT SIZE=3>
+
+<UL>
+<HR SIZE=4 WIDTH=65% ALIGN=left>
+<B>Current Version</B>: v3.9.0<BR>
+<B>Previous Version</B>: <A HREF=v3.9.0beta.html>v3.9.0beta</a><BR>
+<B>Master FTP Site</B>: <A HREF="ftp://ftp.remotesensing.org/pub/libtiff">
+ftp.remotesensing.org</a>, directory pub/libtiff</A><BR>
+<B>Master HTTP Site</B>: <A HREF="http://www.remotesensing.org/libtiff">
+http://www.remotesensing.org/libtiff</a> 
+<HR SIZE=4 WIDTH=65% ALIGN=left>
+</UL>
+
+<P>
+This document describes the changes made to the software between the
+<I>previous</I> and <I>current</I> versions (see above).  If you don't
+find something listed here, then it was not done in this timeframe, or
+it was not considered important enough to be mentioned.  The following
+information is located here:
+<UL>
+<LI><A HREF="#hightlights">Major Changes</A>
+<LI><A HREF="#configure">Changes in the software configuration</A>
+<LI><A HREF="#libtiff">Changes in libtiff</A>
+<LI><A HREF="#tools">Changes in the tools</A>
+<LI><A HREF="#contrib">Changes in the contrib area</A>
+</UL>
+<p> 
+<P><HR WIDTH=65% ALIGN=left>
+
+<!--------------------------------------------------------------------------->
+
+<A NAME="highlights"><B><FONT SIZE=+3>M</FONT>AJOR CHANGES:</B></A>
+
+<UL>
+	<li> All of the major changes since 3.8.0 were incorporated in
+	the v3.9.0beta release.  This is a stable release from a
+	stable maintenance branch which incorporates many bug and
+	security fixes needed by existing users of 3.X.X series
+	libraries.  Any future major changes will be in the 4.0.X
+	series of releases.
+
+</UL>
+
+
+<P><HR WIDTH=65% ALIGN=left>
+<!--------------------------------------------------------------------------->
+
+<A NAME="configure"><B><FONT SIZE=+3>C</FONT>HANGES IN THE SOFTWARE CONFIGURATION:</B></A>
+
+<UL>
+
+	<li> Updated autotools: Autoconf 2.64, Automake 1.11, libtool
+	2.2.6.
+
+	<li> Enabled support for Automake silent build rules
+	(--enable-silent-rules or 'make V=0')
+
+	<li> Enabled support for Automake colorized tests.
+
+	<li> Added detection of a 64-bit integer type so that bundled
+	utilities (like tiffcrop) can use it when necessary.  Note
+	that this version of libtiff does not require a 64-bit integer
+	type but libtiff 4.0 does.
+
+</UL>
+
+<P><HR WIDTH=65% ALIGN=left>
+
+<!--------------------------------------------------------------------------->
+
+<A NAME="libtiff"><B><FONT SIZE=+3>C</FONT>HANGES IN LIBTIFF:</B></A>
+
+<UL>
+	<li> libtiff/{Makefile.am, Makefile.v}: Do not distribute
+	tiffconf.h, remove tif_config.h/tiffconf.h during cleaning. As
+	per bug <a
+	href="http://bugzilla.remotesensing.org/show_bug.cgi?id=1573">http://bugzilla.remotesensing.org/show_bug.cgi?id=1573</a>
+
+	<li> tif_dirinfo.c: _TIFFMergeFields() now only merges in
+	field definitions that are missing.  Existing definitions are
+	silently ignored.  (Bug #1585)
+
+	<li> tif_write.c: Rip out the fancy logic in
+	TIFFAppendToStrip() for establishing if an existing tile can
+	be rewritten to the same location by comparing the current
+	size to all the other blocks in the same directory.  This is
+	dangerous in many situations and can easily corrupt a file.
+	(observed in esoteric GDAL situation that's hard to document).
+	This change involves leaving the stripbytecount[] values
+	unaltered till TIFFAppendToStrip().  Now we only write a block
+	back to the same location it used to be at if the new data is
+	the same size or smaller - otherwise we move it to the end of
+	file.
+
+	<li> tif_dirwrite.c: Try to avoid writing out a full
+	readbuffer of tile data when writing the directory just
+	because we have BEENWRITING at some point in the past.  This
+	was causing odd junk to be written out in a tile of data when
+	a single tile had an interleaving of reading and writing with
+	reading last.  (highlighted by gdal
+	autotest/gcore/tif_write.py test 7.
+
+	<li> tif_predict.c: use working buffer in PredictorEncodeTile
+	to avoid modifying callers buffer.  <a
+	href="http://trac.osgeo.org/gdal/ticket/1965">http://trac.osgeo.org/gdal/ticket/1965</a>
+
+	<li> tif_predict.c/h, tif_lzw.c, tif_zip.c: Improvements so
+	that predictor based encoding and decoding works in read-write
+	update mode properly.  <a
+	href="http://trac.osgeo.org/gdal/ticket/1948">http://trac.osgeo.org/gdal/ticket/1948</a>
+
+	<li> configure.com, libtiff/tif_vms.c: Better OpenVMS
+	support. Patches from Alexey Chupahin.
+
+	<li> tif_fax3.c: fix leak of FAXCS state (per bug 1603).
+
+	<li> tif_fax3.c: Make find0span() and find1span() non-inline
+	to make MSVC 6.0 compiler happy.
+
+	<li> tif_codec.c: Avoid NULL pointer dereferencing for exotic
+	compression codec codes.
+
+	<li> tif_dirread.c: zero tif->tif_dir after freeing the
+	directory in TIFFReadCustomDirectory().  I don't exactly
+	remember why this was important.
+
+	<li> tif_dirwrite.c: Fix potential memory leak writing large
+	double tags.
+
+	<li> tif_dirread.c: Fix unchecked malloc result.
+
+	<li> libtiff/tif_lzw.c: Properly zero out the codetable. As
+	per bug <a
+	href="http://bugzilla.maptools.org/show_bug.cgi?id=1929">http://bugzilla.maptools.org/show_bug.cgi?id=1929</a>
+
+	<li> libtiff/tif_lzw.c: Properly zero out the string
+	table. Fixes CVE-2008-2327 security issue.
+
+	<li> libtiff/tif_jbig.c: Support the JBIG-KIT 2.0
+	(compatibility with the older versions retained).
+
+	<li> libtiff/tif_getimage.c,tiffio.h: removed all use of
+	UaToAa and Bitmap16to8 arrays in TIFFRGBAImage structure to
+	restore ABI compatability.  These were just an attempt to
+	speed up processing with precalculated tables.  <a
+	href="http://bugzilla.maptools.org/show_bug.cgi?id=1979">http://bugzilla.maptools.org/show_bug.cgi?id=1979</a>
+
+	<li> libtiff/tif_codec.c: Avoid printing c->name if it does not exist.
+
+	<li> libtiff/tif_getimage.c, tiffio.h: More ABI corrections.
+	Removed SubsamplingHor/Ver from TIFFRGBAImage structure.  <a
+	href="http://bugzilla.maptools.org/show_bug.cgi?id=1980">http://bugzilla.maptools.org/show_bug.cgi?id=1980</a>
+
+	<li> libtiff/tif_jpeg.c: Avoid errors if the application
+	writes a full strip for the last partial strip in a jpeg
+	compressed file.  <a
+	href="http://bugzilla.maptools.org/show_bug.cgi?id=1981">http://bugzilla.maptools.org/show_bug.cgi?id=1981</a>
+
+	<li> libtiff/tiffio.h: GCC will now validate format
+	specifications for TIFFError(), TIFFErrorExt(), TIFFWarning(),
+	and TIFFWarningExt() in order to reveal bugs.  Cleaned up
+	resulting warnings throughout for 32 bit build only.
+
+	<li> libtiff/tiffiop.h: Add private type declarations for
+	int64, and uint64 so that bundled utilities (like tiffcrop)
+	can use it when necessary.
+
+	<li> libtiff/tif_predict.c: Add support for 32bit integer
+	horz. predictors.
+	<a href="http://bugzilla.maptools.org/show_bug.cgi?id=1911">http://bugzilla.maptools.org/show_bug.cgi?id=1911</a>
+
+	<li> libtiff/tif_luv.c: Fix handling of tiled logluv images.
+	<a
+	href="http://bugzilla.maptools.org/show_bug.cgi?id=2005">http://bugzilla.maptools.org/show_bug.cgi?id=2005</a>
+
+	<li> libtiff/tif_write.c: do not override the planar
+	configuration to be contig for one sample files if planar
+	configuration is already set.  <a
+	href="http://bugzilla.maptools.org/show_bug.cgi?id=2057">http://bugzilla.maptools.org/show_bug.cgi?id=2057</a>
+
+	<li> libtiff/tif_lzw.c: Fix buffer underflow bug.  <a
+	href="http://bugzilla.maptools.org/show_bug.cgi?id=2065">http://bugzilla.maptools.org/show_bug.cgi?id=2065</a>
+
+	<li> libtiff/tif_luv.c: correct return codes from encoderow to
+	be 1 on success instead of zero.  <a
+	href="http://bugzilla.maptools.org/show_bug.cgi?id=2069">http://bugzilla.maptools.org/show_bug.cgi?id=2069</a>
+
+	<li> libtiff/tif_print.c (TIFFPrintDirectory): Applied patch
+	for "tag error may cause segfault in tif_print.c."  <a
+	href="http://bugzilla.maptools.org/show_bug.cgi?id=1896">http://bugzilla.maptools.org/show_bug.cgi?id=1896</a>
+
+</UL>
+
+<P><HR WIDTH=65% ALIGN=left>
+
+<!-------------------------------------------------------------------------->
+	
+<A NAME="tools"><B><FONT SIZE=+3>C</FONT>HANGES IN THE TOOLS:</B></A>
+
+<UL>
+	<li> tools/tiff2pdf.c: Fixed setting of alpha value per report
+	on list.
+
+	<li> tools/tiffsplit.c: Get rid of unsafe strcpy()/strcat()
+	calls when doing the filename/path construction.
+
+	<li> tools/tiff2pdf.c: More appropriate format string in
+	t2p_write_pdf_string(); avoid signed/unsigned mismatch.
+
+	<li> tools/tiffsplit.c: Use dynamically allocated array
+	instead of static when constructing output file names.
+
+	<li> tools/tiffcrop.c, man/tiffcrop.1: Incorporated
+	significant functionality update from Richard Nolde.
+
+	<li> tools/tiff2ps.c: Incorporated significant functionality
+	update from Richard Nolde.  In particular, support for
+	rotating the image by 90, 180, 270, and 'auto' has been added.
+
+	<li> tools/tiff2ps.c: Remove spurious message printed to
+	stderr.
+
+	<li> tools/tiffsplit.c: fix sampleformat to be shortv instead
+	of longv.
+
+	<li> tools/{rgb2ycbcr.c, tiff2rgba.c}: Applied patch for
+	CVE-2009-2347 libtiff: integer overflows in various
+	inter-color space conversion tools.  <a
+	href="http://bugzilla.maptools.org/show_bug.cgi?id=2079">http://bugzilla.maptools.org/show_bug.cgi?id=2079</a>
+
+</UL>
+
+<P><HR WIDTH=65% ALIGN=left>
+
+<!--------------------------------------------------------------------------->
+
+<A NAME="contrib"><B><FONT SIZE=+3>C</FONT>HANGES IN THE CONTRIB AREA:</B></A>
+
+<UL> 
+
+	<li> None
+
+</UL>
+
+Last updated $Date: 2009-08-20 22:57:39 $.
+
+</BODY>
+</HTML>

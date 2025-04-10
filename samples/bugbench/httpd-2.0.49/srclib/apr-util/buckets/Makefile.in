@@ -1,0 +1,12 @@
+VPATH = @srcdir@
+
+INCLUDES = @APRUTIL_PRIV_INCLUDES@ @APR_INCLUDES@ @APRUTIL_INCLUDES@ 
+
+TARGETS = apr_buckets_file.lo apr_buckets_pool.lo apr_buckets_flush.lo \
+          apr_buckets_refcount.lo apr_buckets_heap.lo apr_buckets_simple.lo \
+          apr_buckets.lo apr_buckets_mmap.lo apr_buckets_socket.lo \
+          apr_buckets_eos.lo apr_buckets_pipe.lo apr_brigade.lo \
+          apr_buckets_alloc.lo
+
+# bring in rules.mk for standard functionality
+@INCLUDE_RULES@

@@ -1,0 +1,19 @@
+srcdir = @srcdir@
+VPATH = @srcdir@
+
+TARGETS = \
+	apr_cpystrn.lo \
+	apr_snprintf.lo \
+	apr_strnatcmp.lo \
+	apr_strings.lo \
+	apr_fnmatch.lo \
+	apr_strtok.lo
+
+# bring in rules.mk for standard functionality
+@INCLUDE_RULES@
+
+DEFOSDIR=$(INCDIR)/arch/@DEFAULT_OSDIR@
+INCDIR=../include
+INCLUDES=-I$(INCDIR) -I$(DEFOSDIR)
+
+# DO NOT REMOVE

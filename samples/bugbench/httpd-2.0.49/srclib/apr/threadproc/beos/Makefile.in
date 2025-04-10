@@ -1,0 +1,25 @@
+srcdir = @srcdir@
+VPATH = @srcdir@
+
+TARGETS = \
+	proc.lo \
+	thread.lo \
+	threadpriv.lo \
+	threadproc_common.lo \
+        apr_proc_stub
+
+# bring in rules.mk for standard functionality
+@INCLUDE_RULES@
+
+INCDIR=../../include
+OSDIR=$(INCDIR)/arch/@OSDIR@
+DEFOSDIR=$(INCDIR)/arch/@DEFAULT_OSDIR@
+INCLUDES=-I$(INCDIR) -I$(INCDIR)/arch -I$(OSDIR) -I$(DEFOSDIR)
+
+CLEAN_TARGETS = apr_proc_stub /boot/home/config/bin/apr_proc_stub
+
+apr_proc_stub:
+	$(CC) apr_proc_stub.c \
+	&& cp apr_proc_stub /boot/home/config/bin
+
+# DO NOT REMOVE

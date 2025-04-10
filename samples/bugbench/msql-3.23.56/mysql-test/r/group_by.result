@@ -1,0 +1,131 @@
+userid	MIN(t1.score)
+1	1
+2	2
+3	3
+userid	MIN(t1.score)
+1	1
+2	2
+userid	MIN(t1.score+0.0)
+1	1.0
+2	2.0
+cid	CONCAT(firstname, ' ', surname)	COUNT(call_id)
+cid	CONCAT(firstname, ' ', surname)	COUNT(call_id)
+value	description	bug_id
+BBBBBBBBBBBBB - conversion		9
+BBBBBBBBBBBBB - conversion		10
+BBBBBBBBBBBBB - generic		7
+BBBBBBBBBBBBB - generic		14
+BBBBBBBBBBBBB - eeeeeeeee		NULL
+kkkkkkkkkkk lllllllllll		6
+kkkkkkkkkkk lllllllllll		8
+kkkkkkkkkkk lllllllllll		12
+Test Procedures		NULL
+Documentation		NULL
+Host communication		NULL
+value	description	COUNT(bug_id)
+BBBBBBBBBBBBB - conversion		2
+BBBBBBBBBBBBB - eeeeeeeee		0
+BBBBBBBBBBBBB - generic		2
+Documentation		0
+Host communication		0
+kkkkkkkkkkk lllllllllll		3
+Test Procedures		0
+value	description	COUNT(bug_id)
+BBBBBBBBBBBBB - conversion		2
+BBBBBBBBBBBBB - eeeeeeeee		0
+BBBBBBBBBBBBB - generic		2
+Documentation		0
+Host communication		0
+Test Procedures		0
+1+1	a	count(*)
+2	a	0
+1+1	a	count(*)
+2	a	0
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary
+userid	count(*)
+3	3
+2	1
+1	2
+userid	count(*)
+3	3
+1	2
+userid	count(*)
+3	3
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	range	spID	spID	5	NULL	2	where used; Using index; Using temporary
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	range	spID	spID	5	NULL	2	where used; Using index
+spid	count(*)
+1	1
+2	2
+spid	count(*)
+2	2
+1	1
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	ALL	NULL	NULL	NULL	NULL	6	Using filesort
+spid	sum(userid)
+5	3
+4	3
+3	3
+2	3
+1	1
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	index	NULL	score	3	NULL	6	Using index
+score	count(*)
+3	3
+2	1
+1	2
+One	Two	sum(Four)
+1	1	16
+1	2	16
+1	3	16
+xID	xID1
+1	1
+2	2
+2	2
+3	134
+3	134
+3	134
+4	185
+4	185
+4	185
+4	185
+xID	xID1	Level
+1	1	*
+2	2	**
+3	134	***
+4	185	****
+pid	c1id	c2id	value	id	active	id	active
+1	1	NULL	1	1	Yes	NULL	NULL
+1	NULL	3	3	NULL	NULL	3	Yes
+1	4	NULL	4	4	Yes	NULL	NULL
+max(value)
+4
+a	count(*)
+NULL	9
+	3
+b	1
+a	count(*)
+NULL	9
+	3
+b	1
+a	MAX(b)	INTERVAL (MAX(b), 1,3,10,30,39,40,50,60,100,1000)
+1	4	2
+10	43	6
+a	MAX(b)	CASE MAX(b) when 4 then 4 when 43 then 43 else 0 end
+1	4	4
+10	43	43
+a	MAX(b)	FIELD(MAX(b), '43', '4', '5')
+1	4	2
+10	43	1
+a	MAX(b)	CONCAT_WS(MAX(b), '43', '4', '5')
+1	4	434445
+10	43	43434435
+a	MAX(b)	ELT(MAX(b), 'a', 'b', 'c', 'd', 'e', 'f')
+1	4	d
+10	43	NULL
+a	MAX(b)	MAKE_SET(MAX(b), 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h')
+1	4	c
+10	43	a,b,d,f
+a	c	count(distinct rand())

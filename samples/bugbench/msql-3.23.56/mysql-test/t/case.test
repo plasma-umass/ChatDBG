@@ -1,0 +1,37 @@
+#
+# Testing of CASE
+#
+
+drop table if exists t1;
+
+select CASE "b" when "a" then 1 when "b" then 2 END;
+select CASE "c" when "a" then 1 when "b" then 2 END;
+select CASE "c" when "a" then 1 when "b" then 2 ELSE 3 END;
+select CASE BINARY "b" when "a" then 1 when "B" then 2 WHEN "b" then "ok" END;
+select CASE "b" when "a" then 1 when binary "B" then 2 WHEN "b" then "ok" END;
+select CASE concat("a","b") when concat("ab","") then "a" when "b" then "b" end;
+select CASE when 1=0 then "true" else "false" END;
+select CASE 1 when 1 then "one" WHEN 2 then "two" ELSE "more" END;
+select CASE 2.0 when 1 then "one" WHEN 2.0 then "two" ELSE "more" END;
+select (CASE "two" when "one" then "1" WHEN "two" then "2" END) | 0;
+select (CASE "two" when "one" then 1.00 WHEN "two" then 2.00 END) +0.0;
+select case 1/0 when "a" then "true" else "false" END;
+select case 1/0 when "a" then "true" END;
+select (case 1/0 when "a" then "true" END) | 0;
+select (case 1/0 when "a" then "true" END) + 0.0;
+select case when 1>0 then "TRUE" else "FALSE" END;
+select case when 1<0 then "TRUE" else "FALSE" END;
+
+#
+# Test bug when using GROUP BY on CASE
+#
+create table t1 (a int);
+insert into t1 values(1),(2),(3),(4);
+select case a when 1 then 2 when 2 then 3 else 0 end as fcase, count(*) from t1 group by fcase;
+select case a when 1 then "one" when 2 then "two" else "nothing" end as fcase, count(*) from t1 group by fcase;
+drop table t1;
+drop table if exists t;
+create table t1 (row int not null, col int not null, val varchar(255) not null);
+insert into t1 values (1,1,'orange'),(1,2,'large'),(2,1,'yellow'),(2,2,'medium'),(3,1,'green'),(3,2,'small');
+select max(case col when 1 then val else null end) as color from t1 group by row;
+drop table if exists t;

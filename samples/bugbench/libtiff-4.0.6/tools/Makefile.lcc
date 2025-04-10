@@ -1,0 +1,142 @@
+# $Header: /cvs/maptools/cvsroot/libtiff/tools/Makefile.lcc,v 1.4 2006-04-20 12:36:23 dron Exp $
+#
+# TIFF Library Tools
+#
+# Copyright (c) 1988-1997 Sam Leffler
+# Copyright (c) 1991-1997 Silicon Graphics, Inc.
+# 
+# Permission to use, copy, modify, distribute, and sell this software and 
+# its documentation for any purpose is hereby granted without fee, provided
+# that (i) the above copyright notices and this permission notice appear in
+# all copies of the software and related documentation, and (ii) the names of
+# Sam Leffler and Silicon Graphics may not be used in any advertising or
+# publicity relating to the software without the specific, prior written
+# permission of Stanford and Silicon Graphics.
+# 
+# THE SOFTWARE IS PROVIDED "AS-IS" AND WITHOUT WARRANTY OF ANY KIND, 
+# EXPRESS, IMPLIED OR OTHERWISE, INCLUDING WITHOUT LIMITATION, ANY 
+# WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  
+# 
+# IN NO EVENT SHALL SAM LEFFLER OR SILICON GRAPHICS BE LIABLE FOR
+# ANY SPECIAL, INCIDENTAL, INDIRECT OR CONSEQUENTIAL DAMAGES OF ANY KIND,
+# OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
+# WHETHER OR NOT ADVISED OF THE POSSIBILITY OF DAMAGE, AND ON ANY THEORY OF 
+# LIABILITY, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE 
+# OF THIS SOFTWARE.
+#
+NULL=
+IPATH=    -I..\libtiff
+#
+# If you don't want the public domain getopt code, then
+# simply null this out and you'll get whatever is in your
+# libc (or similar).
+#
+GETOPT=	getopt.o
+#
+# Library-wide configuration defines:
+# Note that if you change the library-wide configuration, you'll
+# need to manual force a full rebuild. 
+#
+CONF_LIBRARY=\
+	${NULL}
+COPTS=	-Oloop -cwagshf -d1 -b0 -v -DNDEBUG -rr -j135i
+CFLAGS=	${COPTS} ${IPATH}
+#
+LIBTIFF=..\libtiff\tiffrnb.lib
+LIBS=	-l${LIBTIFF} -lm
+MACHALL=ras2tiff.ttp
+OBJS=\
+	fax2tiff.o \
+	gif2tiff.o \
+	pal2rgb.o \
+	ppm2tiff.o \
+	rgb2ycbcr.o \
+	tiff2bw.o \
+	tiff2rgba.o \
+	tiff2ps.o \
+	tiffcmp.o \
+	tiffcp.o \
+	tiffdither.o \
+	tiffdump.o \
+	tiffinfo.o \
+	tiffmedian.o \
+	tiffsplit.o \
+	ras2tiff.o \
+	raw2tiff.o \
+	${GETOPT} \
+	${NULL}
+ALL=\
+	fax2tiff.ttp \
+	gif2tiff.ttp \
+	pal2rgb.ttp \
+	ppm2tiff.ttp \
+	rgb2ycbcr.ttp \
+	tiff2bw.ttp \
+	tiff2rgba.ttp \
+	tiff2ps.ttp \
+	tiffcmp.ttp \
+	tiffcp.ttp \
+	tiffdither.ttp \
+	tiffdump.ttp \
+	tiffinfo.ttp \
+	tiffmedian.ttp \
+	tiffsplit.ttp \
+	raw2tiff.ttp \
+	${MACHALL} \
+	${NULL}
+
+all:	${ALL}
+
+tiffinfo.ttp: tiffinfo.c ${GETOPT} ${LIBTIFF}
+	${CC} -o tiffinfo.ttp ${CFLAGS} tiffinfo.c ${GETOPT} ${LIBS}
+tiffcmp.ttp: tiffcmp.c ${GETOPT} ${LIBTIFF}
+	${CC} -o tiffcmp.ttp ${CFLAGS} tiffcmp.c ${GETOPT} ${LIBS}
+tiffcp.ttp:   tiffcp.c ${LIBTIFF}
+	${CC} -o tiffcp.ttp ${CFLAGS} tiffcp.c ${LIBS}
+tiffdump.ttp: tiffdump.c
+	${CC} -o tiffdump.ttp ${CFLAGS} tiffdump.c -lm ${LIBS}
+tiffmedian.ttp: tiffmedian.c ${LIBTIFF}
+	${CC} -o tiffmedian.ttp ${CFLAGS} tiffmedian.c ${LIBS}
+tiffsplit.ttp: tiffsplit.c ${LIBTIFF}
+	${CC} -o tiffsplit.ttp ${CFLAGS} tiffsplit.c ${LIBS}
+tiff2ps.ttp: tiff2ps.c ${LIBTIFF}
+	${CC} -o tiff2ps.ttp ${CFLAGS} tiff2ps.c ${LIBS}
+# junky stuff...
+# convert RGB image to B&W
+tiff2bw.ttp: tiff2bw.c ${GETOPT} ${LIBTIFF}
+	${CC} -o tiff2bw.ttp ${CFLAGS} tiff2bw.c ${GETOPT} ${LIBS}
+# convert anything to RGBA
+tiff2rgba.ttp: tiff2rgba.c ${GETOPT} ${LIBTIFF}
+	${CC} -o tiff2rgba.ttp ${CFLAGS} tiff2rgba.c ${GETOPT} ${LIBS}
+# convert B&W image to bilevel w/ FS dithering
+tiffdither.ttp: tiffdither.c ${LIBTIFF}
+	${CC} -o tiffdither.ttp ${CFLAGS} tiffdither.c ${LIBS}
+# Group 3 FAX file converter
+fax2tiff.ttp: fax2tiff.c ${GETOPT} ${LIBTIFF}
+	${CC} -o fax2tiff.ttp ${CFLAGS} ${CONF_LIBRARY} fax2tiff.c ${GETOPT} ${LIBS}
+# convert Palette image to RGB
+pal2rgb.ttp: pal2rgb.c ${LIBTIFF}
+	${CC} -o pal2rgb.ttp ${CFLAGS} pal2rgb.c ${LIBS}
+# convert RGB image to YCbCr
+rgb2ycbcr.ttp: rgb2ycbcr.c ${GETOPT} ${LIBTIFF}
+	${CC} -o rgb2ycbcr.ttp ${CFLAGS} rgb2ycbcr.c ${GETOPT} ${LIBS}
+# GIF converter
+gif2tiff.ttp: gif2tiff.c ${LIBTIFF}
+	${CC} -o gif2tiff.ttp ${CFLAGS} gif2tiff.c ${LIBS}
+# PBM converter
+ppm2tiff.ttp: ppm2tiff.c ${LIBTIFF}
+	${CC} -o ppm2tiff.ttp ${CFLAGS} ppm2tiff.c ${LIBS}
+# Sun rasterfile converter
+ras2tiff.ttp: ras2tiff.c ${LIBTIFF}
+	${CC} -o ras2tiff.ttp ${CFLAGS} ras2tiff.c ${LIBS}
+# convert raw images to TIFFs
+raw2tiff.ttp: raw2tiff.c ${LIBTIFF}
+	${CC} -o raw2tiff.ttp ${CFLAGS} raw2tiff.c ${LIBS}
+# generate thumbnail images from fax
+thumbnail: thumbnail.c ${LIBTIFF}
+	${CC} -o thumbnail ${CFLAGS} thumbnail.c ${LIBS} -lm
+
+install: all
+
+clean:
+	rm -f ${ALL} ${OBJS} ycbcr.ttp

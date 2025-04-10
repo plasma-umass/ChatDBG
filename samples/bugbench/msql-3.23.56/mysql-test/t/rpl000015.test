@@ -1,0 +1,34 @@
+connect (master,localhost,root,,test,0,mysql-master.sock);
+connect (slave,localhost,root,,test,0, mysql-slave.sock);
+connection master;
+reset master;
+show master status;
+save_master_pos;
+connection slave;
+reset slave;
+show slave status;
+change master to master_host='127.0.0.1';
+--replace_result 3306 9998 9306 9999 3334 9999 3335 9999
+show slave status;
+eval change master to master_host='127.0.0.1',master_user='root',
+ master_password='',master_port=$MASTER_MYPORT;
+--replace_result 9306 9999 3334 9999 3335 9999
+show slave status;
+slave start;
+sync_with_master;
+--replace_result 9306 9999 3334 9999 3335 9999
+show slave status;
+connection master;
+drop table if exists t1;
+create table t1 (n int);
+insert into t1 values (10),(45),(90);
+save_master_pos;
+connection slave;
+sync_with_master;
+select * from t1;
+connection master;
+drop table t1;
+save_master_pos;
+connection slave;
+sync_with_master;
+

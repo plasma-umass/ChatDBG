@@ -1,0 +1,31 @@
+srcdir = @srcdir@
+VPATH = @srcdir@
+
+TARGETS = \
+	dir.lo \
+	fileacc.lo \
+	filedup.lo \
+	filestat.lo \
+	open.lo \
+	pipe.lo \
+	readwrite.lo \
+	seek.lo \
+	flock.lo \
+	maperrorcode.lo \
+	fullrw.lo \
+	filepath.lo \
+	filepath_util.lo \
+	filesys.lo \
+	mktemp.lo \
+	copy.lo \
+	tempdir.lo
+
+# bring in rules.mk for standard functionality
+@INCLUDE_RULES@
+
+INCDIR=../../include
+OSDIR=$(INCDIR)/arch/@OSDIR@
+DEFOSDIR=$(INCDIR)/arch/@DEFAULT_OSDIR@
+INCLUDES=-I$(INCDIR) -I$(OSDIR) -I$(DEFOSDIR)
+
+# DO NOT REMOVE

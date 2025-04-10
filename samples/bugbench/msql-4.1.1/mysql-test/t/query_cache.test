@@ -1,0 +1,588 @@
+-- source include/have_query_cache.inc
+
+#
+# Tests with query cache
+#
+set GLOBAL query_cache_size=1355776;
+
+# Reset query cache variables.
+
+flush query cache; # This crashed in some versions
+flush query cache; # This crashed in some versions
+reset query cache;
+flush status;
+--disable_warnings
+drop table if exists t1,t2,t3,t4,t11,t21;
+drop database if exists mysqltest;
+--enable_warnings
+
+#
+# First simple test
+#
+
+create table t1 (a int not null);
+insert into t1 values (1),(2),(3);
+select * from t1;
+select * from t1;
+select sql_no_cache * from t1;
+select length(now()) from t1;
+
+# Only check the variables that are independent of the machine and startup
+# options
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+drop table t1;
+
+show status like "Qcache_queries_in_cache";
+
+#
+# MERGE TABLES with INSERT/UPDATE and DELETE
+#
+create table t1 (a int not null);
+insert into t1 values (1),(2),(3);
+create table t2 (a int not null);
+insert into t2 values (4),(5),(6);
+create table t3 (a int not null) type=MERGE UNION=(t1,t2) INSERT_METHOD=FIRST;
+# insert
+select * from t3;
+select * from t3;
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+insert into t2  values (7);
+show status like "Qcache_queries_in_cache";
+select * from t1;
+select * from t1;
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+insert into t3 values (8);
+show status like "Qcache_queries_in_cache";
+# update
+select * from t3;
+show status like "Qcache_queries_in_cache";
+update t2 set a=9 where a=7;
+show status like "Qcache_queries_in_cache";
+select * from t1;
+show status like "Qcache_queries_in_cache";
+update t3 set a=10 where a=1;
+show status like "Qcache_queries_in_cache";
+#delete
+select * from t3;
+show status like "Qcache_queries_in_cache";
+delete from t2 where a=9;
+show status like "Qcache_queries_in_cache";
+select * from t1;
+show status like "Qcache_queries_in_cache";
+delete from t3 where a=10;
+show status like "Qcache_queries_in_cache";
+drop table t1, t2, t3;
+#
+# FLUSH QUERY CACHE
+#
+create table t1 (a int not null);
+insert into t1 values (1),(2),(3);
+create table t2 (a int not null);
+insert into t2 values (1),(2),(3);
+select * from t1;
+select * from t2;
+insert into t1 values (4);
+show status like "Qcache_free_blocks";
+flush query cache;
+show status like "Qcache_free_blocks";
+drop table t1, t2;
+# With join results...
+create table t1 (a text not null);
+create table t11 (a text not null);
+create table t2 (a text not null);
+create table t21 (a text not null);
+create table t3 (a text not null);
+insert into t1 values("1111111111111111111111111111111111111111111111111111");
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+# t11 and t21 must be over 4Kb (QUERY_CACHE_MIN_RESULT_DATA_SIZE)
+insert into t11 select * from t1;
+insert into t21 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+#results of t3 must  be > 0.5Mb
+insert into t3 select * from t1;
+insert into t3 select * from t2;
+insert into t3 select * from t1;
+disable_result_log;
+select * from t11;
+select * from t21;
+enable_result_log;
+show status like "Qcache_total_blocks";
+show status like "Qcache_free_blocks";
+disable_result_log;
+insert into t11 values("");
+select * from t3;
+enable_result_log;
+show status like "Qcache_total_blocks";
+show status like "Qcache_free_blocks";
+flush query cache;
+show status like "Qcache_total_blocks";
+show status like "Qcache_free_blocks";
+drop table t1, t2, t3, t11, t21;
+#
+# SELECT SQL_CACHE ...
+#
+set query_cache_type=demand;
+create table t1 (a int not null);
+insert into t1 values (1),(2),(3);
+select * from t1;
+show status like "Qcache_queries_in_cache";
+select sql_cache * from t1 union select * from t1;
+set query_cache_type=2;
+select sql_cache * from t1 union select * from t1;
+select * from t1 union select sql_cache * from t1;
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+set query_cache_type=on;
+#
+# RESET QUERY CACHE
+#
+reset query cache;
+show status like "Qcache_queries_in_cache";
+#
+# SELECT SQL_NO_CACHE
+#
+select sql_no_cache * from t1;
+show status like "Qcache_queries_in_cache";
+drop table t1;
+#
+# Check that queries that uses NOW(), LAST_INSERT_ID()... are not cached.
+#
+create table t1 (a text not null);
+select CONNECTION_ID() from t1;
+#GET_LOCK
+#RELEASE_LOCK
+#LOAD_FILE
+select FOUND_ROWS();
+select NOW() from t1;
+select CURDATE() from t1;
+select CURTIME() from t1;
+select DATABASE() from t1;
+select ENCRYPT("test") from t1;
+select LAST_INSERT_ID() from t1;
+select RAND() from t1;
+select UNIX_TIMESTAMP() from t1;
+select USER() from t1;
+select benchmark(1,1) from t1;
+explain extended select benchmark(1,1) from t1;
+show status like "Qcache_queries_in_cache";
+#
+# Tests when the cache is filled
+#
+create table t2 (a text not null);
+insert into t1 values("1111111111111111111111111111111111111111111111111111");
+insert into t2 select * from t1;
+insert into t1 select * from t2; # 2
+insert into t2 select * from t1; # 3
+insert into t1 select * from t2; # 5
+insert into t2 select * from t1; # 8
+insert into t1 select * from t2; # 13
+insert into t2 select * from t1; # 21
+insert into t1 select * from t2; # 34
+insert into t2 select * from t1; # 55
+insert into t1 select * from t2; # 89
+insert into t2 select * from t1; # 144
+insert into t1 select * from t2; # 233
+insert into t2 select * from t1; # 357
+insert into t1 select * from t2; # 610
+insert into t2 select * from t1; # 987
+insert into t1 select * from t2; # 1597
+insert into t2 select * from t1; # 2584
+insert into t1 select * from t2; # 4181
+
+show status like "Qcache_hits";
+show status like "Qcache_lowmem_prunes";
+disable_result_log;
+select a as a1, a as a2 from t1;
+select a as a2, a as a3 from t1;
+select a as a3, a as a4 from t1;
+# next query must be out of 1Mb cache
+select a as a1, a as a2 from t1;
+enable_result_log;
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_lowmem_prunes";
+reset query cache;
+#
+# Query bigger then query_cache_limit
+#
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+disable_result_log;
+select * from t1;
+enable_result_log;
+show status like "Qcache_queries_in_cache";
+drop table t1,t2;
+
+#
+# noncachable ODBC work around (and prepare cache for drop database)
+#
+create database mysqltest;
+create table mysqltest.t1 (i int not null auto_increment, a int, primary key (i));
+insert into mysqltest.t1 (a) values (1);
+select * from mysqltest.t1 where i is null;
+
+#
+# drop db
+#
+select * from mysqltest.t1;
+show status like "Qcache_queries_in_cache";
+drop database mysqltest;
+show status like "Qcache_queries_in_cache";
+
+#
+# Charset convertion (cp1251_koi8 always present)
+#
+create table t1 (a char(1) not null collate koi8r_general_ci);
+insert into t1 values(_koi8r"á");
+set CHARACTER SET koi8r;
+select * from t1;
+set CHARACTER SET cp1251_koi8;
+select * from t1;
+set CHARACTER SET DEFAULT;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_hits";
+drop table t1;
+
+# The following tests can't be done as the values differen on 32 and 64 bit
+#  machines :(
+#show variables like "query_cache_size";
+#show status like "Qcache_free_memory";
+
+#
+# same tables in different db
+#
+create database if not exists mysqltest;
+create table mysqltest.t1 (i int not null);
+create table t1 (i int not null);
+insert into mysqltest.t1 (i) values (1);
+insert into t1 (i) values (2);
+
+select * from t1;
+use mysqltest;
+select * from t1;
+select * from t1;
+use test;
+select * from t1;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_hits";
+
+drop database mysqltest;
+drop table t1;
+
+#
+# FOUND_ROWS()
+#
+
+create table t1 (i int not null);
+insert into t1 (i) values (1),(2),(3),(4);
+
+select SQL_CALC_FOUND_ROWS * from t1 limit 2;
+select FOUND_ROWS();
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+
+select * from t1 where i=1;
+select FOUND_ROWS();
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+
+select SQL_CALC_FOUND_ROWS * from t1 limit 2;
+select FOUND_ROWS();
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+
+select * from t1 where i=1;
+select FOUND_ROWS();
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+drop table t1;
+
+#
+# Test insert delayed
+#
+
+flush query cache;
+reset query cache;
+
+create table t1 (a int not null);
+insert into t1 values (1),(2),(3);
+select * from t1;
+select * from t1;
+show status like "Qcache_queries_in_cache";
+insert delayed into t1 values (4);
+--sleep 5	# Wait for insert delayed to be executed.
+select a from t1;
+show status like "Qcache_queries_in_cache";
+drop table t1;
+show status like "Qcache_queries_in_cache";
+
+#
+# Test of min result data unit size changing
+#
+show global variables like "query_cache_min_res_unit";
+set GLOBAL query_cache_min_res_unit=1001;
+show global variables like "query_cache_min_res_unit";
+create table t1 (a int not null);
+insert into t1 values (1),(2),(3);
+create table t2 (a int not null);
+insert into t2 values (1),(2),(3);
+select * from t1;
+select * from t1;
+select * from t2;
+select * from t2;
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+drop table t1;
+select a from t2;
+select a from t2;
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+drop table t2;
+set GLOBAL query_cache_min_res_unit=default;
+show global variables like "query_cache_min_res_unit";
+
+#
+# Case sensitive test
+#
+create table t1 (a int not null);
+insert into t1 values (1);
+select "aaa" from t1;
+select "AAA" from t1;
+drop table t1;
+
+#
+# Test of query cache resizing
+#
+create table t1 (a int);
+set GLOBAL query_cache_size=1000;
+show global variables like "query_cache_size";
+select * from t1;
+set GLOBAL query_cache_size=1024;
+show global variables like "query_cache_size";
+select * from t1;
+set GLOBAL query_cache_size=10240;
+show global variables like "query_cache_size";
+select * from t1;
+set GLOBAL query_cache_size=20480;
+show global variables like "query_cache_size";
+select * from t1;
+set GLOBAL query_cache_size=40960;
+show global variables like "query_cache_size";
+select * from t1;
+set GLOBAL query_cache_size=51200;
+show global variables like "query_cache_size";
+select * from t1;
+set GLOBAL query_cache_size=61440;
+show global variables like "query_cache_size";
+select * from t1;
+set GLOBAL query_cache_size=81920;
+show global variables like "query_cache_size";
+select * from t1;
+set GLOBAL query_cache_size=102400;
+show global variables like "query_cache_size";
+select * from t1;
+drop table t1;
+
+#
+# Temporary tables
+#
+set GLOBAL query_cache_size=1048576;
+create table t1 (i int not null);
+create table t2 (i int not null);
+select * from t1;
+show status like "Qcache_queries_in_cache";
+create temporary table t3 (i int not null);
+select * from t2;
+show status like "Qcache_queries_in_cache";
+select * from t3;
+show status like "Qcache_queries_in_cache";
+update t1 set i=(select distinct 1 from (select * from t2) a);
+drop table t1, t2, t3;
+
+#
+# system databse test
+#
+use mysql;
+disable_result_log;
+select * from db;
+enable_result_log;
+show status like "Qcache_queries_in_cache";
+use test;
+disable_result_log;
+select * from mysql.db;
+enable_result_log;
+show status like "Qcache_queries_in_cache";
+
+#
+# simple rename test
+#
+create table t1(id int auto_increment primary key);
+insert into t1 values (NULL), (NULL), (NULL);
+select * from t1 where id=2;
+alter table t1 rename to t2;
+-- error 1146
+select * from t1 where id=2;
+drop table t2;
+-- error 1146
+select * from t1 where id=2;
+
+#
+# Load data invalidation test
+#
+create table t1 (word char(20) not null);
+select * from t1;
+show status like "Qcache_queries_in_cache";
+load data infile '../../std_data/words.dat' into table t1;
+show status like "Qcache_queries_in_cache";
+drop table t1;
+
+#
+# INTO OUTFILE/DUMPFILE test
+#
+create table t1 (a int);
+insert into t1 values (1),(2),(3);
+show status like "Qcache_queries_in_cache";
+select * from t1 into outfile "query_caceh.out.file";
+select * from t1 limit 1 into dumpfile "query_cache.dump.file";
+show status like "Qcache_queries_in_cache";
+drop table t1;
+
+#
+# test of SQL_SELECT_LIMIT
+#
+create table t1 (a int);
+insert into t1 values (1),(2);
+show status like "Qcache_queries_in_cache";
+select * from t1;
+SET OPTION SQL_SELECT_LIMIT=1;
+select * from t1;
+show status like "Qcache_queries_in_cache";
+SET OPTION SQL_SELECT_LIMIT=DEFAULT;
+drop table t1;
+
+#
+# query cache crash on using same table twice in one query test
+#
+flush query cache;
+reset query cache;
+flush status;
+set GLOBAL query_cache_size=1048576;
+
+create table t1 (a int not null);
+insert into t1 values (1),(2),(3);
+create table t2 (a text not null);
+create table t3 (a text not null);
+insert into t3 values("1111111111111111111111111111111111111111111111111111");
+insert into t2 select * from t3;
+insert into t3 select * from t2;
+insert into t2 select * from t3;
+insert into t3 select * from t2;
+insert into t2 select * from t3;
+insert into t3 select * from t2;
+insert into t2 select * from t3;
+insert into t3 select * from t2;
+insert into t2 select * from t3;
+insert into t3 select * from t2;
+drop table t2;
+create table t2 (a int not null);
+insert into t2 values (1),(2),(3);
+create table t4 (a int not null);
+insert into t4 values (1),(2),(3);
+
+disable_result_log;
+select * from t4;
+select * from t2;
+select * from t1 as tt, t1 as ttt  where tt.a=1 and ttt.a=2;
+select * from t2;
+select * from t4;
+select * from t1 as tt, t1 as ttt  where tt.a=1 and ttt.a=2;
+select * from t2;
+select * from t4;
+select * from t1 as tt, t1 as ttt  where tt.a=1 and ttt.a=2;
+
+delete from t2 where a=1;
+flush query cache;
+select * from t3;
+enable_result_log;
+delete from t4 where a=1;
+flush query cache;
+
+drop table t1,t2,t3,t4;
+
+#
+# Test character set related variables:
+#   character_set_result
+#   character_set_client
+#   charactet_set_connection/collation_connection
+# If at least one of the above variables has changed,
+# the cached query can't be reused. In the below test
+# absolutely the same query is used several times,
+# SELECT should fetch different results for every instance. 
+# No hits should be produced.
+# New cache entry should appear for every SELECT.
+#
+SET NAMES koi8r;
+CREATE TABLE t1 (a char(1) character set koi8r);
+INSERT INTO t1 VALUES (_koi8r'á'),(_koi8r'Á');
+#
+# Run select
+#
+SELECT a,'Â','â'='Â' FROM t1;
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+#
+# Change collation_connection and run the same query again
+#
+set collation_connection=koi8r_bin;
+SELECT a,'Â','â'='Â' FROM t1; 
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+#
+# Now change character_set_client and run the same query again
+#
+set character_set_client=cp1251;
+SELECT a,'Â','â'='Â' FROM t1; 
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+#
+# And finally change character_set_results and run the same query again
+#
+set character_set_results=cp1251;
+SELECT a,'Â','â'='Â' FROM t1; 
+show status like "Qcache_hits";
+show status like "Qcache_queries_in_cache";
+#
+# Keep things tidy
+#
+DROP TABLE t1;
+SET GLOBAL query_cache_size=0;

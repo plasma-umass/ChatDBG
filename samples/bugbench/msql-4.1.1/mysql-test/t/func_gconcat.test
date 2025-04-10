@@ -1,0 +1,132 @@
+#
+# simple test of group_concat function
+#
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+
+create table t1 (grp int, a bigint unsigned, c char(10) not null, d char(10) not null);
+insert into t1 values (1,1,"a","a");
+insert into t1 values (2,2,"b","a");
+insert into t1 values (2,3,"c","b");
+insert into t1 values (3,4,"E","a");
+insert into t1 values (3,5,"C","b");
+insert into t1 values (3,6,"D","b");
+insert into t1 values (3,7,"d","d");
+insert into t1 values (3,8,"d","d");
+insert into t1 values (3,9,"D","c");
+
+# Test of MySQL simple request
+select grp,group_concat(c) from t1 group by grp;
+explain extended select grp,group_concat(c) from t1 group by grp;
+select grp,group_concat(a,c) from t1 group by grp;
+select grp,group_concat("(",a,":",c,")") from t1 group by grp;
+
+# Test of MySQL with options
+select grp,group_concat(c separator ",") from t1 group by grp;
+select grp,group_concat(c separator "---->") from t1 group by grp;
+select grp,group_concat(c order by c) from t1 group by grp;
+select grp,group_concat(c order by c desc) from t1 group by grp;
+select grp,group_concat(d order by a) from t1 group by grp;
+select grp,group_concat(d order by a desc) from t1 group by grp;
+select grp,group_concat(a order by a,d+c) from t1 group by grp;
+select grp,group_concat(c order by 1) from t1 group by grp;
+select grp,group_concat(c order by "c") from t1 group by grp;
+select grp,group_concat(distinct c order by c) from t1 group by grp;
+select grp,group_concat(distinct c order by c desc) from t1 group by grp;
+explain extended select grp,group_concat(distinct c order by c desc) from t1 group by grp;
+select grp,group_concat(c order by c separator ",") from t1 group by grp;
+select grp,group_concat(c order by c desc separator ",") from t1 group by grp;
+select grp,group_concat(distinct c order by c separator ",") from t1 group by grp;
+explain extended select grp,group_concat(distinct c order by c separator ",") from t1 group by grp;
+select grp,group_concat(distinct c order by c desc separator ",") from t1 group by grp;
+
+# Test of SQL_LIST objects
+select grp,group_concat(c order by grp desc) from t1 group by grp order by grp;
+
+
+# Test transfer to real values
+
+select grp, group_concat(a separator "")+0 from t1 group by grp;
+select grp, group_concat(a separator "")+0.0 from t1 group by grp;
+select grp, ROUND(group_concat(a separator "")) from t1 group by grp;
+
+# Test NULL values
+
+drop table t1;
+create table t1 (grp int, c char(10));
+insert into t1 values (1,NULL);
+insert into t1 values (2,"b");
+insert into t1 values (2,NULL);
+insert into t1 values (3,"E");
+insert into t1 values (3,NULL);
+insert into t1 values (3,"D");
+insert into t1 values (3,NULL);
+insert into t1 values (3,NULL);
+insert into t1 values (3,"D");
+insert into t1 values (4,"");
+insert into t1 values (5,NULL);
+select grp,group_concat(c order by c) from t1 group by grp;
+
+# Test warnings
+
+set group_concat_max_len = 5;
+select grp,group_concat(c) from t1 group by grp;
+show warnings;
+set group_concat_max_len = 1024;
+
+# Test errors
+
+--error 1111
+select group_concat(sum(a)) from t1 group by grp;
+--error 1054
+select grp,group_concat(c order by 2) from t1 group by grp;
+
+drop table t1;
+
+# Test variable length
+
+create table t1 ( URL_ID int(11), URL varchar(80));
+create table t2 ( REQ_ID int(11), URL_ID int(11));
+insert into t1 values (4,'www.host.com'), (5,'www.google.com'),(5,'www.help.com');
+insert into t2 values (1,4), (5,4), (5,5);
+# Make this order independent
+--replace_result www.help.com X www.host.com X www.google.com X
+select REQ_ID, Group_Concat(URL) as URL from t1, t2 where 
+t2.URL_ID = t1.URL_ID group by REQ_ID;
+# check min/max function
+--replace_result www.help.com X www.host.com X www.google.com X
+select REQ_ID, Group_Concat(URL) as URL, Min(t1.URL_ID) urll,
+Max(t1.URL_ID) urlg from t1, t2 where t2.URL_ID = t1.URL_ID group by REQ_ID;
+
+drop table t1;
+drop table t2;
+
+create table t1 (id int, name varchar(16));
+insert into t1 values (1,'longername'),(1,'evenlongername');
+select ifnull(group_concat(concat(t1.id, ':', t1.name)), 'shortname') as 'without distinct: how it should be' from t1;
+select distinct ifnull(group_concat(concat(t1.id, ':', t1.name)), 'shortname') as 'with distinct: cutoff at length of shortname' from t1;
+drop table t1;
+
+# check zero rows
+create table t1(id int);
+create table t2(id int);
+insert into t1 values(0),(1);
+select group_concat(t1.id) FROM t1,t2;
+drop table t1;
+drop table t2;
+
+# check having
+create table t1 (bar varchar(32));
+insert into t1 values('test'),('test2');
+select * from t1 having group_concat(bar)='';
+drop table t1;
+
+# ORDER BY fix_fields()
+create table t1 (a int, a1 varchar(10));
+create table t2 (a0 int);
+insert into t1 values (0,"a"),(0,"b"),(1,"c");
+insert into t2 values (1),(2),(3);
+select  group_concat(a1 order by (t1.a IN (select a0 from t2))) from t1;
+select  group_concat(a1 order by (t1.a)) from t1;
+drop table t1, t2;

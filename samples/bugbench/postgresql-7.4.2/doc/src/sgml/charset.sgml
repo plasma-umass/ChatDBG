@@ -1,0 +1,894 @@
+<!-- $Header: /cvsroot/pgsql/doc/src/sgml/charset.sgml,v 2.39.2.1 2003/11/04 09:45:29 petere Exp $ -->
+
+<chapter id="charset">
+ <title>Localization</>
+
+ <para>
+  This chapter describes the available localization features from the
+  point of view of the administrator.
+  <productname>PostgreSQL</productname> supports localization with
+  two approaches:
+
+   <itemizedlist>
+    <listitem>
+     <para>
+      Using the locale features of the operating system to provide
+      locale-specific collation order, number formatting, translated
+      messages, and other aspects.
+     </para>
+    </listitem>
+
+    <listitem>
+     <para>
+      Providing a number of different character sets defined in the
+      <productname>PostgreSQL</productname> server, including
+      multiple-byte character sets, to support storing text in all
+      kinds of languages, and providing character set translation between
+      client and server.
+     </para>
+    </listitem>
+   </itemizedlist>
+  </para>
+
+
+ <sect1 id="locale">
+  <title>Locale Support</title>
+  
+  <indexterm zone="locale"><primary>locale</></>
+
+  <para>
+   <firstterm>Locale</> support refers to an application respecting
+   cultural preferences regarding alphabets, sorting, number
+   formatting, etc.  <productname>PostgreSQL</> uses the standard ISO
+   C and <acronym>POSIX</acronym> locale facilities provided by the server operating
+   system.  For additional information refer to the documentation of your
+   system.
+  </para>
+
+  <sect2>
+   <title>Overview</>
+
+   <para>
+    Locale support is automatically initialized when a database
+    cluster is created using <command>initdb</command>.
+    <command>initdb</command> will initialize the database cluster
+    with the locale setting of its execution environment; so if your
+    system is already set to use the locale that you want in your
+    database cluster then there is nothing else you need to do.  If
+    you want to use a different locale (or you are not sure which
+    locale your system is set to), you can tell
+    <command>initdb</command> exactly which locale you want with the
+    option <option>--locale</option>.  For example:
+<screen>
+initdb --locale=sv_SE
+</screen>
+   </para>
+
+   <para>
+    This example sets the locale to Swedish (<literal>sv</>) as spoken in
+    Sweden (<literal>SE</>).  Other possibilities might be
+    <literal>en_US</> (U.S. English) and <literal>fr_CA</> (Canada,
+    French).  If more than one character set can be useful for a locale
+    then the specifications look like this:
+    <literal>cs_CZ.ISO8859-2</>. What locales are available under what
+    names on your system depends on what was provided by the operating
+    system vendor and what was installed.
+   </para>
+
+   <para>
+    Occasionally it is useful to mix rules from several locales, e.g.,
+    use English collation rules but Spanish messages.  To support that, a
+    set of locale subcategories exist that control only a certain
+    aspect of the localization rules.
+
+    <informaltable>
+     <tgroup cols="2">
+      <tbody>
+       <row>
+        <entry><envar>LC_COLLATE</></>
+        <entry>String sort order</>
+       </row>
+       <row>
+        <entry><envar>LC_CTYPE</></>
+        <entry>Character classification (What is a letter? The upper-case equivalent?)</>
+       </row>
+       <row>
+        <entry><envar>LC_MESSAGES</></>
+        <entry>Language of messages</>
+       </row>
+       <row>
+        <entry><envar>LC_MONETARY</></>
+        <entry>Formatting of currency amounts</>
+       </row>
+       <row>
+        <entry><envar>LC_NUMERIC</></>
+        <entry>Formatting of numbers</>
+       </row>
+       <row>
+        <entry><envar>LC_TIME</></>
+        <entry>Formatting of dates and times</>
+       </row>
+      </tbody>
+     </tgroup>
+    </informaltable>
+
+    The category names translate into names of
+    <command>initdb</command> options to override the locale choice
+    for a specific category.  For instance, to set the locale to
+    French Canadian, but use U.S. rules for formatting currency, use
+    <literal>initdb --locale=fr_CA --lc-monetary=en_US</literal>.
+   </para>
+
+   <para>
+    If you want the system to behave as if it had no locale support,
+    use the special locale <literal>C</> or <literal>POSIX</>.
+   </para>
+
+   <para>
+    The nature of some locale categories is that their value has to be
+    fixed for the lifetime of a database cluster.  That is, once
+    <command>initdb</command> has run, you cannot change them anymore.
+    <literal>LC_COLLATE</literal> and <literal>LC_CTYPE</literal> are
+    those categories.  They affect the sort order of indexes, so they
+    must be kept fixed, or indexes on text columns will become corrupt.
+    <productname>PostgreSQL</productname> enforces this by recording
+    the values of <envar>LC_COLLATE</> and <envar>LC_CTYPE</> that are
+    seen by <command>initdb</>.  The server automatically adopts
+    those two values when it is started.
+   </para>
+
+   <para>
+    The other locale categories can be changed as desired whenever the
+    server is running by setting the run-time configuration variables
+    that have the same name as the locale categories (see <xref
+    linkend="runtime-config"> for details).  The defaults that are
+    chosen by <command>initdb</command> are actually only written into
+    the configuration file <filename>postgresql.conf</filename> to
+    serve as defaults when the server is started.  If you delete the
+    assignments from <filename>postgresql.conf</filename> then the
+    server will inherit the settings from the execution environment.
+   </para>
+
+   <para>
+    Note that the locale behavior of the server is determined by the
+    environment variables seen by the server, not by the environment
+    of any client.  Therefore, be careful to configure the correct locale settings
+    before starting the server.  A consequence of this is that if
+    client and server are set up to different locales, messages may
+    appear in different languages depending on where they originated.
+   </para>
+
+   <note>
+    <para>
+     When we speak of inheriting the locale from the execution
+     environment, this means the following on most operating systems:
+     For a given locale category, say the collation, the following
+     environment variables are consulted in this order until one is
+     found to be set: <envar>LC_ALL</envar>, <envar>LC_COLLATE</envar>
+     (the variable corresponding to the respective category),
+     <envar>LANG</envar>.  If none of these environment variables are
+     set then the locale defaults to <literal>C</literal>.
+    </para>
+
+    <para>
+     Some message localization libraries also look at the environment
+     variable <envar>LANGUAGE</envar> which overrides all other locale
+     settings for the purpose of setting the language of messages.  If
+     in doubt, please refer to the documentation of your operating
+     system, in particular the documentation about
+     <application>gettext</>, for more information.
+    </para>
+   </note>
+
+   <para>
+    To enable messages translated to the user's preferred language,
+    <acronym>NLS</acronym> must have been enabled at build time.  This
+    choice is independent of the other locale support.
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Benefits</>
+
+   <para>
+    Locale support influences in particular the following features:
+
+    <itemizedlist>
+     <listitem>
+      <para>
+       Sort order in queries using <command>ORDER BY</>
+       <indexterm><primary>ORDER BY</><secondary>and locales</></indexterm>
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       The <function>to_char</> family of functions
+      </para>
+     </listitem>
+    </itemizedlist>
+   </para>
+
+   <para>
+    The only severe drawback of using the locale support in
+    <productname>PostgreSQL</> is its speed.  So use locales only if
+    you actually need them.
+   </para>
+  </sect2>
+
+  <sect2>
+   <title>Problems</>
+
+   <para>
+    If locale support doesn't work in spite of the explanation above,
+    check that the locale support in your operating system is
+    correctly configured.  To check what locales are installed on your
+    system, you may use the command <literal>locale -a</literal> if
+    your operating system provides it.
+   </para>
+
+   <para>
+    Check that <productname>PostgreSQL</> is actually using the locale
+    that you think it is.  <envar>LC_COLLATE</> and <envar>LC_CTYPE</>
+    settings are determined at <command>initdb</> time and cannot be
+    changed without repeating <command>initdb</>.  Other locale
+    settings including <envar>LC_MESSAGES</> and <envar>LC_MONETARY</>
+    are initially determined by the environment the server is started
+    in.  You can check the <envar>LC_COLLATE</> and <envar>LC_CTYPE</>
+    settings of a database with the utility program
+    <command>pg_controldata</>.
+   </para>
+
+   <para>
+    The directory <filename>src/test/locale</> in the source
+    distribution contains a test suite for
+    <productname>PostgreSQL</>'s locale support.
+   </para>
+
+   <para>
+    Client applications that handle server-side errors by parsing the
+    text of the error message will obviously have problems when the
+    server's messages are in a different language.  Authors of such
+    applications are advised to make use of the error code scheme
+    instead.
+   </para>
+
+   <para>
+    Maintaining catalogs of message translations requires the on-going
+    efforts of many volunteers that want to see
+    <productname>PostgreSQL</> speak their preferred language well.
+    If messages in your language is currently not available or fully
+    translated, your assistance would be appreciated.  If you want to
+    help, refer to the <xref linkend="nls"> or write to the developers'
+    mailing list.
+   </para>
+  </sect2>
+ </sect1>
+
+
+ <sect1 id="multibyte">
+  <title>Character Set Support</title>
+
+  <indexterm zone="multibyte"><primary>character set</></>
+
+  <para>
+   The character set support in <productname>PostgreSQL</productname>
+   allows you to store text in a variety of character sets, including
+   single-byte character sets such as the ISO 8859 series and
+   multiple-byte character sets such as <acronym>EUC</> (Extended Unix
+   Code), Unicode, and Mule internal code.  All character sets can be
+   used transparently throughout the server.  (If you use extension
+   functions from other sources, it depends on whether they wrote
+   their code correctly.)  The default character set is selected while
+   initializing your <productname>PostgreSQL</productname> database
+   cluster using <command>initdb</>.  It can be overridden when you
+   create a database using <command>createdb</command> or by using the
+   SQL command <command>CREATE DATABASE</>. So you can have multiple
+   databases each with a different character set.
+  </para>
+
+   <sect2>
+    <title>Supported Character Sets</title>
+
+    <para>
+     <xref linkend="charset-table"> shows the character sets available
+     for use in the server.
+    </para>
+
+     <table id="charset-table">
+      <title>Server Character Sets</title>
+      <tgroup cols="2">
+       <thead>
+	<row>
+	 <entry>Name</entry>
+	 <entry>Description</entry>
+	</row>
+       </thead>
+       <tbody>
+	<row>
+	 <entry><literal>SQL_ASCII</literal></entry>
+	 <entry><acronym>ASCII</acronym></entry>
+	</row>
+	<row>
+	 <entry><literal>EUC_JP</literal></entry>
+	 <entry>Japanese <acronym>EUC</></entry>
+	</row>
+	<row>
+	 <entry><literal>EUC_CN</literal></entry>
+	 <entry>Chinese <acronym>EUC</></entry>
+	</row>
+	<row>
+	 <entry><literal>EUC_KR</literal></entry>
+	 <entry>Korean <acronym>EUC</></entry>
+	</row>
+	<row>
+	 <entry><literal>JOHAB</literal></entry>
+	 <entry>Korean <acronym>EUC</> (Hangle base)</entry>
+	</row>
+	<row>
+	 <entry><literal>EUC_TW</literal></entry>
+	 <entry>Taiwan <acronym>EUC</acronym></entry>
+	</row>
+	<row>
+	 <entry><literal>UNICODE</literal></entry>
+	 <entry>Unicode (<acronym>UTF</acronym>-8)</entry>
+	</row>
+	<row>
+	 <entry><literal>MULE_INTERNAL</literal></entry>
+	 <entry>Mule internal code</entry>
+	</row>
+	<row>
+	 <entry><literal>LATIN1</literal></entry>
+	 <entry>ISO 8859-1/<acronym>ECMA</> 94 (Latin alphabet no.1)</entry>
+	</row>
+	<row>
+	 <entry><literal>LATIN2</literal></entry>
+	 <entry>ISO 8859-2/<acronym>ECMA</> 94 (Latin alphabet no.2)</entry>
+	</row>
+	<row>
+	 <entry><literal>LATIN3</literal></entry>
+	 <entry>ISO 8859-3/<acronym>ECMA</> 94 (Latin alphabet no.3)</entry>
+	</row>
+	<row>
+	 <entry><literal>LATIN4</literal></entry>
+	 <entry>ISO 8859-4/<acronym>ECMA</> 94 (Latin alphabet no.4)</entry>
+	</row>
+	<row>
+	 <entry><literal>LATIN5</literal></entry>
+	 <entry>ISO 8859-9/<acronym>ECMA</> 128 (Latin alphabet no.5)</entry>
+	</row>
+	<row>
+	 <entry><literal>LATIN6</literal></entry>
+	 <entry>ISO 8859-10/<acronym>ECMA</> 144 (Latin alphabet no.6)</entry>
+	</row>
+	<row>
+	 <entry><literal>LATIN7</literal></entry>
+	 <entry>ISO 8859-13 (Latin alphabet no.7)</entry>
+	</row>
+	<row>
+	 <entry><literal>LATIN8</literal></entry>
+	 <entry>ISO 8859-14 (Latin alphabet no.8)</entry>
+	</row>
+	<row>
+	 <entry><literal>LATIN9</literal></entry>
+	 <entry>ISO 8859-15 (Latin alphabet no.9)</entry>
+	</row>
+	<row>
+	 <entry><literal>LATIN10</literal></entry>
+	 <entry>ISO 8859-16/<acronym>ASRO</> SR 14111 (Latin alphabet no.10)</entry>
+	</row>
+	<row>
+	 <entry><literal>ISO_8859_5</literal></entry>
+	 <entry>ISO 8859-5/<acronym>ECMA</> 113 (Latin/Cyrillic)</entry>
+	</row>
+	<row>
+	 <entry><literal>ISO_8859_6</literal></entry>
+	 <entry>ISO 8859-6/<acronym>ECMA</> 114 (Latin/Arabic)</entry>
+	</row>
+	<row>
+	 <entry><literal>ISO_8859_7</literal></entry>
+	 <entry>ISO 8859-7/<acronym>ECMA</> 118 (Latin/Greek)</entry>
+	</row>
+	<row>
+	 <entry><literal>ISO_8859_8</literal></entry>
+	 <entry>ISO 8859-8/<acronym>ECMA</> 121 (Latin/Hebrew)</entry>
+	</row>
+	<row>
+	 <entry><literal>KOI8</literal></entry>
+	 <entry><acronym>KOI</acronym>8-R(U)</entry>
+	</row>
+	<row>
+	 <entry><literal>WIN</literal></entry>
+	 <entry>Windows CP1251</entry>
+	</row>
+	<row>
+	 <entry><literal>ALT</literal></entry>
+	 <entry>Windows CP866</entry>
+	</row>
+	<row>
+	 <entry><literal>WIN1256</literal></entry>
+	 <entry>Windows CP1256 (Arabic)</entry>
+	</row>
+	<row>
+	 <entry><literal>TCVN</literal></entry>
+	 <entry><acronym>TCVN</>-5712/Windows CP1258 (Vietnamese)</entry>
+	</row>
+	<row>
+	 <entry><literal>WIN874</literal></entry>
+	 <entry>Windows CP874 (Thai)</entry>
+	</row>
+       </tbody>
+      </tgroup>
+     </table>
+
+    <important>
+     <para>
+      Before <productname>PostgreSQL</> 7.2, <literal>LATIN5</>
+      mistakenly meant ISO 8859-5.  From 7.2 on, <literal>LATIN5</>
+      means ISO 8859-9. If you have a <literal>LATIN5</> database
+      created on 7.1 or earlier and want to migrate to 7.2 or later,
+      you should be careful about this change.
+     </para>
+    </important>
+
+     <para>
+      Not all <acronym>API</>s support all the listed character sets. For example, the
+      <productname>PostgreSQL</>
+      JDBC driver does not support <literal>MULE_INTERNAL</>, <literal>LATIN6</>,
+      <literal>LATIN8</>, and <literal>LATIN10</>.
+     </para>
+    </sect2>
+    
+   <sect2>
+    <title>Setting the Character Set</title>
+
+    <para>
+     <command>initdb</> defines the default character set
+     for a <productname>PostgreSQL</productname> cluster. For example,
+
+<screen>
+initdb -E EUC_JP
+</screen>
+
+     sets the default character set (encoding) to
+     <literal>EUC_JP</literal> (Extended Unix Code for Japanese).  You
+     can use <option>--encoding</option> instead of
+     <option>-E</option> if you prefer to type longer option strings.
+     If no <option>-E</> or <option>--encoding</option> option is
+     given, <literal>SQL_ASCII</> is used.
+    </para>
+
+    <para>
+     You can create a database with a different character set:
+
+<screen>
+createdb -E EUC_KR korean
+</screen>
+
+     This will create a database named <literal>korean</literal> that
+     uses the character set <literal>EUC_KR</literal>.  Another way to
+     accomplish this is to use this SQL command:
+
+<programlisting>
+CREATE DATABASE korean WITH ENCODING 'EUC_KR';
+</programlisting>
+
+     The encoding for a database is stored in the system catalog
+     <literal>pg_database</literal>.  You can see that by using the
+     <option>-l</option> option or the <command>\l</command> command
+     of <command>psql</command>.
+
+<screen>
+$ <userinput>psql -l</userinput>
+            List of databases
+   Database    |  Owner  |   Encoding    
+---------------+---------+---------------
+ euc_cn        | t-ishii | EUC_CN
+ euc_jp        | t-ishii | EUC_JP
+ euc_kr        | t-ishii | EUC_KR
+ euc_tw        | t-ishii | EUC_TW
+ mule_internal | t-ishii | MULE_INTERNAL
+ regression    | t-ishii | SQL_ASCII
+ template1     | t-ishii | EUC_JP
+ test          | t-ishii | EUC_JP
+ unicode       | t-ishii | UNICODE
+(9 rows)
+</screen>
+    </para>
+   </sect2>
+
+   <sect2>
+    <title>Automatic Character Set Conversion Between Server and Client</title>
+
+    <para>
+     <productname>PostgreSQL</productname> supports automatic
+     character set conversion between server and client for certain
+     character sets. The conversion information is stored in the
+     <literal>pg_conversion</> system catalog. You can create a new
+     conversion by using the SQL command <command>CREATE
+     CONVERSION</command>. <productname>PostgreSQL</> comes with some
+     predefined conversions. They are listed in <xref
+     linkend="multibyte-translation-table">.
+    </para>
+
+     <table id="multibyte-translation-table">
+      <title>Client/Server Character Set Conversions</title>
+      <tgroup cols="2">
+       <thead>
+	<row>
+	 <entry>Server Character Set</entry>
+	 <entry>Available Client Character Sets</entry>
+	</row>
+       </thead>
+       <tbody>
+	<row>
+	 <entry><literal>SQL_ASCII</literal></entry>
+	 <entry><literal>SQL_ASCII</literal>, <literal>UNICODE</literal>, <literal>MULE_INTERNAL</literal>
+	 </entry>
+	</row>
+	<row>
+	 <entry><literal>EUC_JP</literal></entry>
+	 <entry><literal>EUC_JP</literal>, <literal>SJIS</literal>,
+	 <literal>UNICODE</literal>, <literal>MULE_INTERNAL</literal>
+	 </entry>
+	</row>
+	<row>
+	 <entry><literal>EUC_CN</literal></entry>
+	 <entry><literal>EUC_CN</literal>, <literal>UNICODE</literal>, <literal>MULE_INTERNAL</literal>
+	 </entry>
+	</row>
+	<row>
+	 <entry><literal>EUC_KR</literal></entry>
+	 <entry><literal>EUC_KR</literal>, <literal>UNICODE</literal>, <literal>MULE_INTERNAL</literal>
+	 </entry>
+	</row>
+	<row>
+	 <entry><literal>JOHAB</literal></entry>
+	 <entry><literal>JOHAB</literal>, <literal>UNICODE</literal>
+	 </entry>
+	</row>
+	<row>
+	 <entry><literal>EUC_TW</literal></entry>
+	 <entry><literal>EUC_TW</literal>, <literal>BIG5</literal>,
+	 <literal>UNICODE</literal>, <literal>MULE_INTERNAL</literal>
+	 </entry>
+	</row>
+	<row>  
+	 <entry><literal>LATIN1</literal></entry>
+	 <entry><literal>LATIN1</literal>, <literal>UNICODE</literal>
+	 <literal>MULE_INTERNAL</literal>
+	 </entry>
+	</row>
+	<row>  
+	 <entry><literal>LATIN2</literal></entry>
+	 <entry><literal>LATIN2</literal>, <literal>WIN1250</literal>,
+	 <literal>UNICODE</literal>,
+	 <literal>MULE_INTERNAL</literal>
+	 </entry>
+	</row>
+	<row>  
+	 <entry><literal>LATIN3</literal></entry>
+	 <entry><literal>LATIN3</literal>, <literal>UNICODE</literal>,
+	 <literal>MULE_INTERNAL</literal>
+	 </entry>
+	</row>
+	<row>  
+	 <entry><literal>LATIN4</literal></entry>
+	 <entry><literal>LATIN4</literal>, <literal>UNICODE</literal>,
+	 <literal>MULE_INTERNAL</literal>
+	 </entry>
+	</row>
+	<row>  
+	 <entry><literal>LATIN5</literal></entry>
+	 <entry><literal>LATIN5</literal>, <literal>UNICODE</literal>
+	 </entry>
+	</row>
+	<row>  
+	 <entry><literal>LATIN6</literal></entry>
+	 <entry><literal>LATIN6</literal>, <literal>UNICODE</literal>,
+	 <literal>MULE_INTERNAL</literal>
+	 </entry>
+	</row>
+	<row>  
+	 <entry><literal>LATIN7</literal></entry>
+	 <entry><literal>LATIN7</literal>, <literal>UNICODE</literal>,
+	 <literal>MULE_INTERNAL</literal>
+	 </entry>
+	</row>
+	<row>  
+	 <entry><literal>LATIN8</literal></entry>
+	 <entry><literal>LATIN8</literal>, <literal>UNICODE</literal>,
+	 <literal>MULE_INTERNAL</literal>
+	 </entry>
+	</row>
+	<row>  
+	 <entry><literal>LATIN9</literal></entry>
+	 <entry><literal>LATIN9</literal>, <literal>UNICODE</literal>,
+	 <literal>MULE_INTERNAL</literal>
+	 </entry>
+	</row>
+	<row>  
+	 <entry><literal>LATIN10</literal></entry>
+	 <entry><literal>LATIN10</literal>, <literal>UNICODE</literal>,
+	 <literal>MULE_INTERNAL</literal>
+	 </entry>
+	</row>
+	<row>
+	 <entry><literal>ISO_8859_5</literal></entry>
+	 <entry><literal>ISO_8859_5</literal>,
+	 <literal>UNICODE</literal>,
+	 <literal>MULE_INTERNAL</literal>,
+	 <literal>WIN</literal>,
+	 <literal>ALT</literal>,
+	 <literal>KOI8</literal>
+	 </entry>
+	</row>
+	<row>
+	 <entry><literal>ISO_8859_6</literal></entry>
+	 <entry><literal>ISO_8859_6</literal>,
+	 <literal>UNICODE</literal>
+	 </entry>
+	</row>
+	<row>
+	 <entry><literal>ISO_8859_7</literal></entry>
+	 <entry><literal>ISO_8859_7</literal>,
+	 <literal>UNICODE</literal>
+	 </entry>
+	</row>
+	<row>
+	 <entry><literal>ISO_8859_8</literal></entry>
+	 <entry><literal>ISO_8859_8</literal>,
+	 <literal>UNICODE</literal>
+	 </entry>
+	</row>
+	<row>
+	 <entry><literal>UNICODE</literal></entry>
+	 <entry>
+	 <literal>EUC_JP</literal>, <literal>SJIS</literal>, 
+	 <literal>EUC_KR</literal>, <literal>UHC</literal>, <literal>JOHAB</literal>,
+	 <literal>EUC_CN</literal>, <literal>GBK</literal>,
+	 <literal>EUC_TW</literal>, <literal>BIG5</literal>, 
+	 <literal>LATIN1</literal> to <literal>LATIN10</literal>, 
+	 <literal>ISO_8859_5</literal>, 
+	 <literal>ISO_8859_6</literal>,
+ 	 <literal>ISO_8859_7</literal>, 
+	 <literal>ISO_8859_8</literal>, 
+	 <literal>WIN</literal>, <literal>ALT</literal>, 
+	 <literal>KOI8</literal>, 
+	 <literal>WIN1256</literal>,
+	 <literal>TCVN</literal>,
+	 <literal>WIN874</literal>,
+	 <literal>GB18030</literal>,
+	 <literal>WIN1250</literal>
+	 </entry>
+	</row>
+	<row>
+	 <entry><literal>MULE_INTERNAL</literal></entry>
+	 <entry><literal>EUC_JP</literal>, <literal>SJIS</literal>, <literal>EUC_KR</literal>, <literal>EUC_CN</literal>, 
+	  <literal>EUC_TW</literal>, <literal>BIG5</literal>, <literal>LATIN1</literal> to <literal>LATIN5</literal>, 
+	  <literal>WIN</literal>, <literal>ALT</literal>,
+	 <literal>WIN1250</literal>,
+	  <literal>BIG5</literal>, <literal>ISO_8859_5</literal>, <literal>KOI8</literal></entry>
+	</row>
+	<row>
+	 <entry><literal>KOI8</literal></entry>
+	 <entry><literal>ISO_8859_5</literal>, <literal>WIN</literal>, 
+	 <literal>ALT</literal>, <literal>KOI8</literal>,
+	 <literal>UNICODE</literal>, <literal>MULE_INTERNAL</literal>
+	 </entry>
+	</row>
+	<row>
+	 <entry><literal>WIN</literal></entry>
+	 <entry><literal>ISO_8859_5</literal>, <literal>WIN</literal>, 
+	 <literal>ALT</literal>, <literal>KOI8</literal>,
+	 <literal>UNICODE</literal>, <literal>MULE_INTERNAL</literal>
+	 </entry>
+	</row>
+	<row>
+	 <entry><literal>ALT</literal></entry>
+	 <entry><literal>ISO_8859_5</literal>, <literal>WIN</literal>, 
+	 <literal>ALT</literal>, <literal>KOI8</literal>,
+	 <literal>UNICODE</literal>, <literal>MULE_INTERNAL</literal>
+	 </entry>
+	</row>
+	<row>
+	 <entry><literal>WIN1256</literal></entry>
+	 <entry><literal>WIN1256</literal>,
+	 <literal>UNICODE</literal>
+	 </entry>
+	</row>
+	<row>
+	 <entry><literal>TCVN</literal></entry>
+	 <entry><literal>TCVN</literal>,
+	 <literal>UNICODE</literal>
+	 </entry>
+	</row>
+	<row>
+	 <entry><literal>WIN874</literal></entry>
+	 <entry><literal>WIN874</literal>,
+	 <literal>UNICODE</literal>
+	 </entry>
+	</row>
+       </tbody>
+      </tgroup>
+     </table>
+
+    <para>
+     To enable the automatic character set conversion, you have to
+     tell <productname>PostgreSQL</productname> the character set
+     (encoding) you would like to use in the client. There are several
+     ways to accomplish this:
+
+     <itemizedlist>
+      <listitem>
+       <para>
+	Using the <command>\encoding</command> command in
+	<application>psql</application>.
+	<command>\encoding</command> allows you to change client
+	encoding on the fly. For
+	example, to change the encoding to <literal>SJIS</literal>, type:
+
+<programlisting>
+\encoding SJIS
+</programlisting>
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+	Using <application>libpq</> functions.
+	<command>\encoding</command> actually calls
+	<function>PQsetClientEncoding()</function> for its purpose.
+
+<synopsis>
+int PQsetClientEncoding(PGconn *<replaceable>conn</replaceable>, const char *<replaceable>encoding</replaceable>);
+</synopsis>
+
+	where <replaceable>conn</replaceable> is a connection to the server,
+	and <replaceable>encoding</replaceable> is the encoding you
+	want to use. If the function successfully sets the encoding, it returns 0,
+	otherwise -1. The current encoding for this connection can be determined by
+	using:
+
+<synopsis>
+int PQclientEncoding(const PGconn *<replaceable>conn</replaceable>);
+</synopsis>
+
+	Note that it returns the encoding ID, not a symbolic string
+	such as <literal>EUC_JP</literal>. To convert an encoding ID to an encoding name, you
+	can use:
+
+<synopsis>
+char *pg_encoding_to_char(int <replaceable>encoding_id</replaceable>);
+</synopsis>
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+	Using <command>SET client_encoding TO</command>.
+
+	Setting the client encoding can be done with this SQL command:
+
+<programlisting>
+SET CLIENT_ENCODING TO '<replaceable>value</>';
+</programlisting>
+
+	Also you can use the more standard SQL syntax <literal>SET NAMES</literal> for this purpose:
+
+<programlisting>
+SET NAMES '<replaceable>value</>';
+</programlisting>
+
+	To query the current client encoding:
+
+<programlisting>
+SHOW client_encoding;
+</programlisting>
+
+	To return to the default encoding:
+
+<programlisting>
+RESET client_encoding;
+</programlisting>
+       </para>
+      </listitem>
+
+      <listitem>
+       <para>
+	Using <envar>PGCLIENTENCODING</envar>.
+
+	If environment variable <envar>PGCLIENTENCODING</envar> is defined
+	in the client's environment, that client encoding is automatically
+	selected when a connection to the server is made.  (This can subsequently
+	be overridden using any of the other methods mentioned above.)
+       </para>
+      </listitem>
+
+      <listitem>
+      <para>
+       Using the configuration variable <varname>client_encoding</varname>.
+
+      If the <varname>client_encoding</> variable in <filename>postgresql.conf</> is set, that
+      client encoding is automatically selected when a connection to the
+      server is made.  (This can subsequently be overridden using any of the
+      other methods mentioned above.)
+       </para>
+      </listitem>
+
+     </itemizedlist>
+    </para>
+
+    <para>
+     If the conversion of a particular character is not possible --
+     suppose you chose <literal>EUC_JP</literal> for the server and
+     <literal>LATIN1</literal> for the client, then some Japanese
+     characters cannot be converted to <literal>LATIN1</literal> -- it
+     is transformed to its hexadecimal byte values in parentheses,
+     e.g., <literal>(826C)</literal>.
+    </para>
+   </sect2>
+
+   <sect2>
+    <title>Further Reading</title>
+
+    <para>
+     These are good sources to start learning about various kinds of encoding
+     systems.
+
+     <variablelist>
+      <varlistentry>
+       <term><ulink url="ftp://ftp.ora.com/pub/examples/nutshell/ujip/doc/cjk.inf"></ulink></term>
+
+       <listitem>
+        <para>
+         Detailed explanations of <literal>EUC_JP</literal>,
+         <literal>EUC_CN</literal>, <literal>EUC_KR</literal>,
+         <literal>EUC_TW</literal> appear in section 3.2.
+        </para>
+       </listitem>
+      </varlistentry>
+
+      <varlistentry>
+       <term><ulink url="http://www.unicode.org/"></ulink></term>
+
+       <listitem>
+        <para>
+         The web site of the Unicode Consortium
+        </para>
+       </listitem>
+      </varlistentry>
+
+      <varlistentry>
+       <term>RFC 2044</term>
+
+       <listitem>
+        <para>
+	 <acronym>UTF</acronym>-8 is defined here.
+        </para>
+       </listitem>
+      </varlistentry>
+     </variablelist>
+    </para>
+   </sect2>
+
+  </sect1>
+
+</chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

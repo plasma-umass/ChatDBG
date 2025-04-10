@@ -1,0 +1,31 @@
+<HTML><HEAD>
+<TITLE>ERROR: The requested URL could not be retrieved</TITLE>
+</HEAD><BODY>
+<H1>ERROR</H1>
+<H2>The requested URL could not be retrieved</H2>
+<HR>
+<P>
+While trying to process the request:
+<PRE>
+%R
+</PRE>
+<P>
+The following error was encountered:
+<UL>
+<LI>
+<STRONG>
+Invalid Request
+</STRONG>
+</UL>
+
+<P>
+Some aspect of the HTTP Request is invalid.  Possible problems:
+<UL>
+<LI>Missing or unknown request method
+<LI>Missing URL
+<LI>Missing HTTP Identifier (HTTP/1.0)
+<LI>Request is too large
+<LI>Content-Length missing for POST or PUT requests
+<LI>Illegal character in hostname; underscores are not allowed
+</UL>
+<P>Your cache administrator is <A HREF="mailto:%w">%w</A>. 

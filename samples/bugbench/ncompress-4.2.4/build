@@ -1,0 +1,842 @@
+:
+#!/bin/sh
+#
+version="4.2.4"
+
+echo "Build (N)compress ${version}"
+CLS=`sh -c 'tput clear' 2>/dev/null`
+
+if expr `echo "foo\c"` : '.*c' >/dev/null
+then
+	n='-n'
+	c=''
+else
+	n=''
+	c='\c'
+fi
+
+trap 'rm -f /tmp/sh$$.tm* /tmp/sh$$.f* /tmp/sh$$.log /tmp/sh*.c' 0
+trap 'set +x ; exit 1' 1 2 15
+
+[ -f compress.def ] && . ./compress.def
+
+while true
+do
+	if [ "${DEFINED}" = yes ]
+	then
+		echo "${CLS}    Build (N)compress ${version}
+
+ 1.  Directory to install compress in: ${BINDIR}
+                          manual in  : ${MANDIR}
+ 2.  Memory free for compress        : ${USERMEM}
+ 3.  Input/Output buffer size        : ${IBUFSIZ} ${OBUFSIZ}
+ 4.  C Compiler                      : ${CC}
+ 5.  Compiler options                : ${CCOPT:---none--}
+ 6.  Libary options                  : ${LBOPT:---none--}
+ 7.  Special options for your system : ${EXTRA:---none--}
+ 8.  Number of register variable     : ${REGISTERS}
+ 9.  Symbolic links                  : ${LSTAT}
+10.  Use include <utime.h>           : ${UTIME_H}"
+
+		if [ ".${DIRENT}" = .yes ] 
+		then
+			echo "11.  Your system support dirent.h"
+		else
+			if [ ".${SYSDIR}" = .yes -a ".${DIRENT}" != .yes ]
+			then
+				echo "11.  Your system support sys/dir.h"
+			else
+				echo "11.  No directory support -r disabled."
+			fi
+		fi
+	
+		echo "12.  Word must start at even addres: ${NOALLIGN}, Bytorder on your system: ${BYTEORDER} (1=msb)"
+		echo "
+ d. Set default settings                    mkshar.  Create shell archive
+ c. Compile compress                        mktar.   Create tar archive
+ t. Test compress                           cleanup. Cleanup
+ i. Install compress                        genmake. Generate makefile
+ q. Stop
+"
+		echo ${n} "   Choice [1..10,d,c,t,i,q,mkshar,mktar,cleanup] : ${c}"
+
+		(
+			echo "# Current parameters."
+			for var in CC CCOPT LBOPT BINDIR MANDIR DIRENT SYSDIR IBUFSIZ \
+						OBUFSIZ USERMEM REGISTERS LSTAT BYTEORDER NOALLIGN \
+						EXTRA DEFINED UTIME_H
+			do
+				echo "${var}='`eval echo \$\{${var}\}`'"
+			done
+		) >compress.def
+
+		read choice var1 var2 var3 var4 varr
+		echo ""
+	else
+		choice=D
+	fi
+
+	case "${choice}" in
+	1)
+		if [ ".${var1}" = . ]
+		then
+			echo ${n} "Directory to install compress in (default:${BINDIR}) ? ${c}"
+			read var1 dummy
+		fi
+
+		BINDIR="${var1:-${BINDIR}}"
+
+		if [ ".${var2}" = . ]
+		then
+			echo ${n} "Directory to install manuals in (default:${MANDIR}) ? ${c}"
+			read var2 dummy
+		fi
+
+		MANDIR="${var2:-${MANDIR}}"
+		;;
+
+	2)
+		if [ ".${var1}" = . ]
+		then
+			echo "Compress use a lot of memory, the more memory it can just the faster"
+			echo "the programm is and the better compression is."
+			echo ${n} "Memory free for compress (default:${USERMEM}) ? ${c}"
+			read var1 dummy 
+		fi
+
+		USERMEM="${var1:-${USERMEM}}"
+		;;
+
+	3)	
+		if [ ".${var1}" = . ]
+		then
+			echo "For input and output compress use buffers. A bigger buffer reduce"
+			echo "system (kernel) overhead. If your system is a 16 bits system don't"
+			echo "make the buffers bigger than 2048 bytes. The default 2048 is in"
+			echo "most cases a good answer."
+			echo ${n} "Best input buffer size (default:${IBUFSIZ}) ? ${c}"
+			read var1 var2 dummy
+
+			if [ ".${var2}" = . ] 
+			then
+				echo ${n} "Best output buffer size (default:${OBUFSIZ}) ? ${c}"
+				read D dummy 
+			fi
+		fi
+
+		var2="${var2:-${var1}}"
+ 		IBUFSIZ="${var1:-${IBUFSIZ}}"
+ 		OBUFSIZ="${var2:-${OBUFSIZ}}"
+		;;
+
+	4)
+		if [ ".${var1}" = . ]
+		then	
+			echo "C compiler to use for compilation (must by cc compatible)".
+			echo ${n} "C Compiler (default:${CC}) ? ${c}"
+			read var1 dummy
+		fi
+
+		CC="${var1:-${CC}}"
+		;;
+
+	5)
+		if [ ".${var1}" = . ]
+		then
+			echo ${n} "Compiler options (default:${CCOPT:-none}) ? ${c}"
+			read var1
+		fi
+
+		[ ".${var1}" != . ] && CCOPT="${var1} ${var2} ${var3} ${var4} ${varr}"
+		;;	
+
+	6)
+		if [ ".${var1}" = . ]
+		then
+			echo ${n} "Libary options (default:${LBOPT:-none}) ? ${c}"
+			read var1
+		fi
+
+		[ ".${var1}" != . ] && LBOPT="${var1} ${var2} ${var3} ${var4} ${varr}"
+		;;	
+
+	7)
+		if [ ".${var1}" = . ]
+		then
+			echo "Some system needs extra defines see README"
+			echo ${n} "Special for your system (default:${EXTRA:-none}) ? ${c}"
+			read var1
+		fi
+
+		[ ".${var1}" != . ] && EXTRA="${var1} ${var2} ${var3} ${var4} ${varr}"
+		;;	
+
+	8)
+		if [ ".${var1}" = . ]
+		then
+			echo ${n} "Number of register variable (default:${REGISTERS}) ? ${c}"
+			read var1 dummy
+		fi
+
+		REGISTERS="${var1:-${REGISTERS}}"
+		;;
+
+	9)
+		if [ ".${var1}" = . ]
+		then
+			echo ${n} "Symbolic links (default:${LSTAT}) ? ${c}"
+			read var1 dummy
+		fi
+
+		case "${var1:-${DIRENT}}" in
+		y|Y|yes|YES) LSTAT=yes; ;;
+		*)			 LSTAT=no; ;;
+		esac
+		;;
+
+	10)
+		if [ ".${var1}" = . ]
+		then
+			echo ${n} "Do your system support utime.h (default:${UTIME_H}) ? ${c}"
+			read var1 dummy
+		fi
+
+		case "${var1:-${DIRENT}}" in
+		y|Y|yes|YES) UTIME_H=yes; ;;
+		*)			 UTIME_H=no; ;;
+		esac
+		;;
+
+	11)
+		case "${var1}" in
+		dirent)
+			DIRENT=yes; SYSDIR=no;
+			;;
+		sys/dir) 
+			DIRENT=no; SYSDIR=yes;
+			;;
+		*)
+			echo ${n} "Do your system support dirent.h (default:${DIRENT}) ? ${c}"
+			read var1 dummy
+			case "${var1:-${DIRENT}}" in
+			y|Y|yes|YES) DIRENT=yes; SYSDIR=no; ;;
+			*)			 DIRENT=no; SYSDIR=no; ;;
+			esac
+
+			if [ ${DIRENT} = no ]
+			then
+				echo ${n} "Do your system support sys/dir.h (default:${SYSDIR}) ? ${c}"
+    			read var1 dummy
+				case "${var1:-${SYSDIR}}" in
+				y|Y|yes|YES) DIRENT=no; SYSDIR=yes; ;;
+				*)			 DIRENT=no; SYSDIR=no; ;;
+				esac
+			fi
+			;;
+		esac
+		;;
+
+	12)
+		if [ ".${var1}" = . ]
+		then
+			echo "If your system don't need word allignment for words (like 80386)"
+			echo "compress can use this fact to by faster. If your are not sure type y"
+			echo ${n} "Must words start at a even address (default:${NOALLIGN}) ? ${c}"
+			read var1 var2 varr
+		fi
+
+		if [ ".${var2}" = . ]
+		then
+			echo ${n} "Byteorder on your system (default:${BYTEORDER}) ? ${c}"
+			read var2 varr 
+		fi
+
+		case "${var1}" in
+		n|no|N|NO)	var1=no; ;;
+		*)			var1=yes; ;;
+		esac
+
+ 		NOALLIGN="${var1:-${NOALLIGN}}"
+ 		BYTEORDER="${var2:-${BYTEORDER}}"
+		;;
+
+	d|D)
+		echo "Testing the system to find out what kind of system we have."
+		BINDIR=/usr/bin
+		MANDIR=/usr/man/man1
+		DIRENT=no
+		SYSDIR=no
+		UTIME_H=no
+		IBUFSIZ=2048
+		OBUFSIZ=2048
+		USERMEM=0
+		REGISTERS=2
+		LSTAT=no
+		CCOPT='-O'
+		LBOPT=
+		EXTRA=
+		[ -f /usr/include/sys/dir.h ] && { SYSDIR=yes; }
+		[ -f /usr/include/dirent.h ] && { DIRENT=yes; }
+		[ -f /usr/include/utime.h ] && { UTIME_H=yes; }
+		[ -d /usr/local/bin ] && { BINDIR=/usr/local/bin; }
+		[ -d /usr/local/man ] && { BINDIR=/usr/local/man/man1; }
+		[ -f /usr/bin/compress ] && { BINDIR=/usr/bin; }
+	
+		if [ ".${CC}" = . ]
+		then
+			echo ${n} "Find compiler. Compiler is: ${c}"
+			echo 'main() {return 0;}' >/tmp/sh$$.c
+
+			for cc in cc gcc
+			do
+				if ${cc} -c /tmp/sh$$.c >/dev/null 2>&1
+				then
+					rm -f sh$$.o
+					CC=${cc}
+					echo ${CC}
+					break
+				fi
+			done
+
+			if [ ".${CC}" = . ]
+			then
+				echo "Can't file one of the standaard compilers. Give C Compiler name"
+				echo ${n} "C Compiler : ${c}"
+				read CC dummy
+			fi
+		fi
+
+		echo ${n} "Test best buffer size: ${c}"
+		cat >/tmp/sh$$.c <<!
+#include <stdio.h>
+		main()
+			{
+				int		size;
+	
+				size = 1024;
+#ifdef BUFSIZ
+				if (size < BUFSIZ)	size = BUFSIZ;
+#endif
+				if (sizeof(int)<4)	size = 2048;
+				printf("%d\n", size);
+				return 0;
+			}
+!
+		${CC} /tmp/sh$$.c && IBUFSIZ=`./a.out`
+		rm -f /tmp/sh$$.c a.out
+		OBUFSIZ=${IBUFSIZ}
+		echo "${IBUFSIZ}"
+
+		echo ${n} "Test byte order of system: ${c}"
+		cat >/tmp/sh$$.c <<!
+		main()
+			{
+				long	test;
+		extern	int		write();
+		
+				test = 0x31323334L;
+				write(1, (char *)&test, 4);
+				return 0;
+			}
+!
+		${CC} /tmp/sh$$.c && BYTEORDER=`./a.out`
+		BYTEORDER="${BYTEORDER:-0000}"
+		echo ${BYTEORDER}
+		rm -f /tmp/sh$$.c a.out
+
+
+		echo ${n} "Test word allignment. Must words be allign: ${c}"
+		cat >/tmp/sh$$.c <<!
+		sig() {exit(1);}
+		main()
+			{
+				int		i;
+				char	bfr1[6];
+				char	bfr2[6];
+				long	test;
+		extern	int		write();
+
+				for (i = 1 ; i <= 15 ; ++i)
+					signal(i, sig);
+	
+				bfr1[0]=' ';bfr1[1]='1';bfr1[2]='2';
+				bfr1[3]='3';bfr1[4]='4';bfr1[5]=' ';
+				bfr2[0]='X';bfr2[1]='X';bfr2[2]='X';
+				bfr2[3]='X';bfr2[4]='X';bfr2[5]='X';
+
+				test = *(long *)(bfr1+1);
+				*(long *)(bfr2+0) = test;
+	
+				if (bfr2[0] == '1' && bfr2[1] == '2' && bfr2[2] == '3' &&
+					bfr2[3] == '4' && bfr2[4] == 'X')
+					write(1, "no", 2);
+
+				return 0;
+			}
+!
+		${CC} /tmp/sh$$.c && NOALLIGN=`( ./a.out ) 2>/dev/null`
+		NOALLIGN="${NOALLIGN:-yes}"
+		echo ${NOALLIGN}
+		rm -f /tmp/sh$$.c a.out core
+
+		echo ${n} "Test number of register vars. Registers var: ${c}"
+		cat >/tmp/sh$$.c <<!
+		main()
+			{
+				long			l11;
+				long			l12;
+				long			l13;
+				long			l1;
+				register long	rl01; register long	rl02;
+				register long	rl03; register long	rl04;
+				register long	rl05; register long	rl06;
+				register long	rl07; register long	rl08;
+				register long	rl09; register long	rl10;
+				register long	rl11; register long	rl12;
+				register long	rl13; register long	rl14;
+				register long	rl15; register long	rl16;
+				register long	rl17; register long	rl18;
+				register long	rl19; register long	rl20;
+				long			l2;
+				long			l22;
+				long			l23;
+				long			l24;
+
+				l1 = (char *)&l1-(char *)&l2;
+				if (l1 < 0)	l1 = -l1;
+				l1 = 21-(l1/sizeof(long));
+				if (l1 > 0 && l1 < 21)
+					printf("%ld", l1);
+				exit(0);
+			}
+!
+		cc /tmp/sh$$.c && REGISTERS=`./a.out`
+		REGISTERS=${REGISTERS:-2};
+		echo ${REGISTERS}
+		rm -f a.out /tmp/sh$$.c
+
+		echo ${n} "Test if errno is declared in errno.h: ${c}"
+		cat >/tmp/sh$$.c <<!
+#include	<stdio.h>
+#include	<errno.h>
+		main()
+			{
+				return	errno;
+			}
+!
+		if cc /tmp/sh$$.c
+		then
+			echo "Yes"
+		else
+			echo "No"
+			EXTRA="${EXTRA} -DDEF_ERRNO=1"
+		fi
+
+		rm -f a.out /tmp/sh$$.c
+
+
+		echo ${n} "Test if system support symbolic links? ${c}"
+		cat >/tmp/sh$$.c <<!
+		main()
+			{
+				lstat(0, 0);
+			}
+!
+		LSTAT=no
+		${CC} /tmp/sh$$.c >/dev/null 2>&1 && LSTAT=yes
+		echo "${LSTAT}"
+		rm -f a.out /tmp/sh$$.c
+
+		echo ${n} "Test availble memory${c}"
+		for size in 75000 130000 230000 440000 800000
+		do
+			cat >/tmp/sh$$.c <<!
+			char	test[${size}+128000];
+	
+			extern	int				alarm();
+			extern	int				exit();
+			extern	int				signal();
+	
+			sig() {exit(1);}
+
+			main()
+				{
+					register int	i;
+					register long	j;
+	
+					for (i = 1 ; i <= 15 ; ++i)
+						signal(i, sig);		
+
+					alarm(2);
+	
+					for (i = 0 ; i < 10 ; ++i)
+						for (j = 0 ; j < sizeof(test) ; j+= 1024)
+							test[j] = i;
+
+					alarm(0);
+					return 0;
+				}
+!
+			${CC} /tmp/sh$$.c >/dev/null 2>&1 || break
+			./a.out || break
+			rm a.out /tmp/sh$$.c
+			USERMEM=${size}
+			echo ${n} " ${size}${c}"
+		done
+
+		rm a.out /tmp/sh$$.c
+
+		echo ""
+
+		if [ ${USERMEM} = 0 ]
+		then
+			echo ${n} "Memory size is 0, segmented processor: ${c}"
+			cat >/tmp/sh$$.c <<!
+			long htab0[8192];
+			long htab1[8192];
+			long htab2[8192];
+			long htab3[8192];
+			long htab4[8192];
+			long htab5[8192];
+			long htab6[8192];
+			long htab7[8192];
+			long htab8[8192];
+			short code0tab[16384];
+			short code1tab[16384];
+			short code2tab[16384];
+			short code3tab[16384];
+			short code4tab[16384];
+			main() {return 0;}
+!
+			rm -f ./a.out
+			if ${CC} /tmp/sh$$.c >/dev/null 2>&1 
+			then
+				:
+			else
+				opt="-Ml"
+
+				while [ ".${opt}" != . ]
+				do
+					if ${CC} ${opt} /tmp/sh$$.c >/dev/null 2>&1 
+					then
+						:
+					else
+						CCOPT="${CCOPT} ${opt}"
+						break
+					fi
+
+					echo ${n} "Large model compile option: ${c}"
+					read opt dummy
+				done
+			fi
+
+			if [ -f ./a.out ]
+			then
+				if ./a.out
+				then
+					echo "Yes"
+					MEMSIZE=0
+					EXTRA="${EXTRA} -DMAXSEG_64K=1 -DBITS=16"
+				else
+					echo "No"
+				fi
+			fi
+
+			rm ./a.out /tmp/sh$$.c
+		fi
+
+		DEFINED=yes
+		echo ""
+		echo "I have now create the default options for compiling compress ${version}"
+	;;
+
+	c|C)
+		options="${CCOPT} -o compress"
+		[ "${DIRENT}" = yes ] && options="${options} -DDIRENT=1"
+		[ "${SYSDIR}" = yes ] && options="${options} -DSYSDIR=1"
+		[ "${LSTAT}" != no  ] && options="${options} -DLSTAT=1"
+		[ "${UTIME_H}" != no  ] && options="${options} -DUTIME_H=1"
+		options="${options} -DUSERMEM=${USERMEM}"
+		options="${options} -DREGISTERS=${REGISTERS}"
+		options="${options} -DIBUFSIZ=${IBUFSIZ} -DOBUFSIZ=${OBUFSIZ}"
+		options="${options} -DBYTEORDER=${BYTEORDER}"
+		[ "${NOALLIGN}" = no ] && options="${options} -DNOALLIGN=1"
+		options="${options} ${EXTRA}"
+
+		echo ""
+		echo "Compiling compress ${version}"
+
+		echo ${CC} ${options} "-DCOMPILE_DATE=\"`date`\"" compress42.c ${LBOPT}
+
+		if ${CC} ${options} "-DCOMPILE_DATE=\"`date`\"" compress42.c ${LBOPT}
+		then
+			echo ""
+			./compress -V
+			echo ""
+			echo "Compress compiled, use 'i' to install compress in ${BINDIR}"
+		else
+			echo ""
+			echo "Error(s) in compilation"
+		fi
+		echo ""
+		echo ${n} "Press return to continue${c}"
+		read dummy
+		;;
+
+	s|S)
+		options="-O -S"
+		[ "${DIRENT}" = yes ] && options="${options} -DDIRENT=1"
+		[ "${SYSDIR}" = yes ] && options="${options} -DSYSDIR=1"
+		[ "${LSTAT}" != no  ] && options="${options} -DLSTAT=1"
+		[ "${UTIME_H}" != no  ] && options="${options} -DUTIME_H=1"
+		options="${options} -DUSERMEM=${USERMEM}"
+		options="${options} -DREGISTERS=${REGISTERS}"
+		options="${options} -DIBUFSIZ=${IBUFSIZ} -DOBUFSIZ=${OBUFSIZ}"
+		options="${options} -DBYTEORDER=${BYTEORDER}"
+		[ "${NOALLIGN}" = no ] && options="${options} -DNOALLIGN=1"
+		options="${options} ${EXTRA}"
+
+		echo ""
+		echo "Compiling compress ${version}"
+
+		echo ${CC} ${options} "-DCOMPILE_DATE=\"`date`\"" compress42.c 
+
+		${CC} ${options} "-DCOMPILE_DATE=\"`date`\"" compress42.c 
+		echo ""
+		echo ${n} "Press return to continue${c}"
+		read dummy
+		;;
+
+	t|T)
+		if [ ! -x ./compress ]
+		then
+			echo "Compile compress first before testing!"
+		else
+			if [ ".${var1}" = . ]
+			then
+				echo "To test compress you need a test set. For a test set alle filein one"
+				echo "directory are combined to one file with cpio and compress/decompressed"
+				echo ${n} "Test directory [default:current]: ${c}"
+				read var1 varr
+			fi
+
+			if [ ! -d ${var1:-.} ]
+			then
+				echo "$var1: no directory"
+			else
+				var1=`cd ${var1:-.};pwd`
+				find ${var1} -type f -print |
+					( while read fn ; do [ -r ${fn} ] && echo ${fn} ; done ) |
+					sort >/tmp/sh$$.fi
+
+				(
+					echo "==============================================================================="
+					echo "Directory: ${var1:-/}"
+					echo "./compress -V"
+					./compress -V
+
+					if [ -x ${BINDIR}/compress ]
+					then
+						old=${var2:-${BINDIR}/compress}
+						set -- ./compress ${old} \
+								${old} ./compress \
+								./compress ./compress \
+								${old} ${old}
+
+						echo "${old} -V"
+						${old} -V </dev/null dummy-file
+					else
+						set -- ./compress ./compress
+					fi
+
+					while [ $# != 0 ]
+					do
+						echo "---------------- $1 -> $2 ----------------"
+						if [ -x /sbin/sync ] ;	then /sbin/sync
+												else sync ; fi
+
+						sleep 1
+
+						cpio -o </tmp/sh$$.fi |
+							( time $1 -v 2>/tmp/sh$$.tm1 ) |
+							( time $2 -d 2>/tmp/sh$$.tm2 ) |
+							( cpio -ivt >/tmp/sh$$.fo )
+		
+						awk </tmp/sh$$.fo '{print $8}'  >/tmp/sh$$.foo
+	
+						if cmp /tmp/sh$$.fi /tmp/sh$$.foo
+						then
+							:
+						else
+							echo ------ ERROR
+							diff /tmp/sh$$.fi /tmp/sh$$.foo
+						fi
+
+						echo "---------------"
+						echo "compress   $1("`cat /tmp/sh$$.tm1`")"
+						echo "decompress $2("`cat /tmp/sh$$.tm2`")"
+						shift 2
+					done
+				) 2>&1 | tee /tmp/sh$$.log
+
+				cat /tmp/sh$$.log >>comp.log && rm /tmp/sh$$.log
+			fi
+
+			echo ""
+		fi
+
+		echo ${n} "Press return to continue${c}"
+		read dummy
+		;;
+	i|I)
+		if [ ".${var1}" = . ]
+		then
+			echo ${n} "Install compress with user ? (default current user) ? ${c}"
+			read var1 dummy
+		fi
+
+		pwd=`pwd`
+
+		( cat - <<!
+			set -x
+
+			cd ${pwd}
+
+			[ -f ${BINDIR}/compress ] &&
+				{ rm -f ${BINDIR}/compress.old ;
+	  			mv ${BINDIR}/compress ${BINDIR}/compress.old || exit 1; }
+
+			rm -f ${BINDIR}/uncompress ${BINDIR}/zcat || exit 1
+
+			cp compress ${BINDIR}/compress || exit 1
+			strip ${BINDIR}/compress
+			rm -f ${BINDIR}/uncompress || exit 1
+			ln ${BINDIR}/compress ${BINDIR}/uncompress || exit 1
+			rm -f  ${BINDIR}/zcat || exit 1
+			ln -f ${BINDIR}/compress ${BINDIR}/zcat || exit 1
+			cp zcmp zdiff zmore ${BINDIR}/. || exit 1
+			chmod 0755 ${BINDIR}/compress ${BINDIR}/zcmp ${BINDIR}/zdiff \
+                   	${BINDIR}/zmore || exit 1
+			cp compress.1 zcmp.1 zmore.1 ${MANDIR}/. || exit 1
+			chmod 0644 ${MANDIR}/compress.1 ${MANDIR}/zcmp.1 \
+				   	${MANDIR}/zmore.1 || exit 1
+
+			if [ ".${var1}" != . ]
+			then
+				chown ${var1} ${BINDIR}/compress ${BINDIR}/zcmp \
+                              ${BINDIR}/zdiff ${BINDIR}/zmore \
+							  ${MANDIR}/compress.1 ${MANDIR}/zcmp.1 \
+				   			  ${MANDIR}/zmore.1 
+			fi
+!
+		) | (
+			if [ ".${var1}" = . ] ;	then sh 
+									else su - ${var1} -c sh ; fi
+		)
+
+		echo ""
+		echo ${n} "Press return to continue${c}"
+		read dummy
+		;;
+
+	genmake)
+		options=
+		[ "${DIRENT}" = yes ] && options="${options} -DDIRENT=1"
+		[ "${SYSDIR}" = yes ] && options="${options} -DSYSDIR=1"
+		[ "${LSTAT}" != no  ] && options="${options} -DLSTAT=1"
+		[ "${UTIME_H}" != no  ] && options="${options} -DUTIME_H=1"
+		options="${options} -DUSERMEM=${USERMEM}"
+		options="${options} -DREGISTERS=${REGISTERS}"
+		options="${options} -DIBUFSIZ=${IBUFSIZ} -DOBUFSIZ=${OBUFSIZ}"
+		options="${options} -DBYTEORDER=${BYTEORDER}"
+		[ "${NOALLIGN}" = no ] && options="${options} -DNOALLIGN=1"
+		options="${options} ${EXTRA}"
+
+		cat - <<! >Makefile
+# Makefile generated by build.
+
+# C complier
+CC=${CC}
+
+# Install directory for binarys
+BINDIR=${BINDIR}
+
+# Install directory for manual
+MANDIR=${MANDIR}
+
+# compiler options:
+# options is a collection of:
+#
+#	-DAMIGA=1					Amiga support.
+#	-DNOFUNCDEF=1				Disable libary function definitions in
+#								compress42.c
+#	-DDIRENT=1					Use dirent.h
+#	-DSYSDIR=1					Use sys/dir.h
+#	-DLSTAT=1					Use lstat for finding symlinks.
+#	-DUTIME_H=1					Use utime.h
+#	-DUSERMEM=<size>			Availble memory for compress (default 800k).
+#	-DREGISTERS=<nbr>			Number of registers (default 2).
+#	-DIBUFSIZ=<size>			Input buffer size (default BUFSIZ).
+#	-DOBUFSIZ=<size>			Output buffer size (default BUFSIZ)
+#	-DBYTEORDER=<order>			Byte order (default: unknown).
+#	-DNOALLIGN=1				Data word allignment (default: yes).
+#	-DDEF_ERRNO=1				Define error (not defined in errno.h).
+#	-DMAXSEG_64K=1 -BITS=16		Support segment processsor like 80286.
+#
+options=${options}
+
+# libary options
+LBOPT=${LBOPT}
+
+
+compress:	Makefile compress42.c patchlevel.h
+	$(CC) -o compress $(options) "-DCOMPILE_DATE=\"\`date\`\"" compress42.c $(LBOPT)
+
+install:	compress
+		[ -f \$(BINDIR)/compress ] && \\
+			{ rm -f \$(BINDIR)/compress.old ; \\
+	  		mv \$(BINDIR)/compress \$(BINDIR)/compress.old ; }
+		rm -f \$(BINDIR)/uncompress \$(BINDIR)/zcat
+		cp compress \$(BINDIR)/compress
+		strip \$(BINDIR)/compress
+		rm -f \$(BINDIR)/uncompress
+		ln \$(BINDIR)/compress \$(BINDIR)/uncompress
+		rm -f \$(BINDIR)/zcat
+		ln -f \$(BINDIR)/compress \$(BINDIR)/zcat
+		cp zcmp zdiff zmore \$(BINDIR)/.
+		chmod 0755 \$(BINDIR)/compress \$(BINDIR)/zcmp \$(BINDIR)/zdiff \$(BINDIR)/zmore
+		cp compress.1 zcmp.1 zmore.1 \$(MANDIR)/.
+		chmod 0644 \$(MANDIR)/compress.1 \$(MANDIR)/zcmp.1 \$(MANDIR)/zmore.1
+
+cleanup:
+		rm -f compress compress.def comp.log
+!
+		;;
+
+	mkshar)
+		xshar -sc -opart -l64 MANIFEST Acknowleds zmore Changes compress.1 \
+            zcmp zmore.1 README LZW.INFO zcmp.1 zdiff build Makefile.def \
+			compress42.c patchlevel.h
+		;;
+
+	mktar)
+		rm -f comp.tar
+		tar cvf comp.tar MANIFEST Acknowleds zmore Changes compress.1 \
+            zcmp zmore.1 README LZW.INFO zcmp.1 zdiff build Makefile.def \
+			compress42.c patchlevel.h
+		;;
+
+	cleanup)
+		rm -f compress compress.def comp.log
+		exit 0
+		;;
+
+	q|Q)
+		exit 0
+		;;
+	*)
+		echo "                                      Unknown choice ${choice}"
+		sleep 2
+		;;
+	esac
+done

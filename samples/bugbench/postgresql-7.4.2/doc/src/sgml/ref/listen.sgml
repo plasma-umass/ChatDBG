@@ -1,0 +1,139 @@
+<!--
+$Header: /cvsroot/pgsql/doc/src/sgml/ref/listen.sgml,v 1.20 2003/09/15 03:21:51 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-LISTEN">
+ <refmeta>
+  <refentrytitle id="SQL-LISTEN-TITLE">LISTEN</refentrytitle>
+  <refmiscinfo>SQL - Language Statements</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>LISTEN</refname>
+  <refpurpose>listen for a notification</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-listen">
+  <primary>LISTEN</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+LISTEN <replaceable class="PARAMETER">name</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Description</title>
+
+  <para>
+   <command>LISTEN</command> registers the current session as a
+   listener on the notification condition <replaceable
+   class="PARAMETER">name</replaceable>.
+   If the current session is already registered as a listener for
+   this notification condition, nothing is done.
+  </para>
+
+  <para>
+   Whenever the command <command>NOTIFY <replaceable
+   class="PARAMETER">name</replaceable></command> is invoked, either
+   by this session or another one connected to the same database, all
+   the sessions currently listening on that notification condition are
+   notified, and each will in turn notify its connected client
+   application.  See the discussion of <command>NOTIFY</command> for
+   more information.
+  </para>
+
+  <para>
+   A session can be unregistered for a given notify condition with the
+   <command>UNLISTEN</command> command.  A session's listen
+   registrations are automatically cleared when the session ends.
+  </para>
+
+  <para>
+   The method a client application must use to detect notification events depends on
+   which <productname>PostgreSQL</productname> application programming interface it
+   uses.  With the <application>libpq</> library, the application issues
+   <command>LISTEN</command> as an ordinary SQL command, and then must
+   periodically call the function <function>PQnotifies</function> to find out
+   whether any notification events have been received.  Other interfaces such as
+   <application>libpgtcl</> provide higher-level methods for handling notify events; indeed,
+   with <application>libpgtcl</> the application programmer should not even issue
+   <command>LISTEN</command> or <command>UNLISTEN</command> directly.  See the
+   documentation for the interface you are using for more details.
+  </para>
+
+  <para>
+   <xref linkend="sql-notify" endterm="sql-notify-title">
+   contains a more extensive
+   discussion of the use of <command>LISTEN</command> and
+   <command>NOTIFY</command>.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parameters</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="PARAMETER">name</replaceable></term>
+    <listitem>
+     <para>
+      Name of a notify condition (any identifier).
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Examples</title>
+
+  <para>
+   Configure and execute a listen/notify sequence from
+   <application>psql</application>:
+
+<programlisting>
+LISTEN virtual;
+NOTIFY virtual;
+Asynchronous notification "virtual" received from server process with PID 8448.
+</programlisting>
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibility</title>
+
+  <para>
+   There is no <command>LISTEN</command> statement in the SQL
+   standard.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>See Also</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-notify" endterm="sql-notify-title"></member>
+   <member><xref linkend="sql-unlisten" endterm="sql-unlisten-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

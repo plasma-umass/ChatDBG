@@ -1,0 +1,30 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+create table t1 (n int auto_increment primary key);
+set insert_id = 2000;
+insert into t1 values (NULL),(NULL),(NULL);
+select * from t1;
+n
+2000
+2001
+2002
+show slave hosts;
+Server_id	Host	Port	Rpl_recovery_rank	Master_id
+2	127.0.0.1	9999	2	1
+drop table t1;
+stop slave;
+create table t2(id int auto_increment primary key, created datetime);
+set timestamp=12345;
+insert into t2 set created=now();
+select * from t2;
+id	created
+1	1970-01-01 06:25:45
+start slave;
+select * from t2;
+id	created
+1	1970-01-01 06:25:45
+drop table t2;

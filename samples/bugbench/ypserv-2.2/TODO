@@ -1,0 +1,16 @@
+
+Things to do (in no particular order):
+
+	o ypserv/server.c(xfr): host comparing does not work
+	  with FQHN.
+
+	o yppush: Replace hostcmp
+
+	o Add cracklib to rpc.yppasswdd.
+
+	o ypmaplist needs to be fixed for Sun's NDBM
+
+	o IP numbers in ypserver file doesn't work
+
+	o Rewrite makedbm
+

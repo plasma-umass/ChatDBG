@@ -1,0 +1,88 @@
+VPATH = @srcdir@
+
+INCLUDES = @APRUTIL_PRIV_INCLUDES@ @APR_INCLUDES@ @APRUTIL_INCLUDES@
+
+PROGRAMS = testdbm testdate testmd4 testmd5 testxml testrmm teststrmatch \
+	testuuid testreslist testqueue testuri testpass
+TARGETS = $(PROGRAMS)
+
+APRUTIL_DOTTED_VERSION=@APRUTIL_DOTTED_VERSION@
+APRUTIL_MAJOR_VERSION=@APRUTIL_MAJOR_VERSION@
+TARGET_LIB_PATH = ../lib@APRUTIL_LIBNAME@.la
+
+# bring in rules.mk for standard functionality
+@INCLUDE_RULES@
+PROGRAM_DEPENDENCIES = @APRUTIL_LIBS@
+APRUTIL_LDFLAGS = @APRUTIL_LDFLAGS@
+
+all: $(PROGRAMS)
+
+check: $(PROGRAMS)
+	for prog in $(PROGRAMS); do \
+		./$$prog ;\
+		if test $$? = 255; then \
+			echo "$$prog failed"; \
+			break; \
+		fi; \
+	done
+
+testdbm_OBJECTS = testdbm.lo
+testdbm_LDADD =  $(TARGET_LIB_PATH)
+testdbm: $(testdbm_OBJECTS) $(testdbm_LDADD)
+	$(LINK) $(APRUTIL_LDFLAGS) $(testdbm_OBJECTS) $(testdbm_LDADD) $(PROGRAM_DEPENDENCIES)
+
+testdate_OBJECTS = testdate.lo
+testdate_LDADD =  $(TARGET_LIB_PATH)
+testdate: $(testdate_OBJECTS) $(testdate_LDADD)
+	$(LINK) $(APRUTIL_LDFLAGS) $(testdate_OBJECTS) $(testdate_LDADD) $(PROGRAM_DEPENDENCIES)
+
+testxml_OBJECTS = testxml.lo
+testxml_LDADD =  $(TARGET_LIB_PATH)
+testxml: $(testxml_OBJECTS) $(testxml_LDADD)
+	$(LINK) $(APRUTIL_LDFLAGS) $(testxml_OBJECTS) $(testxml_LDADD) $(PROGRAM_DEPENDENCIES)
+
+testmd4_OBJECTS = testmd4.lo
+testmd4_LDADD =  $(TARGET_LIB_PATH)
+testmd4: $(testmd4_OBJECTS) $(testmd4_LDADD)
+	$(LINK) $(APRUTIL_LDFLAGS) $(testmd4_OBJECTS) $(testmd4_LDADD) $(PROGRAM_DEPENDENCIES)
+
+testmd5_OBJECTS = testmd5.lo
+testmd5_LDADD =  $(TARGET_LIB_PATH)
+testmd5: $(testmd5_OBJECTS) $(testmd5_LDADD)
+	$(LINK) $(APRUTIL_LDFLAGS) $(testmd5_OBJECTS) $(testmd5_LDADD) $(PROGRAM_DEPENDENCIES)
+
+testrmm_OBJECTS = testrmm.lo
+testrmm_LDADD =  $(TARGET_LIB_PATH)
+testrmm: $(testrmm_OBJECTS) $(testrmm_LDADD)
+	$(LINK) $(APRUTIL_LDFLAGS) $(testrmm_OBJECTS) $(testrmm_LDADD) $(PROGRAM_DEPENDENCIES)
+
+teststrmatch_OBJECTS = teststrmatch.lo
+teststrmatch_LDADD =  $(TARGET_LIB_PATH)
+teststrmatch: $(teststrmatch_OBJECTS) $(teststrmatch_LDADD)
+	$(LINK) $(APRUTIL_LDFLAGS) $(teststrmatch_OBJECTS) $(teststrmatch_LDADD) $(PROGRAM_DEPENDENCIES)
+
+testuuid_OBJECTS = testuuid.lo
+testuuid_LDADD =  $(TARGET_LIB_PATH)
+testuuid: $(testuuid_OBJECTS) $(testuuid_LDADD)
+	$(LINK) $(APRUTIL_LDFLAGS) $(testuuid_OBJECTS) $(testuuid_LDADD) $(PROGRAM_DEPENDENCIES)
+
+testreslist_OBJECTS = testreslist.lo
+testreslist_LDADD =  $(TARGET_LIB_PATH)
+testreslist: $(testreslist_OBJECTS) $(testreslist_LDADD)
+	$(LINK) $(APRUTIL_LDFLAGS) $(testreslist_OBJECTS) $(testreslist_LDADD) $(PROGRAM_DEPENDENCIES)
+
+testqueue_OBJECTS = testqueue.lo
+testqueue_LDADD =  $(TARGET_LIB_PATH)
+testqueue: $(testqueue_OBJECTS) $(testqueue_LDADD)
+	$(LINK) $(APRUTIL_LDFLAGS) $(testqueue_OBJECTS) $(testqueue_LDADD) $(PROGRAM_DEPENDENCIES)
+
+testuri_OBJECTS = testuri.lo
+testuri_LDADD =  $(TARGET_LIB_PATH)
+testuri: $(testuri_OBJECTS) $(testuri_LDADD)
+	$(LINK) $(APRUTIL_LDFLAGS) $(testuri_OBJECTS) $(testuri_LDADD) $(PROGRAM_DEPENDENCIES)
+
+testpass_OBJECTS = testpass.lo
+testpass_LDADD =  $(TARGET_LIB_PATH)
+testpass: $(testpass_OBJECTS) $(testpass_LDADD)
+	$(LINK) $(APRUTIL_LDFLAGS) $(testpass_OBJECTS) $(testpass_LDADD) $(PROGRAM_DEPENDENCIES)
+

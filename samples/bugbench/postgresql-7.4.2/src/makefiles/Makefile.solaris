@@ -1,0 +1,23 @@
+# $Header: /cvsroot/pgsql/src/makefiles/Makefile.solaris,v 1.9 2002/09/04 22:54:18 petere Exp $
+
+AROPT = crs
+
+ifeq ($(with_gnu_ld), yes)
+export_dynamic = -Wl,-E
+rpath = -Wl,-rpath,$(libdir)
+else
+rpath = -R$(libdir)
+endif
+shlib_symbolic = -Wl,-Bsymbolic
+
+DLSUFFIX = .so
+ifeq ($(GCC), yes)
+CFLAGS_SL = -fPIC
+else
+CFLAGS_SL = -KPIC
+endif
+
+%.so: %.o
+	$(LD) -G -Bdynamic -o $@ $<
+
+sqlmansect = 5sql

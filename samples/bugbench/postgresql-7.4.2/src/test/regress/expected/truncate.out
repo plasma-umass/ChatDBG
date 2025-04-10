@@ -1,0 +1,52 @@
+-- Test basic TRUNCATE functionality.
+CREATE TABLE truncate_a (col1 integer primary key);
+NOTICE:  CREATE TABLE / PRIMARY KEY will create implicit index "truncate_a_pkey" for table "truncate_a"
+INSERT INTO truncate_a VALUES (1);
+INSERT INTO truncate_a VALUES (2);
+SELECT * FROM truncate_a;
+ col1 
+------
+    1
+    2
+(2 rows)
+
+-- Roll truncate back
+BEGIN;
+TRUNCATE truncate_a;
+ROLLBACK;
+SELECT * FROM truncate_a;
+ col1 
+------
+    1
+    2
+(2 rows)
+
+-- Commit the truncate this time
+BEGIN;
+TRUNCATE truncate_a;
+COMMIT;
+SELECT * FROM truncate_a;
+ col1 
+------
+(0 rows)
+
+-- Test foreign constraint check
+CREATE TABLE truncate_b(col1 integer references truncate_a);
+INSERT INTO truncate_a VALUES (1);
+SELECT * FROM truncate_a;
+ col1 
+------
+    1
+(1 row)
+
+TRUNCATE truncate_a;
+ERROR:  cannot truncate a table referenced in a foreign key constraint
+DETAIL:  Table "truncate_b" references "truncate_a" via foreign key constraint "$1".
+SELECT * FROM truncate_a;
+ col1 
+------
+    1
+(1 row)
+
+DROP TABLE truncate_b;
+DROP TABLE truncate_a;

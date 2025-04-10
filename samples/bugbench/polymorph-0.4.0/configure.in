@@ -1,0 +1,20 @@
+dnl configure.in script for polymorph
+dnl Gerall Kahla <kahlage@chromebob.com>
+AC_INIT(polymorph.c)
+
+POLYMORPH_MAJOR=0
+POLYMORPH_MINOR=4
+POLYMORPH_REV=0
+VERSION=$POLYMORPH_MAJOR.$POLYMORPH_MINOR.$POLYMORPH_REV
+
+AM_INIT_AUTOMAKE(polymorph, $VERSION)
+
+AC_PROG_CC
+AC_PROG_INSTALL
+AC_PROG_LN_S
+AC_HEADER_DIRENT
+AC_HEADER_STDC
+AC_CHECK_HEADERS(unistd.h)
+AC_CHECK_FUNCS(getcwd strchr strstr)
+
+AC_OUTPUT(Makefile)

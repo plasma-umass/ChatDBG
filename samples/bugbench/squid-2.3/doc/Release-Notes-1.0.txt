@@ -1,0 +1,404 @@
+
+$Id: Release-Notes-1.0.txt,v 1.5 1997/07/16 20:31:49 wessels Exp $
+
+Release Notes for version 1.0 of the Squid cache.
+
+TABLE OF CONTENTS:
+
+	Private Objects
+	Proper parsing of HTTP reply codes
+	Support for If-Modified-Since GET
+	Improvements to the access log
+	Metadata reloads in the background
+	Unlinking swap files on restart and the -U option
+	Changes to debugging
+	New Access Control scheme
+	Using SIGHUP to reconfigure the cache
+	ftpget server
+	Changes to cache shutdown
+	Assigning weights to cache neighbors
+	Converting 'cache/log' from cached-1.4.pl3
+	Notes on stoplists vs ttl_pattern
+        SIGUSR1 now rotates log files
+	``no-query'' option for cache_host lines
+
+
+Private Objects
+==============================================================================
+
+The Squid cache uses the notions of ``private'' and ``public''
+objects.  An object can start out as being private, but may later be
+given public status.  Private objects are associated with only a single
+client whereas a public object may be sent to multiple clients at the
+same time.  When the cache finishes retrieving an object, if the object
+is private it will be ejected from the cache.  Only public objects
+are saved on disk.
+
+There are a few ways to determine whether an object should be private
+or public.  One is the request method.  Only URLs requested with
+the ``GET'' method can be public.  Another way is by examining the 
+URL string.  URLs which match one of the stoplist entries will 
+always be private objects.  Usually this includes ``cgi-bin'' scripts.
+A third way is by checking the HTTP request and reply headers.  For 
+example, if the request includes user authentication information, then
+the object should never be made public.  Additionally, some HTTP
+replies such as ``401 Unauthorized'' should also never be made public.
+
+For these reasons, Squid starts all objects out as private and changes
+them to public only after the HTTP reply headers have been read.
+
+Unfortunately, this causes some problems with the UDP-based Internet
+Cache Protocol (ICP) used to query neighboring caches.  Specifically, when
+an ICP reply packet is received, it only contains the object URL which
+is not sufficient enough to locate private objects in the cache metadata.
+To get the additional information needed to locate private objects, we
+decided to use the ``reqnum'' field of the ICP packet.  This is an
+acceptable solution, except that as implemented in cached-1.4.pl3 and
+earlier, all ICP replies have the reqnum field reset to zero!
+
+Squid will make use of private objects until it notices that one of
+its neighbors is sending ICP replies with the reqnum field set to zero.
+It will then only use private keys for objects which are not going to
+be queried for via ICP.  These include objects in the stoplist and
+If-Modified-Since requests.  
+
+Proper parsing of HTTP reply codes
+==============================================================================
+
+Squid parses HTTP replies to extract the reply code.  The codes are used
+to determine which objects should be cached, which should be ejected,
+and which should be negative-cached. 
+
+See HTTP-codes.txt for a list of HTTP response codes, and how they are
+cached.
+
+The HTTP codes are now logged to "access.log" in the native format 
+(ie with 'emulate_httpd_log off').
+
+Support for If-Modified-Since GET
+==============================================================================
+Squid supports IMS GET retrievals, but not through any neighbor caches.
+Whenever an IMS GET request is received, Squid handles the requst in
+one of three ways:
+
+    * if the object is not in the cache, the request is treated as
+      a regular MISS.
+    * if the object is in the cache, and it has a more recent timestamp,
+      it is treated as a regular HIT.
+    * otherwise the cached object is assumed to be valid, and Squid
+      returns a NOT MODIFIED response.
+
+This means you should chose your TTL settings very carefully. 
+
+Improvements to the access log
+==============================================================================
+The "access.log" file has been improved in a number of ways.  There is now
+only one log entry per client request and the size is always correct. 
+The format is now
+
+   timestamp  elapsed  src-address  type/code/hierarchy  size  method  URL
+
+	- timestamp:	When the request is completed with millisecond
+			resolution.
+	- elapsed:	elapsed time of the request, in milliseconds.
+	- src-address: 	IP address of the requesting client.
+	- type:		An indication of how the request was handled
+			by the cache.  These are described further below.
+	- code: 	The HTTP reply code when available.  For ICP
+			requests this is always "000."  If the reply code
+			was not given, it will be logged as "555."
+	- hierarchy:	The code from the hierarchy.log file.
+	- size:		For TCP requests, the amount of data written
+			to the client.  For UDP requests, the size
+			of the request (in bytes).
+	- method:	The request method (GET, POST, etc).
+	- URL:		The URL of the request.
+
+Access Log Types:
+
+"TCP_" refers to requests on the HTTP port (3128)
+
+	TCP_HIT		A valid copy of the requested object was in the cache.
+	TCP_MISS	The requested object was not in the cache.
+	TCP_EXPIRED	The object was in the cache, but it had expired.
+	TCP_REFRESH	The user forced a refresh ("reload").
+	TCP_IFMODSINCE	An If-Modified-Since GET request.
+	TCP_SWAPFAIL	The object was believed to be in the cache,
+			but could not be accessed.
+	TCP_DENIED	Access was denied for this request.
+
+"UDP_" refers to requests on the ICP port (3130)
+
+	UDP_HIT		A valid copy of the requested object was in the cache.
+	UDP_HIT_OBJ	Same as UDP_HIT, but the object data was small enough
+			to be sent in the UDP reply packet.  Saves the
+			following TCP request.
+	UDP_MISS	The requested object was not in the cache.
+	UDP_DENIED	Access was denied for this request.
+	UDP_INVALID	An invalid request was received.
+..............................................................................
+Hierarchy Log Types:
+
+	DEAD_NEIGHBOR		A sibling has been detected as dead after
+				failing to reply to 20 consecutive ICP
+				queries.
+	DEAD_PARENT		A parent has been detected as dead.
+	DIRECT			The object has been requested from the origin
+				server.
+	FIREWALL_IP_DIRECT	The object has been requested from the origin
+				server because the origin host IP address is
+				inside your firewall.
+	FIRST_PARENT_MISS	The object has been requested from the
+				parent cache with the fastest weighted round
+				trip time.
+	FIRST_UP_PARENT		The object has been requested from the first
+				available parent in your list.
+	LOCAL_IP_DIRECT		The object has been requested from the origin
+				server because the origin host IP address 
+				matched your 'local_ip' list.
+	NEIGHBOR_HIT		The object was requested from a sibling cache
+				which replied with a UDP_HIT.
+	NO_DIRECT_FAIL		The object could not be requested because
+				of firewall restrictions and no parent caches
+				were available.
+	NO_PARENT_DIRECT	The object was requested from the origin server
+				because no parent caches exist for the URL.
+	PARENT_HIT		The object was requested from a parent cache
+				which replied with a UDP_HIT.
+	REVIVE_NEIGHBOR		A sibling cache was detected as alive again.
+	REVIVE_PARENT		A parent cache was detected as alive again.
+	SINGLE_PARENT		The object was requested from the only
+				parent cache appropriate for this URL.
+	SOURCE_FASTEST		The object was requested from the origin server
+				because the 'source_ping' reply arrived first.
+	UDP_HIT_OBJ		The object was received in a UDP_HIT_OBJ reply
+				from a neighbor cache.
+
+Almost any of these may be preceeded by 'TIMEOUT_' if the two-second
+(default) timeout occurs waiting for all ICP replies to arrive from
+neighbors.
+
+
+Metadata reloads in the background
+==============================================================================
+Upon restart, Squid automatically loads cache metadata in the
+background.  It will be able to service new requests immediately.  As
+new objects are added, there may be some "clashes" with old objects
+using the same swap file on disk.  In these cases you may see a message
+in the cache logfile about "Active clash."  This means the old object
+has been discarded since it was replaced by a new object.
+
+The -F option causes the old behaviour -- reload all the metadata before
+processing any requests,
+
+
+Unlinking swap files on restart and the -U option
+==============================================================================
+When the cache reloads object metadata from disk some of the objects
+will be expired or otherwise invalid.  In the interest of speed, these
+invalid objects will not be removed from the filesystem by default.  They
+will eventually be overwritten by new objects as enter the cache and
+get saved to disk.
+
+The -U option can be used to actually remove the invalid objects from
+disk.  
+
+In addition, the -z option will not cause 'rm -rf [0-9][0-9]' to be
+executed unless the -U option is also given.  
+
+When swap files are not removed during restart there internal counters
+for disk space taken will not match the actual disk space used.  If you
+have a large cache or plenty of extra disk space, this should not be a
+problem.  However, if space is an issue, you may want to use the -U
+option at the cost of a slower restart.
+
+
+Changes to debugging
+==============================================================================
+Squid has a flexible debugging scheme.  You can enable more debugging
+for certain functions and less for others.  For example if you needed
+to figure out why your access controls were behaving strangely, you 
+could enable debugging for section 28 at level 9.  Currently, each
+section corresponds to separate source code file:
+
+	main.c:              Section 1
+	cache_cf.c:          Section 3
+	errorpage.c:         Section 4
+	comm.c:              Section 5
+	disk.c:              Section 6
+	fdstat.c:            Section 7
+	filemap.c:           Section 8
+	ftp.c:               Section 9
+	gopher.c:            Section 10
+	http.c:              Section 11
+	icp.c:               Section 12
+	icp_lib.c:           Section 13
+	ipcache.c:           Section 14
+	neighbors.c:         Section 15
+	objcache.c:          Section 16
+	proto.c:             Section 17
+	stat.c:              Section 18
+	stmem.c:             Section 19
+	store.c:             Section 20
+	tools.c:             Section 21
+	ttl.c:               Section 22
+	url.c:               Section 23
+	wais.c:              Section 24
+	mime.c:              Section 25
+	connect.c:           Section 26
+	send-announce.c:     Section 27
+	acl.c:               Section 28
+
+Debugging levels are set in the configuration file with the 'debug_options'
+line.  For example:
+
+	debug_options ALL,1 28,9 22,5
+
+
+New Access Control scheme
+==============================================================================
+The old IP-based access controls have been replaced with a much more
+flexible scheme.  First you must define a set of access control lists. 
+There are N types of lists:
+
+	'src'		client IP address
+	'dst'		server IP address**
+	'method'	method of the request (eg, GET, POST)
+	'proto'		protocol of the request (eg HTTP, WAIS)
+	'domain'	domain of the URL request (eg .foo.org)
+	'port'		port number of the URL request (eg 80, 21)
+	'time'		time-of-day and day-of-week
+			format: [SMTWHFA] [hh:mm-hh:mm]
+	'pattern'	regular expression matching on the URL-path
+
+After the access lists have been defined, you can then combine them
+in way to allow or deny access.  
+
+For example, your cache might be configured to accept requests 
+from both inside and outside of your organization.  In that case you'd
+probably want to allow internal clients to access anything, but limit
+outside access to only sites within your organization.  It could be
+done like this:
+
+	acl ourclients src  128.138.0.0/255.255.0.0  198.117.213.0/24
+	acl ourservers domain .whatsamattu.edu
+
+	http_access deny !ourclients !ourservers
+	http_access allow ourclients
+
+If you wanted to limit FTP requests to off-peak hours, you could use:
+
+	acl daytime time  MTWHF 08:00-17:00
+	acl FTP proto FTP
+	http_access deny FTP daytime
+
+Any of the access list types can accept multiple values on the 
+same line, except for 'time'.  Multiple values of an 'acl'
+definition are treated with OR logic.  Multiple ACLs of
+an 'http_access' are treated with AND logic.  
+That is, all ACLs much match for the 'allow' or 'deny' take effect.
+The order of the 'http_access' lines are important.  When a line
+matches any following lines are not considered at all.
+
+'icp_access' is the same as 'http_access' but it applies to the ICP
+port.  However, it is not yet fully implemented.  It is only able to check
+'src' and 'method' ACLs.
+
+**Note, the 'dst' ACL type has been added for version 1.0.beta12.  In
+that version it is implemented in a "lazy" manner.  If the URL hostname
+is not already in the IP cache, the ACL checks will not match it, but
+they will start a DNS lookup so that it will likely be present for
+future ACL checks.  This means some users may occasionally get oddball
+results.  For example, a page may fail the first time, but succeed on
+the second try, or vice-versa.
+
+Changes to cache shutdown
+==============================================================================
+Squid attempts to implement a "nice shutdown" upon receipt of a SIGTERM
+signal.  Rather than simply breaking all current connections, it waits
+a configurable number of seconds for active requests to complete.  The
+default 'shutdown_lifetime' value is 30 seconds.
+
+As soon as the SIGTERM is received, the incoming HTTP socket is closed
+so that no further requests will be accepted.  
+
+
+Using SIGHUP to reconfigure the cache
+==============================================================================
+Sending the squid process a HUP signal will prompt it to re-read its
+configuration file.  Before it can be reconfigured, it must make sure
+that all active connections are closed.  For this purpose squid
+pretends to do a shutdown as described above; ie, it will wait up to
+30 seconds for active requests to complete before re-reading the
+configuration file.
+
+
+ftpget server
+==============================================================================
+The ftpget program has been modified to act as a server for FTP
+request.  You may now notice that an "ftpget -S" process is always
+present while the cache is running.  The benefit of using an ftpget
+server is that the cache process (which may be very large) no longer
+needs to fork itself for FTP requests.
+
+
+Assigning weights to cache neighbors
+==============================================================================
+Squid allows you to assign weights to parent caches.  The weights are 
+used to calculate the ``first miss parent.''  The weight is specified in
+the 'options' field of the 'cache_host' line.  For example:
+
+     cache_host  big.foo.org parent 3128 3130 weight=5
+
+The weight must be a non-zero integer.  It is used as a divisor to
+calculate a weighted round-trip-time (RTT).  Higher weights will cause
+a parent to have a ``better'' RTT.
+
+Weights are only involved when all parent caches return MISS.  Squid still
+fetches an object from the first parent or neighbor to reply with a HIT,
+regardless of any weight values.
+
+Converting 'cache/log' from cached-1.4.pl3
+==============================================================================
+Squid uses a slightly different format for the 'cache/log' file.  In 
+particular, the words 'FILE:' and 'URL:' have been removed from each
+line.  To save your on-disk cache, you will need to convert this log
+file before starting Squid.  To do that use a simple awk command:
+
+     mv log log.old
+     awk '{print $2,$4,$5,$6,$7}' < log.old > log
+
+
+Notes on stoplists vs ttl_pattern
+==============================================================================
+You can use the stoplists ('http_stop', etc) in the configuration file
+to prevent objects from being cached.  Using a 'ttl_pattern' with the
+TTL to zero will also prevent objects from being saved.
+
+The 'http_stop' (etc) have a dual purpose: to prevent objects from
+being cached, and to prevent some requests from being queried at
+neighbor caches.  There is now a separate 'hierarchy_stoplist' which
+can be used to prevent the hierarchy queries, but still allow objects
+to be cached.  For example, if your parent cache does now allow FTP
+requests, then your hierarchy_stoplist should contain:
+
+    hierarchy_stoplist ftp://
+
+
+SIGUSR1 now rotates log files
+==============================================================================
+In order to be more consistent with other daemon programs, SIGHUP is
+used to reconfigure the running process.  This means that we needed to
+change the signal used to rotate the log files.  We now use SIGUSR1 to
+rotate the logs.
+
+
+``no-query'' option for cache_host lines
+==============================================================================
+Some cache configurations behind firewalls may require ICP to be used
+for caches behind the firewall, but not to caches on the other side
+(because the firewall blocks UDP traffic).  To achieve this, use the
+no-query option:
+
+     cache_host   outside.my.org   parent   3128 3130  no-query
+     cache_host   inside.my.org    neighbor 3128 3130

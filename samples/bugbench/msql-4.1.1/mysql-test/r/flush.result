@@ -1,0 +1,29 @@
+drop table if exists t1,t2;
+drop database if exists mysqltest;
+create temporary table t1(n int not null primary key);
+create table t2(n int);
+insert into t2 values(3);
+select * from t1;
+n
+3
+flush tables with read lock;
+drop table t2;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+ drop table t2;
+unlock tables;
+create database mysqltest;
+create table mysqltest.t1(n int);
+insert into mysqltest.t1 values (23);
+flush tables with read lock;
+ drop database mysqltest;
+select * from mysqltest.t1;
+n
+23
+unlock tables;
+create table t1 (n int);
+flush tables with read lock;
+insert into t1 values (345);
+select * from t1;
+n
+345
+drop table t1;

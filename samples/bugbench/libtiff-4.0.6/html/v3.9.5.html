@@ -1,0 +1,270 @@
+<HTML>
+<HEAD>
+<TITLE>
+	Changes in TIFF v3.9.5
+</TITLE>
+</HEAD>
+
+<BODY BGCOLOR=white>
+<FONT FACE="Helvetica, Arial, Sans">
+<FONT FACE="Helvetica, Arial, Sans"> 
+
+<BASEFONT SIZE=4>
+<B><FONT SIZE=+3>T</FONT>IFF <FONT SIZE=+2>C</FONT>HANGE <FONT SIZE=+2>I</FONT>NFORMATION</B>
+<BASEFONT SIZE=3>
+
+<UL>
+<HR SIZE=4 WIDTH=65% ALIGN=left>
+<B>Current Version</B>: v3.9.5<BR>
+<B>Previous Version</B>: <A HREF=v3.9.4.html>v3.9.4</a><BR>
+<B>Master FTP Site</B>: <A HREF="ftp://ftp.remotesensing.org/pub/libtiff">
+ftp.remotesensing.org</a>, directory pub/libtiff</A><BR>
+<B>Master HTTP Site</B>: <A HREF="http://www.remotesensing.org/libtiff">
+http://www.remotesensing.org/libtiff</a> 
+<HR SIZE=4 WIDTH=65% ALIGN=left>
+</UL>
+
+<P>
+This document describes the changes made to the software between the
+<I>previous</I> and <I>current</I> versions (see above).  If you don't
+find something listed here, then it was not done in this timeframe, or
+it was not considered important enough to be mentioned.  The following
+information is located here:
+<UL>
+<LI><A HREF="#hightlights">Major Changes</A>
+<LI><A HREF="#configure">Changes in the software configuration</A>
+<LI><A HREF="#libtiff">Changes in libtiff</A>
+<LI><A HREF="#tools">Changes in the tools</A>
+<LI><A HREF="#contrib">Changes in the contrib area</A>
+</UL>
+<p> 
+<P><HR WIDTH=65% ALIGN=left>
+
+<!--------------------------------------------------------------------------->
+
+<A NAME="highlights"><B><FONT SIZE=+3>M</FONT>AJOR CHANGES:</B></A>
+
+<UL>
+
+	<li> None
+
+</UL>
+
+
+<P><HR WIDTH=65% ALIGN=left>
+<!--------------------------------------------------------------------------->
+
+<A NAME="configure"><B><FONT SIZE=+3>C</FONT>HANGES IN THE SOFTWARE CONFIGURATION:</B></A>
+
+<UL>
+
+	<li> configure.ac: Should use AC_CANONICAL_HOST since host specifies
+	the run-time target whereas target is used to specify the final
+	output target if the package is a build tool (like a compiler),
+	which libtiff is not.  Resolves libtiff bug 2307 "Use
+	AC_CANONICAL_HOST macro".
+
+</UL>
+
+<P><HR WIDTH=65% ALIGN=left>
+
+<!--------------------------------------------------------------------------->
+
+<A NAME="libtiff"><B><FONT SIZE=+3>C</FONT>HANGES IN LIBTIFF:</B></A>
+
+<UL>
+	<li> libtiff/tif_getimage.c: Check the number of samples per pixel when
+	working with YCbCr image in PickContigCase(). As per bug
+	http://bugzilla.maptools.org/show_bug.cgi?id=2216
+
+	<li> libtiff/tif_dir.c: Set the bogus post-decoding hook when processing
+	TIFFTAG_BITSPERSAMPLE in _TIFFVSetField() for the case of 8 bit when
+	we don't need any post-processing. That helps to reset the hook if we
+	previously set this field to some other value and the hook was
+	initialized accordingly. As per bug
+	http://bugzilla.maptools.org/show_bug.cgi?id=2035
+
+	<li> libtiff/tif_getimage.c: Avoid wrong math du to the signed/unsigned
+	integer type conversions. As per bug
+	http://bugzilla.maptools.org/show_bug.cgi?id=2207
+
+	<li> libtiff/tif_dirinfo.c: Don't use assertions in _TIFFFieldWithTag()
+	and _TIFFFieldWithName() if the tag is not found in the tag table.
+	This should be normal situation and returned NULL value should be
+	properly handled by the caller.
+
+	<li> libtiff/{tif_dirwrite.c, tif_print.c}: Properly handle "DotRange"
+	tag as it can be either byte or short size and should be set and read
+	by value, not as an array. As per bug
+	http://bugzilla.maptools.org/show_bug.cgi?id=2116
+
+	<li> libtiff/tif_dirread.c: Really reset the tag count in CheckDirCount()
+	to expected value as the warning message suggests. As per bug
+	http://bugzilla.maptools.org/show_bug.cgi?id=1963
+
+	<li> libtiff/tif_open.c: Fix mode check before opening a file.
+	http://bugzilla.maptools.org/show_bug.cgi?id=1906
+
+	<li> libtiff/tif_jpeg.c, libtiff/tif_strip.c: apply patch for 
+	CVE-2010-3087 per bug
+	http://bugzilla.maptools.org/show_bug.cgi?id=2140
+
+	<li> libtiff/tif_dirread.c: fix crash when reading a badly-constructed
+	TIFF per http://bugzilla.maptools.org/show_bug.cgi?id=1994
+
+	<li> libtiff/tif_ojpeg.c: fix buffer overflow on problem data
+	http://bugzilla.maptools.org/show_bug.cgi?id=1999
+
+	<li> libtiff/tif_dirread.c: modify warnings
+	http://bugzilla.maptools.org/show_bug.cgi?id=2016
+
+	<li> libtiff/tif_jpeg.c: fix use of clumplines calculation
+	http://bugzilla.maptools.org/show_bug.cgi?id=2149
+
+	<li> libtiff/tif_color.c: prevent crash in handling bad TIFFs
+	resolves CVE-2010-2595
+	http://bugzilla.maptools.org/show_bug.cgi?id=2208
+
+	<li> libtiff/tif_dirread.c: fix needless tag ordering warning
+	http://bugzilla.maptools.org/show_bug.cgi?id=2210
+
+	<li> libtiff/tif_jpeg.c: reduce usage of JCS_UNKNOWN in order
+	to improve compatibility with various viewers
+	submitted by e-mail from Dwight Kelly <dkelly@apago.com>
+
+	<li> libtiff/tif_strip.c: use TIFFGetFieldDefaulted instead
+	of TIFFGetField when we assume that it will succeed
+	http://bugzilla.maptools.org/show_bug.cgi?id=2215
+
+	<li> libtiff/tif_dirread.c: tolerate some cases where
+	FIELD_COLORMAP is missing
+	http://bugzilla.maptools.org/show_bug.cgi?id=2189
+
+	<li> libtiff/tif_jpeg.c: Fix regressions with 2 and 3 band images
+	caused by commit on 2010-12-14.  Submitted by e-mail from 
+	Even Rouault <even.rouault@mines-paris.org>
+
+	<li> libtiff/tif_dirwrite.c: Avoid undefined behaviour when casting from
+	float to unsigned integer in TIFFWriteRationalArray() as reported by
+	Kareem Shehata.
+
+	<li> libtiff/tif_fax3.h: Protect against a fax VL(n) codeword commanding 
+	a move left.  Without this, a malicious input file can generate an 
+	indefinitely large series of runs without a0 ever reaching the right 
+	margin, thus overrunning our buffer of run lengths.  Per CVE-2011-0192.
+	This is a modified version of a patch proposed by Drew Yao of Apple 
+	Product Security.  It adds an unexpected() report, and disallows the 
+	equality case, since emitting a run without increasing a0 still allows 
+	buffer overrun.
+
+	<li> libtiff/tif_fax3.h: Fix to last change allowing zero length 
+	runs at the start of a scanline - needed for legal cases.
+
+	<li> libtiff/tif_thunder.c: Correct potential buffer overflow with 
+	thunder encoded files with wrong bitspersample set.  The libtiff 
+	development team would like to thank Marin Barbella and TippingPoint's
+	Zero Day Initiative for reporting this vulnerability (ZDI-CAN-1004,
+	CVE-2011-1167).
+	http://bugzilla.maptools.org/show_bug.cgi?id=2300
+
+	<li> libtiff/tiffiop.h: avoid declaring int64/uint64 on AIX with XLC
+	where they are already available.  (#2301)
+</UL>
+
+<P><HR WIDTH=65% ALIGN=left>
+
+<!-------------------------------------------------------------------------->
+	
+<A NAME="tools"><B><FONT SIZE=+3>C</FONT>HANGES IN THE TOOLS:</B></A>
+
+<UL>
+
+	<li> tools/tiffcrop.c: Patch from Richard Nolde. Reject YCbCr
+	subsampled data since tiffcrop currently doesn't support it.  Fix
+	JPEG support.
+
+	<li> tools/tiffcp.c: Initialize buffer arrays with zero to avoid
+	referencing to uninitialized memory in some cases (e.g. when tile size
+	set bigger than the image size).
+
+	<li> tools/tiff2pdf.c: Better generation of ID field in
+	t2p_write_pdf_trailer(). Get rid of GCC aliasing warnings.
+
+	<li> tools/tiff2pdf.c: Fixed computation of the tile buffer size when
+	converting JPEG encoded tiles.
+
+	<li> tools/tiff2pdf.c: Better handling of string fields, use static
+	string buffers instead of dynamically allocated, use strncpy() instead
+	of strcpy(), control the string lengths.
+
+	<li> tools/{tiff2bw.c, thumbnail.c, pal2rgb.c}: Fix the count for
+	WhitePoint tag as per bug
+	http://bugzilla.maptools.org/show_bug.cgi?id=2042
+
+	<li> tools/tiffdump.c: Use PrintData() function instead of
+	PrintByte/Short/Long(). Should fix an issue reported at
+	http://bugzilla.maptools.org/show_bug.cgi?id=2116
+
+	<li> tools/tiffset.c: Properly handle TIFFTAG_PAGENUMBER,
+	TIFFTAG_HALFTONEHINTS, TIFFTAG_YCBCRSUBSAMPLING, TIFFTAG_DOTRANGE
+	which should be set by value.
+
+	<li> tools/tiffdump.c: Avoid integer overflows computing the buffer size
+	for large directories. As per bug
+	http://bugzilla.maptools.org/show_bug.cgi?id=2218
+
+	<li> tools/tiff2pdf.c: Fixed ID buffer filling in
+	t2p_write_pdf_trailer(), thanks to Dmitry V. Levin.
+
+	<li> tools/tiffcrop.c: Patch from Richard Nolde to avoid a
+	potentially unterminated buffer due to using an exceptionally long
+	file name.
+
+	<li> tools/tiff2ps.c: improvements and enhancements from Richard Nolde
+	with additional command line options for Document Title, 
+	Document Creator, and Page Orientation
+
+	<li> tools/tiffsplit.c: abort when reading a TIFF without a byte-count
+	per http://bugzilla.maptools.org/show_bug.cgi?id=1996
+
+	<li> tools/tiff2pdf.c: add fill-page option
+	 http://bugzilla.maptools.org/show_bug.cgi?id=2051
+
+	<li> tools/fax2ps.c: replace unsafe tmpfile() with mkstemp()
+	http://bugzilla.maptools.org/show_bug.cgi?id=2118
+
+	<li> tools/tiff2pdf.c: fix colors for images with RGBA 
+	interleaved data
+	http://bugzilla.maptools.org/show_bug.cgi?id=2250
+
+	<li> tools/tiffcrop.c: new release by Richard Nolde
+	http://bugzilla.maptools.org/show_bug.cgi?id=2004
+
+	<li> tools/fax2ps.c: be consistent with page-numbering
+	http://bugzilla.maptools.org/show_bug.cgi?id=2225
+
+	<li> tools/gif2tiff.c: fix buffer overrun
+	http://bugzilla.maptools.org/show_bug.cgi?id=2270
+
+	<li> tools/fax2ps.c (main): Use tmpfile() rather than mkstemp() since
+	it is much more portable.  Tmpfile is included in ISO/IEC
+	9899:1990 and the WIN32 CRT.
+
+</UL>
+
+<P><HR WIDTH=65% ALIGN=left>
+
+<!--------------------------------------------------------------------------->
+
+<A NAME="contrib"><B><FONT SIZE=+3>C</FONT>HANGES IN THE CONTRIB AREA:</B></A>
+
+<UL> 
+
+	<li> None
+
+</UL>
+
+Last updated $Date: 2011-04-09 20:21:27 $.
+
+</BODY>
+</HTML>

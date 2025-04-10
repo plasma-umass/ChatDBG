@@ -1,0 +1,278 @@
+<!--
+$Header: /cvsroot/pgsql/doc/src/sgml/ref/initdb.sgml,v 1.27 2003/08/31 17:32:23 petere Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="APP-INITDB">
+ <refmeta>
+  <refentrytitle id="APP-INITDB-TITLE">initdb</refentrytitle>
+  <manvolnum>1</manvolnum>
+  <refmiscinfo>Application</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>initdb</refname>
+  <refpurpose>create a new <productname>PostgreSQL</productname> database cluster</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="app-initdb">
+  <primary>initdb</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+  <cmdsynopsis>
+   <command>initdb</command>
+   <arg rep="repeat"><replaceable>option</></arg>
+   <group choice="plain">
+    <arg>--pgdata </arg>
+    <arg>-D </arg>
+    <replaceable>directory</replaceable>
+   </group>
+  </cmdsynopsis>
+ </refsynopsisdiv>
+
+ <refsect1 id="R1-APP-INITDB-1">
+  <title>
+   Description
+  </title>
+  <para>
+   <command>initdb</command> creates a new
+   <productname>PostgreSQL</productname> database cluster.  A database
+   cluster is a collection of databases that are managed by a single
+   server instance.
+  </para>
+
+  <para>
+   Creating a database cluster consists of creating the directories in which
+   the database data will live, generating the shared catalog tables 
+   (tables that belong to the whole cluster rather than to any particular
+   database), and creating the <literal>template1</literal>
+   database.  When you later create a new database, everything in the
+   <literal>template1</literal> database is copied.
+   It contains catalog tables filled in for things like the
+   built-in types.
+  </para>
+
+  <para>
+   <command>initdb</command> initializes the database cluster's
+   default locale and character set encoding.  Some locale categories
+   are fixed for the lifetime of the cluster, so it is important to
+   make the right choice when running <command>initdb</command>.
+   Other locale categories can be changed later when the server is
+   started.  <command>initdb</command> will write those locale
+   settings into the <filename>postgresql.conf</filename>
+   configuration file so they are the default, but they can be changed
+   by editing that file.  To set the locale that
+   <command>initdb</command> uses, see the description of the
+   <option>--locale</option> option.  The character set encoding can
+   be set separately for each database as it is created.
+   <command>initdb</command> determines the encoding for the
+   <literal>template1</literal> database, which will serve as the
+   default for all other databases.  To alter the default encoding use
+   the <option>--encoding</option> option.
+  </para>
+
+  <para>
+   <command>initdb</command> must be run as the user that will own the
+   server process, because the server needs to have access to the
+   files and directories that <command>initdb</command> creates.
+   Since the server may not be run as root, you must not run
+   <command>initdb</command> as root either.  (It will in fact refuse
+   to do so.)
+  </para>
+
+  <para>
+   Although <command>initdb</command> will attempt to create the
+   specified data directory, often it won't have permission to do so,
+   since the parent of the desired data directory is often a root-owned
+   directory.  To set up an arrangement like this, create an empty data
+   directory as root, then use <command>chown</command> to hand over
+   ownership of that directory to the database user account, then
+   <command>su</command> to become the database user, and
+   finally run <command>initdb</command> as the database user.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Options</title>
+
+   <para>
+    <variablelist>
+     <varlistentry>
+      <term><option>-D <replaceable class="parameter">directory</replaceable></option></term>
+      <term><option>--pgdata=<replaceable class="parameter">directory</replaceable></option></term>
+      <listitem>
+       <para>
+        This option specifies the directory where the database cluster
+        should be stored. This is the only information required by
+        <command>initdb</command>, but you can avoid writing it by
+        setting the <envar>PGDATA</envar> environment variable, which
+        can be convenient since the database server
+        (<command>postmaster</command>) can find the database
+        directory later by the same variable.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-E <replaceable class="parameter">encoding</replaceable></option></term>
+      <term><option>--encoding=<replaceable class="parameter">encoding</replaceable></option></term>
+      <listitem>
+       <para>
+        Selects the encoding of the template database. This will also
+        be the default encoding of any database you create later, unless you
+        override it there.  The default is <literal>SQL_ASCII</literal>.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>--locale=<replaceable>locale</replaceable></option></term>
+      <listitem>
+       <para>
+        Sets the default locale for the database cluster.  If this
+        option is not specified, the locale is inherited from the
+        environment that <command>initdb</command> runs in.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>--lc-collate=<replaceable>locale</replaceable></option></term>
+      <term><option>--lc-ctype=<replaceable>locale</replaceable></option></term>
+      <term><option>--lc-messages=<replaceable>locale</replaceable></option></term>
+      <term><option>--lc-monetary=<replaceable>locale</replaceable></option></term>
+      <term><option>--lc-numeric=<replaceable>locale</replaceable></option></term>
+      <term><option>--lc-time=<replaceable>locale</replaceable></option></term>
+
+      <listitem>
+       <para>
+        Like <option>--locale</option>, but only sets the locale in
+        the specified category.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-U <replaceable class="parameter">username</replaceable></option></term>
+      <term><option>--username=<replaceable class="parameter">username</replaceable></option></term>
+      <listitem>
+       <para>
+        Selects the user name of the database superuser. This defaults
+        to the name of the effective user running
+        <command>initdb</command>. It is really not important what the
+        superuser's name is, but one might choose to keep the
+        customary name <systemitem>postgres</systemitem>, even if the operating
+        system user's name is different.
+       </para>
+      </listitem>
+     </varlistentry>
+ 
+     <varlistentry>
+      <term><option>-W</option></term>
+      <term><option>--pwprompt</option></term>
+      <listitem>
+       <para>
+        Makes <command>initdb</command> prompt for a password
+        to give the database superuser. If you don't plan on using password
+        authentication, this is not important.  Otherwise you won't be
+        able to use password authentication until you have a password
+        set up.
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+   </para>
+
+   <para>
+    Other, less commonly used, parameters are also available:
+
+    <variablelist>
+     <varlistentry>
+      <term><option>-d</option></term>
+      <term><option>--debug</option></term>
+      <listitem>
+       <para>
+	Print debugging output from the bootstrap backend and a few other
+        messages of lesser interest for the general public.
+	The bootstrap backend is the program <command>initdb</command>
+	uses to create the catalog tables.  This option generates a tremendous
+	amount of extremely boring output.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-L <replaceable class="parameter">directory</replaceable></option></term>
+      <listitem>
+       <para>
+        Specifies where <command>initdb</command> should find
+        its input files to initialize the database cluster.  This is
+        normally not necessary.  You will be told if you need to
+        specify their location explicitly.
+       </para>
+      </listitem>
+     </varlistentry>
+
+     <varlistentry>
+      <term><option>-n</option></term>
+      <term><option>--noclean</option></term>
+      <listitem>
+       <para>
+	By default, when <command>initdb</command>
+	determines that an error prevented it from completely creating the database
+	cluster, it removes any files it may have created before discovering
+	that it can't finish the job. This option inhibits tidying-up and is
+	thus useful for debugging.
+       </para>
+      </listitem>
+     </varlistentry>
+    </variablelist>
+   </para>
+
+ </refsect1>
+
+ <refsect1>
+  <title>Environment</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><envar>PGDATA</envar></term>
+
+    <listitem>
+     <para>
+      Specifies the directory where the database cluster is to be
+      stored; may be overridden using the <option>-D</option> option.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>See Also</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="app-postgres"></member>
+   <member><xref linkend="app-postmaster"></member>
+  </simplelist>
+ </refsect1>
+
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

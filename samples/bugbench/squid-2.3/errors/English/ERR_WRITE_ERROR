@@ -1,0 +1,26 @@
+<HTML><HEAD>
+<TITLE>ERROR: The requested URL could not be retrieved</TITLE>
+</HEAD><BODY>
+<H1>ERROR</H1>
+<H2>The requested URL could not be retrieved</H2>
+<HR>
+<P>
+While trying to retrieve the URL:
+<A HREF="%U">%U</A>
+<P>
+The following error was encountered:
+<UL>
+<LI>
+<STRONG>
+Write Error
+</STRONG>
+</UL>
+
+<P>
+The system returned:
+<PRE><I>    %E</I></PRE>
+
+<P>
+An error condition occurred while writing to the network.  Please retry your
+request.
+<P>Your cache administrator is <A HREF="mailto:%w">%w</A>. 

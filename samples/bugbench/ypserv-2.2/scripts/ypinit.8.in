@@ -1,0 +1,82 @@
+.\" -*- nroff -*-
+.TH ypinit 8 "August 1996"
+.SH NAME
+ypinit - NIS database install and build program
+.SH SYNOPSIS
+.B
+@YPBINDIR@/ypinit
+[
+.B \-m
+] [
+.B \-s 
+.I master_name
+] 
+.SH DESCRIPTION
+.B ypinit
+builds the domain subdirectory of @YPMAPDIR@ for the current default
+domain. After building the domain subdirectory,
+.B ypinit
+builds a complete set of administrative maps for your system and places
+them in this directory. The first map created by
+.B ypinit -m
+is the ypservers map. You should run it as root on the hosts, which
+should be the master ypserver.
+You should have only one master server per NIS domain.
+.LP
+All databases are built from scratch,
+either from information available to the program at runtime,
+or from the
+.SM ASCII
+data base files in
+.BR /etc .
+These files are listed below under
+.SM FILES\s0.
+.LP
+An
+.SM NIS
+database on a slave server is set up by copying
+an existing database from a running server.  The
+.I master_name
+argument should be the hostname of an
+.SM NIS
+server (either the master server for all the maps,
+or a server on which the data base is up-to-date and stable).
+.SH OPTIONS
+.TP
+.B \-m
+If the local host is the
+.SM NIS
+master.
+.TP
+.B \-s
+Set up a slave server with the database from
+.I master_name
+.SH FILES
+.PD 0
+.TP 20
+/etc/passwd
+.TP
+/etc/group
+.TP
+/etc/hosts
+.TP
+/etc/networks
+.TP
+/etc/services
+.TP
+/etc/protocols
+.TP
+/etc/netgroup
+.TP
+/etc/rpc
+.PD
+.SH "SEE ALSO"
+.BR makedbm (8),
+.BR revnetgroup (8),
+.BR yppush (8),
+.BR ypserv (8),
+.BR ypxfr (8)
+.SH BUGS
+There isn't a good error handling at the moment.
+.SH AUTHOR
+Thorsten Kukuk <kukuk@suse.de>

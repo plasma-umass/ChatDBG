@@ -1,0 +1,186 @@
+.\"
+.\" Copyright 1997, 1999 Thorsten Kukuk, <kukuk@suse.de>
+.\" Copyright 1994, 1995, 1996 Olaf Kirch, <okir@monad.swb.de>
+.\"
+.\" This program is covered by the GNU General Public License, version 2.
+.\" It is provided in the hope that it is useful. However, the author
+.\" disclaims ALL WARRANTIES, expressed or implied. See the GPL for details.
+.\"
+.TH RPC.YPPASSWDD 8 "August 2001" "YP Server" ""
+.SH NAME
+rpc.yppasswdd \- NIS password update daemon
+.SH SYNOPSIS
+.B "rpc.yppasswdd [-D directory] [-e chsh|chfn] [--port number]"
+.br
+.B "rpc.yppasswdd [-s shadow] [-p passwd] [-e chsh|chfn] [--port number]"
+.br
+.B "rpc.yppasswdd -x program|-E program [-e chsh|chfn] [--port number]"
+
+.SH DESCRIPTION
+\fBrpc.yppasswdd\fP is the RPC server that lets users change their passwords
+in the presence of NIS (a.k.a. YP). It must be run on the NIS master
+server for that NIS domain.
+.P
+When a
+.BR yppasswd (1)
+client contacts the server, it sends the old user
+password along with the new one. \fBrpc.yppasswdd\fP will search the system's
+.B passwd
+file for the specified user name, verify that the
+given (old) password matches, and update the entry. If the user
+specified does not exist, or if the password, UID or GID doesn't match
+the information in the password file, the update request is rejected,
+and an error returned to the client.
+.P
+If this version of the server is compiled with the CHECKROOT=1 option, the
+password given is also checked against the systems root password.
+.P
+After updating the
+.B passwd
+file and returning a success notification
+to the client, \fBrpc.yppasswdd\fP executes the \fBpwupdate\fP script that
+updates the NIS server's \fBpasswd.*\fP and \fBshadow.byname\fP maps.
+This script assumes all NIS maps are kept in directories named
+.BI /var/yp/ nisdomain
+that each contain a \fBMakefile\fP customized for that NIS domain. If no
+such \fBMakefile\fP is found, the scripts uses the generic one in
+\fB/var/yp\fP.
+.SH OPTIONS
+The following options are available:
+.TP
+.BI "\-D" " directory"
+The
+.B passwd
+and
+.B shadow
+files are located under the specified directory path.
+.B rpc.yppasswdd
+will use this files, not
+.B /etc/passwd
+and
+.B /etc/shadow.
+This is useful if you do not want to give all users in the NIS database
+automatic access to your NIS server.
+.TP
+.BI "\-E" " program"
+Instead of rpc.yppasswdd editing the passwd & shadow files, the
+specified program will be run to do the editing. The following
+environment variables will be set for the program: YP_PASSWD_OLD,
+YP_PASSWD_NEW, YP_USER, YP_GECOS, YP_SHELL. The program should return
+an exit status of 0 if the change completes successfully, 1 if the
+change completes successfully but pwupdate should not be run, and
+otherwise if the change fails.
+.TP
+.BI "\-p" " passwdfile"
+This options tells \fBrpc.yppasswdd\fP to use a different source file instead
+of \fB/etc/passwd\fP This is useful if you do not want to give all users
+in the NIS database automatic access to your NIS server.
+.TP
+.BI "\-s" " shadowfile"
+This options tells \fBrpc.yppasswdd\fP to use a different source file instead
+of \fB/etc/passwd\fP. See below for a brief discussion of shadow support.
+.TP
+.BI "\-e [chsh|chfn]"
+By default, \fBrpc.yppasswdd\fP will not allow users to change the shell or
+GECOS field of their \fBpasswd\fP entry. Using the \fB\-e\fP option,
+you can enable either of these. Note that when enabling support for
+\fBypchsh\fP(1), you have to list all shells users are allowed to
+select in \fB/etc/shells\fP.
+.TP
+.BI "\-x program"
+When the -x option is used, rpc.yppasswdd will not attempt to modify
+any files itself, but will instead run the specified program, passing
+to its stdin information about the requested operation(s).  There is
+a defined protocol used to communicate with this external program, which
+has total freedom in how it propagates the change request. See
+below for more details on this.
+.TP
+.B "\-m"
+Will be ignored, for compatibility with Solaris only.
+.TP
+.BI "\-\-port number"
+rpc.yppasswdd will try to register itself to this port. This makes
+it  possible to have a router filter packets to the NIS ports.
+.TP
+.B "\-v" "--version"
+Prints the version number and if this package is compiled with the
+CHECKROOT option.
+.SH MISCELLANEOUS
+.SS Shadow Passwords
+Using Shadow passwords alongside NIS does not make too much sense, because
+the supposedly inaccesible passwords now become readable through a simple
+invocation of
+.BR ypcat (1).
+.P
+Shadow support in \fBrpc.yppasswdd\fP does not mean that it offers a very
+clever solution to this problem, it simply means that it can read and write
+password entries in the system's
+.B shadow
+file.  You have to produce a
+\fBshadow.byname\fP NIS map to distribute password information to your NIS
+clients. \fBrpc.yppasswdd\fP will search at first in the \fB/etc/passwd\fP file
+for the user and password. If it find's the user, but the password is "x"
+and a \fB/etc/shadow\fP file exists, it will update the password in the
+shadow map.
+.SS Use of the -x option
+The program should expect to read a single line from stdin, which is
+formatted as follows:
+.P
+<username> o:<oldpass> p:<password> s:<shell> g:<gcos>\\n
+.P
+where any of the three fields [p, s, g] may or may not be present.
+.P
+This program should write "OK\\n" to stdout if the operation succeeded.  On
+any other result, rpc.yppasswdd will report failure to the client.
+.P
+Note that the program specified by the -x option is responsible for doing
+any NIS make and build, and for doing any necessary validation on the
+shell and gcos field information supplied.  The password passed to the client
+will be in UNIX crypt() format.
+.SS Logging
+\fBrpc.yppasswdd\fP logs all password update requests to \fBsyslogd(8)\fP's
+auth facility. The logging information includes the originating host's
+IP address and the user name and UID contained in the request. The
+user-supplied password itself is not logged.
+.SS Security
+Unless I've screwed up completely (as I did with versions prior to
+version\ 0.5), \fBrpc.yppasswdd\fP should be as secure or insecure as any
+program relying on simple password authentication.  If you feel that
+this is not enough, you may want to protect \fBrpc.yppasswdd\fP from outside
+access by using the `securenets' feature of the new \fBportmap(8)\fP
+version\ 3.  Better still, use Kerberos.
+.SH COPYRIGHT
+\fBrpc.yppasswdd\fP is copyright (C) Olaf Kirch. You can use and distribute it
+under the GNU General Public License Version 2. Note that it does \fInot\fP
+contain any code from the shadow password suite.
+.SH FILES
+\fB@SBINDIR@/rpc.yppasswdd\fP
+.br
+\fB@YPBINDIR@/pwupdate\fP
+.br
+\fB/etc/passwd\fP
+.br
+\fB/etc/shadow\fP
+.SH SEE ALSO
+.BR passwd (5),
+.BR shadow (5),
+.BR passwd (1),
+.BR yppasswd (1),
+.BR ypchsh (1),
+.BR ypchfn (1),
+.BR ypserv (8),
+.BR ypcat (1)
+.LP
+The Network Information Service
+(\s-1NIS\s0)
+was formerly known as Sun Yellow Pages
+(\s-1YP\s0).
+The functionality of the two remains the same;
+only the name has changed.
+The name Yellow Pages is a registered trademark in the United Kingdom
+of British Telecommunications plc,
+and may not be used without permission.
+.SH AUTHOR
+Olaf Kirch, <okir@monad.swb.de>
+.br
+Thorsten Kukuk, <kukuk@suse.de>

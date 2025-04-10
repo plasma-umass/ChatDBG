@@ -1,0 +1,161 @@
+<!--
+$Header: /cvsroot/pgsql/doc/src/sgml/diskusage.sgml,v 1.9 2003/03/24 14:32:50 petere Exp $
+-->
+
+<chapter id="diskusage">
+ <title>Monitoring Disk Usage</title>
+
+ <para>
+  This chapter discusses how to monitor the disk usage of a
+  <productname>PostgreSQL</> database system.  In the current
+  release, the database administrator does not have much control over
+  the on-disk storage layout, so this chapter is mostly informative
+  and can give you some ideas how to manage the disk usage with
+  operating system tools.
+ </para>
+
+ <sect1 id="disk-usage">
+  <title>Determining Disk Usage</Title>
+
+  <indexterm zone="disk-usage">
+   <primary>disk usage</primary>
+  </indexterm>
+
+  <para>
+   Each table has a primary heap disk file where most of the data is
+   stored. To store long column values, there is also a
+   <acronym>TOAST</> file associated with the table, named based on the
+   table's OID (actually <literal>pg_class.relfilenode</>), and an index on the
+   <acronym>TOAST</> table. There also may be indexes associated with
+   the base table.
+  </para>
+
+  <para>
+   You can monitor disk space from three places: from
+   <application>psql</> using <command>VACUUM</> information, from
+   <application>psql</> using the tools in <filename>contrib/dbsize</>, and from
+   the command line using the tools in <filename>contrib/oid2name</>. Using
+   <application>psql</> on a recently vacuumed or analyzed database,
+   you can issue queries to see the disk usage of any table:
+<programlisting>
+SELECT relfilenode, relpages FROM pg_class WHERE relname = 'customer';
+
+ relfilenode | relpages 
+-------------+----------
+       16806 |       60
+(1 row)
+</programlisting>
+   Each page is typically 8 kilobytes. (Remember, <literal>relpages</>
+   is only updated by <command>VACUUM</> and <command>ANALYZE</>.)
+  </para>
+
+  <para>
+   To show the space used by <acronym>TOAST</> tables, use a query
+   like the following, substituting the <literal>relfilenode</literal>
+   number of the heap (determined by the query above):
+<programlisting>
+SELECT relname, relpages
+    FROM pg_class
+    WHERE relname = 'pg_toast_16806' OR relname = 'pg_toast_16806_index'
+    ORDER BY relname;
+
+       relname        | relpages 
+----------------------+----------
+ pg_toast_16806       |        0
+ pg_toast_16806_index |        1
+</programlisting>
+  </para>
+
+  <para>
+   You can easily display index sizes, too:
+<programlisting>
+SELECT c2.relname, c2.relpages
+    FROM pg_class c, pg_class c2, pg_index i
+    WHERE c.relname = 'customer'
+        AND c.oid = i.indrelid
+        AND c2.oid = i.indexrelid
+        ORDER BY c2.relname;
+
+       relname        | relpages 
+----------------------+----------
+ customer_id_indexdex |       26
+</programlisting>
+  </para>
+
+  <para>
+   It is easy to find your largest tables and indexes using this
+   information:
+<programlisting>
+SELECT relname, relpages FROM pg_class ORDER BY relpages DESC;
+
+       relname        | relpages 
+----------------------+----------
+ bigtable             |     3290
+ customer             |     3144
+</programlisting>
+  </para>
+
+  <para>
+   <filename>contrib/dbsize</> loads functions into your database that allow
+   you to find the size of a table or database from inside
+   <application>psql</> without the need for <command>VACUUM</> or <command>ANALYZE</>.
+  </para>
+
+  <para>
+   You can also use <filename>contrib/oid2name</> to show disk usage. See
+   <filename>README.oid2name</> in that directory for examples. It includes a script that
+   shows disk usage for each database.
+  </para>
+ </sect1>
+
+ <sect1 id="disk-full">
+  <title>Disk Full Failure</title>
+
+  <para>
+   The most important disk monitoring task of a database administrator
+   is to make sure the disk doesn't grow full.  A filled data disk may
+   result in subsequent corruption of database indexes, but not of the
+   tables themselves. If the WAL files are on the same disk (as
+   is the case for a default configuration) then a filled disk during
+   database initialization may result in corrupted or incomplete WAL
+   files. This failure condition is detected and the database server
+   will refuse to start up.
+  </para>
+
+  <para>
+   If you cannot free up additional space on the disk by deleting
+   other things you can move some of the database files to other file
+   systems and create a symlink from the original location.  But
+   note that <application>pg_dump</> cannot save the location layout
+   information of such a setup; a restore would put everything back in
+   one place.  To avoid running out of disk space, you can place the
+   WAL files or individual databases in other locations while creating
+   them.  See the <command>initdb</> documentation and <xref
+   linkend="manage-ag-alternate-locs"> for more information about that.
+  </para>
+
+  <tip>
+   <para>
+    Some file systems perform badly when they are almost full, so do
+    not wait until the disk is full to take action.
+   </para>
+  </tip>
+ </sect1>
+</chapter>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode:sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"./reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/usr/lib/sgml/catalog")
+sgml-local-ecat-files:nil
+End:
+-->

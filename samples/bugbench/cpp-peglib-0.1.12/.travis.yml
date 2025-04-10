@@ -1,0 +1,39 @@
+language: cpp
+sudo: false
+
+matrix:
+  include:
+    - compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - george-edison55-precise-backports
+          packages:
+            - cmake
+            - cmake-data
+            - gcc-4.9
+            - g++-4.9
+      env: COMPILER=g++-4.9
+#    - compiler: clang
+#      addons:
+#        apt:
+#          sources:
+#            - kubuntu-backports
+#            - ubuntu-toolchain-r-test
+#            - llvm-toolchain-precise-3.7
+#          packages:
+#            - cmake
+#            - clang-3.7
+#      env: COMPILER=clang++-3.7
+
+branches:
+    only:
+        - master
+
+before_script:
+  - export CXX=$COMPILER
+
+script:
+  - mkdir build && cd build
+  - cmake .. && make && ctest -V

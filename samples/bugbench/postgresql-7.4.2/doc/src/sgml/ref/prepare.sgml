@@ -1,0 +1,170 @@
+<!--
+$Header: /cvsroot/pgsql/doc/src/sgml/ref/prepare.sgml,v 1.7 2003/09/09 18:28:53 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-PREPARE">
+ <refmeta>
+  <refentrytitle id="sql-prepare-title">PREPARE</refentrytitle>
+  <refmiscinfo>SQL - Language Statements</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>PREPARE</refname>
+  <refpurpose>prepare a statement for execution</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-prepare">
+  <primary>PREPARE</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+PREPARE <replaceable class="PARAMETER">plan_name</replaceable> [ (<replaceable class="PARAMETER">datatype</replaceable> [, ...] ) ] AS <replaceable class="PARAMETER">statement</replaceable>
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Description</title>
+
+  <para>
+   <command>PREPARE</command> creates a prepared statement. A prepared
+   statement is a server-side object that can be used to optimize
+   performance. When the <command>PREPARE</command> statement is
+   executed, the specified statement is parsed, rewritten, and
+   planned. When an <command>EXECUTE</command> command is subsequently
+   issued, the prepared statement need only be executed. Thus, the
+   parsing, rewriting, and planning stages are only performed once,
+   instead of every time the statement is executed.
+  </para>
+
+  <para>
+   Prepared statements can take parameters: values that are
+   substituted into the statement when it is executed. To include
+   parameters in a prepared statement, supply a list of data types in
+   the <command>PREPARE</command> statement, and, in the statement to
+   be prepared itself, refer to the parameters by position using
+   <literal>$1</literal>, <literal>$2</literal>, etc. When executing
+   the statement, specify the actual values for these parameters in
+   the <command>EXECUTE</command> statement.  Refer to <xref
+   linkend="sql-execute" endterm="sql-execute-title"> for more
+   information about that.
+  </para>
+
+  <para>
+   Prepared statements are only stored in and for the duration of
+   the current database session. When
+   the session ends, the prepared statement is forgotten, and so it must be
+   recreated before being used again. This also means that a single
+   prepared statement cannot be used by multiple simultaneous database
+   clients; however, each client can create their own prepared statement
+   to use.
+  </para>
+
+  <para>
+   Prepared statements have the largest performance advantage when a
+   single session is being used to execute a large number of similar
+   statements. The performance difference will be particularly
+   significant if the statements are complex to plan or rewrite, for
+   example, if the query involves a join of many tables or requires
+   the application of several rules. If the statement is relatively simple
+   to plan and rewrite but relatively expensive to execute, the
+   performance advantage of prepared statements will be less noticeable.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parameters</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="PARAMETER">plan_name</replaceable></term>
+    <listitem>
+     <para>
+      An arbitrary name given to this particular prepared
+      statement. It must be unique within a single session and is
+      subsequently used to execute or deallocate a previously prepared
+      statement.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="PARAMETER">datatype</replaceable></term>
+    <listitem>
+     <para>
+      The data type of a parameter to the prepared statement.  To
+      refer to the parameters in the prepared statement itself, use
+      <literal>$1</literal>, <literal>$2</literal>, etc.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="PARAMETER">statement</replaceable></term>
+    <listitem>
+     <para>
+      Any <command>SELECT</>, <command>INSERT</>, <command>UPDATE</>,
+      or <command>DELETE</> statement.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+ </refsect1>
+
+ <refsect1>
+  <title>Notes</title>
+
+  <para>
+   In some situations, the query plan produced by for a prepared
+   statement may be inferior to the plan produced if the statement
+   were submitted and executed normally. This is because when the
+   statement is planned and the planner attempts to determine the
+   optimal query plan, the actual values of any parameters specified
+   in the statement are
+   unavailable. <productname>PostgreSQL</productname> collects
+   statistics on the distribution of data in the table, and can use
+   constant values in a statement to make guesses about the likely
+   result of executing the statement. Since this data is unavailable
+   when planning prepared statements with parameters, the chosen plan
+   may be suboptimal. To examine the query plan
+   <productname>PostgreSQL</productname> has chosen for a prepared
+   statement, use <command>EXPLAIN EXECUTE</command>.
+  </para>
+
+  <para>
+   For more information on query planning and the statistics collected
+   by <productname>PostgreSQL</productname> for that purpose, see
+   the <xref linkend="sql-analyze" endterm="sql-analyze-title">
+   documentation.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibility</title>
+
+  <para>
+   The SQL standard includes a <command>PREPARE</command> statement,
+   but it is only for use in embedded SQL. This version of the
+   <command>PREPARE</command> statement also uses a somewhat different
+   syntax.
+  </para>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

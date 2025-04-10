@@ -1,0 +1,825 @@
+--
+-- STRINGS
+-- Test various data entry syntaxes.
+--
+-- SQL92 string continuation syntax
+-- E021-03 character string literals
+SELECT 'first line'
+' - next line'
+	' - third line'
+	AS "Three lines to one";
+         Three lines to one          
+-------------------------------------
+ first line - next line - third line
+(1 row)
+
+-- illegal string continuation syntax
+SELECT 'first line'
+' - next line' /* this comment is not allowed here */
+' - third line'
+	AS "Illegal comment within continuation";
+ERROR:  syntax error at or near "' - third line'" at character 75
+--
+-- test conversions between various string types
+-- E021-10 implicit casting among the character data types
+--
+SELECT CAST(f1 AS text) AS "text(char)" FROM CHAR_TBL;
+ text(char) 
+------------
+ a
+ ab
+ abcd
+ abcd
+(4 rows)
+
+SELECT CAST(f1 AS text) AS "text(varchar)" FROM VARCHAR_TBL;
+ text(varchar) 
+---------------
+ a
+ ab
+ abcd
+ abcd
+(4 rows)
+
+SELECT CAST(name 'namefield' AS text) AS "text(name)";
+ text(name) 
+------------
+ namefield
+(1 row)
+
+-- since this is an explicit cast, it should truncate w/o error:
+SELECT CAST(f1 AS char(10)) AS "char(text)" FROM TEXT_TBL;
+ char(text) 
+------------
+ doh!      
+ hi de ho n
+(2 rows)
+
+-- note: implicit-cast case is tested in char.sql
+SELECT CAST(f1 AS char(20)) AS "char(text)" FROM TEXT_TBL;
+      char(text)      
+----------------------
+ doh!                
+ hi de ho neighbor   
+(2 rows)
+
+SELECT CAST(f1 AS char(10)) AS "char(varchar)" FROM VARCHAR_TBL;
+ char(varchar) 
+---------------
+ a         
+ ab        
+ abcd      
+ abcd      
+(4 rows)
+
+SELECT CAST(name 'namefield' AS char(10)) AS "char(name)";
+ char(name) 
+------------
+ namefield 
+(1 row)
+
+SELECT CAST(f1 AS varchar) AS "varchar(text)" FROM TEXT_TBL;
+   varchar(text)   
+-------------------
+ doh!
+ hi de ho neighbor
+(2 rows)
+
+SELECT CAST(f1 AS varchar) AS "varchar(char)" FROM CHAR_TBL;
+ varchar(char) 
+---------------
+ a
+ ab
+ abcd
+ abcd
+(4 rows)
+
+SELECT CAST(name 'namefield' AS varchar) AS "varchar(name)";
+ varchar(name) 
+---------------
+ namefield
+(1 row)
+
+--
+-- test SQL92 string functions
+-- E### and T### are feature reference numbers from SQL99
+--
+-- E021-09 trim function
+SELECT TRIM(BOTH FROM '  bunch o blanks  ') = 'bunch o blanks' AS "bunch o blanks";
+ bunch o blanks 
+----------------
+ t
+(1 row)
+
+SELECT TRIM(LEADING FROM '  bunch o blanks  ') = 'bunch o blanks  ' AS "bunch o blanks  ";
+ bunch o blanks   
+------------------
+ t
+(1 row)
+
+SELECT TRIM(TRAILING FROM '  bunch o blanks  ') = '  bunch o blanks' AS "  bunch o blanks";
+   bunch o blanks 
+------------------
+ t
+(1 row)
+
+SELECT TRIM(BOTH 'x' FROM 'xxxxxsome Xsxxxxx') = 'some Xs' AS "some Xs";
+ some Xs 
+---------
+ t
+(1 row)
+
+-- E021-06 substring expression
+SELECT SUBSTRING('1234567890' FROM 3) = '34567890' AS "34567890";
+ 34567890 
+----------
+ t
+(1 row)
+
+SELECT SUBSTRING('1234567890' FROM 4 FOR 3) = '456' AS "456";
+ 456 
+-----
+ t
+(1 row)
+
+-- T581 regular expression substring (with SQL99's bizarre regexp syntax)
+SELECT SUBSTRING('abcdefg' FROM 'a#"(b_d)#"%' FOR '#') AS "bcd";
+ bcd 
+-----
+ bcd
+(1 row)
+
+-- No match should return NULL
+SELECT SUBSTRING('abcdefg' FROM '#"(b_d)#"%' FOR '#') IS NULL AS "True";
+ True 
+------
+ t
+(1 row)
+
+-- Null inputs should return NULL
+SELECT SUBSTRING('abcdefg' FROM '(b|c)' FOR NULL) IS NULL AS "True";
+ True 
+------
+ t
+(1 row)
+
+SELECT SUBSTRING(NULL FROM '(b|c)' FOR '#') IS NULL AS "True";
+ True 
+------
+ t
+(1 row)
+
+SELECT SUBSTRING('abcdefg' FROM NULL FOR '#') IS NULL AS "True";
+ True 
+------
+ t
+(1 row)
+
+-- PostgreSQL extension to allow omitting the escape character;
+-- here the regexp is taken as Posix syntax
+SELECT SUBSTRING('abcdefg' FROM 'c.e') AS "cde";
+ cde 
+-----
+ cde
+(1 row)
+
+-- With a parenthesized subexpression, return only what matches the subexpr
+SELECT SUBSTRING('abcdefg' FROM 'b(.*)f') AS "cde";
+ cde 
+-----
+ cde
+(1 row)
+
+-- E021-11 position expression
+SELECT POSITION('4' IN '1234567890') = '4' AS "4";
+ 4 
+---
+ t
+(1 row)
+
+SELECT POSITION(5 IN '1234567890') = '5' AS "5";
+ 5 
+---
+ t
+(1 row)
+
+-- T312 character overlay function
+SELECT OVERLAY('abcdef' PLACING '45' FROM 4) AS "abc45f";
+ abc45f 
+--------
+ abc45f
+(1 row)
+
+SELECT OVERLAY('yabadoo' PLACING 'daba' FROM 5) AS "yabadaba";
+ yabadaba 
+----------
+ yabadaba
+(1 row)
+
+SELECT OVERLAY('yabadoo' PLACING 'daba' FROM 5 FOR 0) AS "yabadabadoo";
+ yabadabadoo 
+-------------
+ yabadabadoo
+(1 row)
+
+SELECT OVERLAY('babosa' PLACING 'ubb' FROM 2 FOR 4) AS "bubba";
+ bubba 
+-------
+ bubba
+(1 row)
+
+--
+-- test LIKE
+-- Be sure to form every test as a LIKE/NOT LIKE pair.
+--
+-- simplest examples
+-- E061-04 like predicate
+SELECT 'hawkeye' LIKE 'h%' AS "true";
+ true 
+------
+ t
+(1 row)
+
+SELECT 'hawkeye' NOT LIKE 'h%' AS "false";
+ false 
+-------
+ f
+(1 row)
+
+SELECT 'hawkeye' LIKE 'H%' AS "false";
+ false 
+-------
+ f
+(1 row)
+
+SELECT 'hawkeye' NOT LIKE 'H%' AS "true";
+ true 
+------
+ t
+(1 row)
+
+SELECT 'hawkeye' LIKE 'indio%' AS "false";
+ false 
+-------
+ f
+(1 row)
+
+SELECT 'hawkeye' NOT LIKE 'indio%' AS "true";
+ true 
+------
+ t
+(1 row)
+
+SELECT 'hawkeye' LIKE 'h%eye' AS "true";
+ true 
+------
+ t
+(1 row)
+
+SELECT 'hawkeye' NOT LIKE 'h%eye' AS "false";
+ false 
+-------
+ f
+(1 row)
+
+SELECT 'indio' LIKE '_ndio' AS "true";
+ true 
+------
+ t
+(1 row)
+
+SELECT 'indio' NOT LIKE '_ndio' AS "false";
+ false 
+-------
+ f
+(1 row)
+
+SELECT 'indio' LIKE 'in__o' AS "true";
+ true 
+------
+ t
+(1 row)
+
+SELECT 'indio' NOT LIKE 'in__o' AS "false";
+ false 
+-------
+ f
+(1 row)
+
+SELECT 'indio' LIKE 'in_o' AS "false";
+ false 
+-------
+ f
+(1 row)
+
+SELECT 'indio' NOT LIKE 'in_o' AS "true";
+ true 
+------
+ t
+(1 row)
+
+-- unused escape character
+SELECT 'hawkeye' LIKE 'h%' ESCAPE '#' AS "true";
+ true 
+------
+ t
+(1 row)
+
+SELECT 'hawkeye' NOT LIKE 'h%' ESCAPE '#' AS "false";
+ false 
+-------
+ f
+(1 row)
+
+SELECT 'indio' LIKE 'ind_o' ESCAPE '$' AS "true";
+ true 
+------
+ t
+(1 row)
+
+SELECT 'indio' NOT LIKE 'ind_o' ESCAPE '$' AS "false";
+ false 
+-------
+ f
+(1 row)
+
+-- escape character
+-- E061-05 like predicate with escape clause
+SELECT 'h%' LIKE 'h#%' ESCAPE '#' AS "true";
+ true 
+------
+ t
+(1 row)
+
+SELECT 'h%' NOT LIKE 'h#%' ESCAPE '#' AS "false";
+ false 
+-------
+ f
+(1 row)
+
+SELECT 'h%wkeye' LIKE 'h#%' ESCAPE '#' AS "false";
+ false 
+-------
+ f
+(1 row)
+
+SELECT 'h%wkeye' NOT LIKE 'h#%' ESCAPE '#' AS "true";
+ true 
+------
+ t
+(1 row)
+
+SELECT 'h%wkeye' LIKE 'h#%%' ESCAPE '#' AS "true";
+ true 
+------
+ t
+(1 row)
+
+SELECT 'h%wkeye' NOT LIKE 'h#%%' ESCAPE '#' AS "false";
+ false 
+-------
+ f
+(1 row)
+
+SELECT 'h%awkeye' LIKE 'h#%a%k%e' ESCAPE '#' AS "true";
+ true 
+------
+ t
+(1 row)
+
+SELECT 'h%awkeye' NOT LIKE 'h#%a%k%e' ESCAPE '#' AS "false";
+ false 
+-------
+ f
+(1 row)
+
+SELECT 'indio' LIKE '_ndio' ESCAPE '$' AS "true";
+ true 
+------
+ t
+(1 row)
+
+SELECT 'indio' NOT LIKE '_ndio' ESCAPE '$' AS "false";
+ false 
+-------
+ f
+(1 row)
+
+SELECT 'i_dio' LIKE 'i$_d_o' ESCAPE '$' AS "true";
+ true 
+------
+ t
+(1 row)
+
+SELECT 'i_dio' NOT LIKE 'i$_d_o' ESCAPE '$' AS "false";
+ false 
+-------
+ f
+(1 row)
+
+SELECT 'i_dio' LIKE 'i$_nd_o' ESCAPE '$' AS "false";
+ false 
+-------
+ f
+(1 row)
+
+SELECT 'i_dio' NOT LIKE 'i$_nd_o' ESCAPE '$' AS "true";
+ true 
+------
+ t
+(1 row)
+
+SELECT 'i_dio' LIKE 'i$_d%o' ESCAPE '$' AS "true";
+ true 
+------
+ t
+(1 row)
+
+SELECT 'i_dio' NOT LIKE 'i$_d%o' ESCAPE '$' AS "false";
+ false 
+-------
+ f
+(1 row)
+
+-- escape character same as pattern character
+SELECT 'maca' LIKE 'm%aca' ESCAPE '%' AS "true";
+ true 
+------
+ t
+(1 row)
+
+SELECT 'maca' NOT LIKE 'm%aca' ESCAPE '%' AS "false";
+ false 
+-------
+ f
+(1 row)
+
+SELECT 'ma%a' LIKE 'm%a%%a' ESCAPE '%' AS "true";
+ true 
+------
+ t
+(1 row)
+
+SELECT 'ma%a' NOT LIKE 'm%a%%a' ESCAPE '%' AS "false";
+ false 
+-------
+ f
+(1 row)
+
+SELECT 'bear' LIKE 'b_ear' ESCAPE '_' AS "true";
+ true 
+------
+ t
+(1 row)
+
+SELECT 'bear' NOT LIKE 'b_ear' ESCAPE '_' AS "false";
+ false 
+-------
+ f
+(1 row)
+
+SELECT 'be_r' LIKE 'b_e__r' ESCAPE '_' AS "true";
+ true 
+------
+ t
+(1 row)
+
+SELECT 'be_r' NOT LIKE 'b_e__r' ESCAPE '_' AS "false";
+ false 
+-------
+ f
+(1 row)
+
+SELECT 'be_r' LIKE '__e__r' ESCAPE '_' AS "false";
+ false 
+-------
+ f
+(1 row)
+
+SELECT 'be_r' NOT LIKE '__e__r' ESCAPE '_' AS "true";
+ true 
+------
+ t
+(1 row)
+
+--
+-- test ILIKE (case-insensitive LIKE)
+-- Be sure to form every test as an ILIKE/NOT ILIKE pair.
+--
+SELECT 'hawkeye' ILIKE 'h%' AS "true";
+ true 
+------
+ t
+(1 row)
+
+SELECT 'hawkeye' NOT ILIKE 'h%' AS "false";
+ false 
+-------
+ f
+(1 row)
+
+SELECT 'hawkeye' ILIKE 'H%' AS "true";
+ true 
+------
+ t
+(1 row)
+
+SELECT 'hawkeye' NOT ILIKE 'H%' AS "false";
+ false 
+-------
+ f
+(1 row)
+
+SELECT 'hawkeye' ILIKE 'H%Eye' AS "true";
+ true 
+------
+ t
+(1 row)
+
+SELECT 'hawkeye' NOT ILIKE 'H%Eye' AS "false";
+ false 
+-------
+ f
+(1 row)
+
+SELECT 'Hawkeye' ILIKE 'h%' AS "true";
+ true 
+------
+ t
+(1 row)
+
+SELECT 'Hawkeye' NOT ILIKE 'h%' AS "false";
+ false 
+-------
+ f
+(1 row)
+
+--
+-- test implicit type conversion
+--
+-- E021-07 character concatenation
+SELECT 'unknown' || ' and unknown' AS "Concat unknown types";
+ Concat unknown types 
+----------------------
+ unknown and unknown
+(1 row)
+
+SELECT text 'text' || ' and unknown' AS "Concat text to unknown type";
+ Concat text to unknown type 
+-----------------------------
+ text and unknown
+(1 row)
+
+SELECT char(20) 'characters' || ' and text' AS "Concat char to unknown type";
+ Concat char to unknown type 
+-----------------------------
+ characters and text
+(1 row)
+
+SELECT text 'text' || char(20) ' and characters' AS "Concat text to char";
+ Concat text to char 
+---------------------
+ text and characters
+(1 row)
+
+SELECT text 'text' || varchar ' and varchar' AS "Concat text to varchar";
+ Concat text to varchar 
+------------------------
+ text and varchar
+(1 row)
+
+--
+-- test substr with toasted text values
+--
+CREATE TABLE toasttest(f1 text);
+insert into toasttest values(repeat('1234567890',10000));
+insert into toasttest values(repeat('1234567890',10000));
+--
+-- Ensure that some values are uncompressed, to test the faster substring
+-- operation used in that case
+--
+alter table toasttest alter column f1 set storage external;
+insert into toasttest values(repeat('1234567890',10000));
+insert into toasttest values(repeat('1234567890',10000));
+-- If the starting position is zero or less, then return from the start of the string
+-- adjusting the length to be consistent with the "negative start" per SQL92.
+SELECT substr(f1, -1, 5) from toasttest;
+ substr 
+--------
+ 123
+ 123
+ 123
+ 123
+(4 rows)
+
+-- If the length is less than zero, an ERROR is thrown.
+SELECT substr(f1, 5, -1) from toasttest;
+ERROR:  negative substring length not allowed
+-- If no third argument (length) is provided, the length to the end of the
+-- string is assumed.
+SELECT substr(f1, 99995) from toasttest;
+ substr 
+--------
+ 567890
+ 567890
+ 567890
+ 567890
+(4 rows)
+
+-- If start plus length is > string length, the result is truncated to
+-- string length
+SELECT substr(f1, 99995, 10) from toasttest;
+ substr 
+--------
+ 567890
+ 567890
+ 567890
+ 567890
+(4 rows)
+
+DROP TABLE toasttest;
+--
+-- test substr with toasted bytea values
+--
+CREATE TABLE toasttest(f1 bytea);
+insert into toasttest values(decode(repeat('1234567890',10000),'escape'));
+insert into toasttest values(decode(repeat('1234567890',10000),'escape'));
+--
+-- Ensure that some values are uncompressed, to test the faster substring
+-- operation used in that case
+--
+alter table toasttest alter column f1 set storage external;
+insert into toasttest values(decode(repeat('1234567890',10000),'escape'));
+insert into toasttest values(decode(repeat('1234567890',10000),'escape'));
+-- If the starting position is zero or less, then return from the start of the string
+-- adjusting the length to be consistent with the "negative start" per SQL92.
+SELECT substr(f1, -1, 5) from toasttest;
+ substr 
+--------
+ 123
+ 123
+ 123
+ 123
+(4 rows)
+
+-- If the length is less than zero, an ERROR is thrown.
+SELECT substr(f1, 5, -1) from toasttest;
+ERROR:  negative substring length not allowed
+-- If no third argument (length) is provided, the length to the end of the
+-- string is assumed.
+SELECT substr(f1, 99995) from toasttest;
+ substr 
+--------
+ 567890
+ 567890
+ 567890
+ 567890
+(4 rows)
+
+-- If start plus length is > string length, the result is truncated to
+-- string length
+SELECT substr(f1, 99995, 10) from toasttest;
+ substr 
+--------
+ 567890
+ 567890
+ 567890
+ 567890
+(4 rows)
+
+DROP TABLE toasttest;
+--
+-- test length
+--
+SELECT length('abcdef') AS "length_6";
+ length_6 
+----------
+        6
+(1 row)
+
+--
+-- test strpos
+--
+SELECT strpos('abcdef', 'cd') AS "pos_3";
+ pos_3 
+-------
+     3
+(1 row)
+
+SELECT strpos('abcdef', 'xy') AS "pos_0";
+ pos_0 
+-------
+     0
+(1 row)
+
+--
+-- test replace
+--
+SELECT replace('abcdef', 'de', '45') AS "abc45f";
+ abc45f 
+--------
+ abc45f
+(1 row)
+
+SELECT replace('yabadabadoo', 'ba', '123') AS "ya123da123doo";
+ ya123da123doo 
+---------------
+ ya123da123doo
+(1 row)
+
+SELECT replace('yabadoo', 'bad', '') AS "yaoo";
+ yaoo 
+------
+ yaoo
+(1 row)
+
+--
+-- test split_part
+--
+select split_part('joeuser@mydatabase','@',0) AS "an error";
+ERROR:  field position must be greater than zero
+select split_part('joeuser@mydatabase','@',1) AS "joeuser";
+ joeuser 
+---------
+ joeuser
+(1 row)
+
+select split_part('joeuser@mydatabase','@',2) AS "mydatabase";
+ mydatabase 
+------------
+ mydatabase
+(1 row)
+
+select split_part('joeuser@mydatabase','@',3) AS "empty string";
+ empty string 
+--------------
+ 
+(1 row)
+
+select split_part('@joeuser@mydatabase@','@',2) AS "joeuser";
+ joeuser 
+---------
+ joeuser
+(1 row)
+
+--
+-- test to_hex
+--
+select to_hex(256*256*256 - 1) AS "ffffff";
+ ffffff 
+--------
+ ffffff
+(1 row)
+
+select to_hex(256::bigint*256::bigint*256::bigint*256::bigint - 1) AS "ffffffff";
+ ffffffff 
+----------
+ ffffffff
+(1 row)
+
+--
+-- MD5 test suite - from IETF RFC 1321
+-- (see: ftp://ftp.rfc-editor.org/in-notes/rfc1321.txt)
+--
+select md5('') = 'd41d8cd98f00b204e9800998ecf8427e' AS "TRUE";
+ TRUE 
+------
+ t
+(1 row)
+
+select md5('a') = '0cc175b9c0f1b6a831c399e269772661' AS "TRUE";
+ TRUE 
+------
+ t
+(1 row)
+
+select md5('abc') = '900150983cd24fb0d6963f7d28e17f72' AS "TRUE";
+ TRUE 
+------
+ t
+(1 row)
+
+select md5('message digest') = 'f96b697d7cb7938d525a2f31aaf161d0' AS "TRUE";
+ TRUE 
+------
+ t
+(1 row)
+
+select md5('abcdefghijklmnopqrstuvwxyz') = 'c3fcd3d76192e4007dfb496cca67e13b' AS "TRUE";
+ TRUE 
+------
+ t
+(1 row)
+
+select md5('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789') = 'd174ab98d277d9f5a5611c2c9f419d9f' AS "TRUE";
+ TRUE 
+------
+ t
+(1 row)
+
+select md5('12345678901234567890123456789012345678901234567890123456789012345678901234567890') = '57edf4a22be3c955ac49da2e2107b67a' AS "TRUE";
+ TRUE 
+------
+ t
+(1 row)
+

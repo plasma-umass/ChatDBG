@@ -1,0 +1,82 @@
+Special thanks go to people who have volunteered their time, effort,
+and ideas to make this software available.
+
+	Henrik Nordstrom <hno@hem.passagen.se>
+	Mark Treacy <mark@aone.com.au>
+	Daniel O'Callaghan <danny@miriworld.its.unimelb.EDU.AU>
+	George Michaelson <ggm@connect.com.au>
+	Taavi Talvik <taavi@uninet.ee>
+	Luke Howard <lukeh@vurt.schnet.edu.au>
+	Assar Westerlund <assar@pdc.kth.se>
+	James R Grinter <jrg@demon.net>
+	Shigechika Aikawa <shige@luck.imasy.or.jp>
+	Russell Vincent <vincent@ucthpx.uct.ac.za>
+	Edward Moy <moy@parc.xerox.com>
+	Jean-Francois Micouleau <Jean-Francois.Micouleau@utc.fr>
+	Ansgar Hockmann <Ansgar.Hockmann@hrz.uni-dortmund.de>
+	Joe Ramey <ramey@jello.csc.ti.com>
+	Kolics Bertold <bertold@tohotom.vein.hu>
+	Doug Urner <dlu@bsdi.com>
+	Markus Gyger <mgyger@itr.ch>
+	Richard Huveneers <Richard.Huveneers@hekkihek.hacom.nl>
+	Markus Stumpf <maex@Space.NET>
+	Wojtek Sylwestrzak <W.Sylwestrzak@icm.edu.pl>
+	Brian Denehy <B-Denehy@adfa.oz.au>
+	David Luyer <luyer@ucs.uwa.edu.au>
+	Carson Gaspar (carson@lehman.com, carson@cs.columbia.edu)
+	Pete Bentley <pete@demon.net>
+	Alexander B. Demenshin <aldem@barnet.kharkov.ua>
+	Tony Lorimer <tlorimer@au.mdis.com>
+	Igor Vinokurov <igor@cs.ibank.ru>
+	Russell Street <r.street@auckland.ac.nz>
+	Cord Beermann <cord@cc.fh-lippe.de>
+	Stephen R. van den Berg <srb@cuci.nl>
+	Jon Thackray <jrmt@uk.gdscorp.com>
+	John Saunders <johns@rd.scitec.com.au>
+	Endre Balint Nagy <bne@CareNet.hu>
+	Geoff Keating <Geoff.Keating@anu.edu.au>
+	Arjan de Vet <Arjan.deVet@adv.IAEhv.nl>
+	Mike Groeneweg <mikeg@scorpion.murdoch.edu.au>
+	Michael Mansour <mic@shell.gnxs.com.au>
+	Ralph Loader <loader@maths.ox.ac.uk>
+	Miguel A.L. Paraz <map@iphil.net>
+	Jonathan Larmour <JLarmour@origin-at.co.uk>
+	Andres Kroonmaa <andre@ml.ee>
+	Stewart Forster <slf@connect.com.au>
+	Anthony Baxter <arb@connect.com.au>
+	Martin Hamilton <martin@mrrl.lut.ac.uk>
+	Ed Knowles <ed@fatboy.geog.unsw.edu.au>
+	Neil Murray <neil@aone.com.au>
+	Jonathan Larmour <JLarmour@origin-at.co.uk>
+	Andreas Lamprecht <Andreas.Lamprecht@siemens.at>
+	Ron Gomes <rrg@ny.ubs.com>
+	Jan Niehusmann <jan@anduin.gondor.mcs.de>
+	Taketo Kabe <kabe@shiratori.riec.tohoku.ac.jp>
+	Mukaigawa Shin'ichi <shin@nff.ncl.omron.co.jp>
+	Lutz Donnerhacke <lutz@iks-jena.de>
+	Gerben Wierda <Gerben_Wierda@RnA.nl>
+	Oskar Pearson <oskar@is.co.za>
+	Michael O'Reilly <michael@metal.iinet.net.au>
+	Max Okumoto <okumoto@ucsd.edu>
+	Pierre-Louis BRENAC <brenacp@esiee.fr>
+	Wesha <wesha@iname.com>
+	Masashi Fujita <objectx@bandit.co.jp>
+	Michael Pelletier <mikep@comshare.com>
+	Pedro Lineu Orso <orso@pop.hsbcbamerindus.com.br>
+	Hide Nagaoka <hide@cc.meisei-u.ac.jp>
+	Kostas Anagnostakis <kanag@csi.forth.gr>
+	Eric Stern <estern@packetstorm.on.ca>
+	Michael Lupp <mike@nemesis.saar.de>
+	Niall Doherty <ndoherty@eei.ericsson.se>
+	Pedro Ribeiro <pribeiro@isel.pt>
+	John Dilley <jad@hpl.hp.com>
+
+Development of this caching software is funded by the National Science
+Foundation (grants NCR-9616602 and NCR-9521745).  Paid staff members on
+the caching project are:
+
+	Duane Wessels <wessels@ircache.net>
+	Alex Rousskov <rousskov@ircache.net>
+	Glenn Chisholm <glenn@ircache.net>
+	K Claffy <kc@nlanr.net>
+	Hans-Werner Braun <hwb@nlanr.net>

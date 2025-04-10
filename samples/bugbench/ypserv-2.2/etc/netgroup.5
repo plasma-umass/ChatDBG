@@ -1,0 +1,69 @@
+.\" -*- nroff -*-
+.TH netgroup 5 "May 1999" "NIS" "Linux Reference Manual"
+.SH NAME
+netgroup - specify network groups
+.SH DESCRIPTION
+The
+.B netgroup
+file  defines "netgroups", which are sets of (host, user, domain)
+tuples, used for permission checking when doing remote mounts,
+remote logins and remote shells.
+
+Each line in the file consists of a netgroup name followed by a
+by a list of members, where a member is either another netgroup name,
+or a triple:
+.IP
+.RI ( host ,
+.IR user ,
+.IR domain )
+.LP
+where the
+.IR host ,
+.IR user ,
+and
+.I domain
+are character strings for the
+corresponding components. Any of the three fields can be empty,
+in which case it specifies a "wildcard", or may consist of the string
+"-" to specify "no valid value". The
+.I domain
+field must either be the local domain name or empty for the netgroup
+entry to be used. This field does not limit the netgroup or provide
+security. The domain field refers to the domain in which the triple
+is valid, not the domain containing the the trusted host.
+
+A gateway machine should be listed under all possible
+hostnames by which it may be recognized:
+.IP
+gateway (server,\|,\|) (server-sn,\|,\|) (server-bb,\|,\|)
+.LP
+
+The getnetgrent functions should normally be used to access the
+netgroup database.
+
+.SH FILES
+/etc/netgroup
+.SH "SEE ALSO"
+.BR getnetgrent (3),
+.BR exports (5),
+.BR makedbm (8),
+.BR ypserv (8)
+.SH WARNINGS
+The triple (,,domain) allows all users and machines trusted
+access, and has the same effect as the triple (,,). Use the
+.I host
+and
+.I user
+fields of the triple to restrict the access
+correctly to a specific set of members.
+.SH BUGS
+The Linux libc5 does not query the /etc/netgroup file directly,
+it only querys the NIS server for the groups. So the netgroup
+database must be stored in the form of a hashed dbm database
+just like the passwd(5) and group(5) databases.
+.PP
+This manpage mentions getnetgrent(3), but it seems that manpage
+hasn't been written yet. Since getnetgrent() is part of GNU libc it might
+also be that it is documented in \fIinfo\fP format.
+.SH AUTHOR
+Thorsten Kukuk <kukuk@suse.de>

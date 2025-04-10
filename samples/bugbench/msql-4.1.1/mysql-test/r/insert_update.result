@@ -1,0 +1,69 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a INT, b INT, c INT, UNIQUE (A), UNIQUE(B));
+INSERT t1 VALUES (1,2,10), (3,4,20);
+INSERT t1 VALUES (5,6,30) ON DUPLICATE KEY UPDATE c=c+100;
+SELECT * FROM t1;
+a	b	c
+1	2	10
+3	4	20
+5	6	30
+INSERT t1 VALUES (5,7,40) ON DUPLICATE KEY UPDATE c=c+100;
+SELECT * FROM t1;
+a	b	c
+1	2	10
+3	4	20
+5	6	130
+INSERT t1 VALUES (8,4,50) ON DUPLICATE KEY UPDATE c=c+1000;
+SELECT * FROM t1;
+a	b	c
+1	2	10
+3	4	1020
+5	6	130
+INSERT t1 VALUES (1,4,60) ON DUPLICATE KEY UPDATE c=c+10000;
+SELECT * FROM t1;
+a	b	c
+1	2	10010
+3	4	1020
+5	6	130
+INSERT t1 VALUES (1,9,70) ON DUPLICATE KEY UPDATE c=c+100000, b=4;
+ERROR 23000: Duplicate entry '4' for key 2
+SELECT * FROM t1;
+a	b	c
+1	2	10010
+3	4	1020
+5	6	130
+TRUNCATE TABLE t1;
+INSERT t1 VALUES (1,2,10), (3,4,20);
+INSERT t1 VALUES (5,6,30), (7,4,40), (8,9,60) ON DUPLICATE KEY UPDATE c=c+100;
+SELECT * FROM t1;
+a	b	c
+1	2	10
+3	4	120
+5	6	30
+8	9	60
+INSERT t1 SET a=5 ON DUPLICATE KEY UPDATE b=0;
+SELECT * FROM t1;
+a	b	c
+1	2	10
+3	4	120
+5	0	30
+8	9	60
+INSERT t1 VALUES (2,1,11), (7,4,40) ON DUPLICATE KEY UPDATE c=c+VALUES(a);
+SELECT *, VALUES(a) FROM t1;
+a	b	c	VALUES(a)
+1	2	10	NULL
+3	4	127	NULL
+5	0	30	NULL
+8	9	60	NULL
+2	1	11	NULL
+explain extended SELECT *, VALUES(a) FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
+Warnings:
+Note	1003	select high_priority test.t1.a AS `a`,test.t1.b AS `b`,test.t1.c AS `c`,values(test.t1.a) AS `VALUES(a)` from test.t1
+explain extended select * from t1 where values(a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	select high_priority test.t1.a AS `a`,test.t1.b AS `b`,test.t1.c AS `c` from test.t1
+DROP TABLE t1;

@@ -1,0 +1,13 @@
+#
+# timezone     The timezone file. Entries look like this:
+# 
+#                 timezone  NIS-domain
+# 
+#              So for example a timezone for nis.domain could be:
+# 
+#                 MET  nis.domain
+#                 
+# This file is not used by Linux, but by other Unix like Solaris
+                  
+# MET  nis.domain 
+

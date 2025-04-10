@@ -1,0 +1,1571 @@
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t11,t12;
+select (select 2);
+(select 2)
+2
+explain extended select (select 2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1248	Select 2 was reduced during optimisation
+Note	1003	select high_priority 2 AS `(select 2)`
+SELECT (SELECT 1) UNION SELECT (SELECT 2);
+(SELECT 1)
+1
+2
+explain extended SELECT (SELECT 1) UNION SELECT (SELECT 2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1248	Select 2 was reduced during optimisation
+Note	1248	Select 4 was reduced during optimisation
+Note	1003	select high_priority 1 AS `(SELECT 1)` union select 2 AS `(SELECT 2)`
+SELECT (SELECT (SELECT 0 UNION SELECT 0));
+(SELECT (SELECT 0 UNION SELECT 0))
+0
+explain extended SELECT (SELECT (SELECT 0 UNION SELECT 0));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+4	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1248	Select 2 was reduced during optimisation
+Note	1003	select high_priority (select 0 AS `0` union select 0 AS `0`) AS `(SELECT (SELECT 0 UNION SELECT 0))`
+SELECT (SELECT 1 FROM (SELECT 1) as b HAVING a=1) as a;
+ERROR 42S22: Reference 'a' not supported (forward reference in item list)
+SELECT (SELECT 1 FROM (SELECT 1) as b HAVING b=1) as a,(SELECT 1 FROM (SELECT 1) as c HAVING a=1) as b;
+ERROR 42S22: Reference 'b' not supported (forward reference in item list)
+SELECT (SELECT 1),MAX(1) FROM (SELECT 1) as a;
+(SELECT 1)	MAX(1)
+1	1
+SELECT (SELECT a) as a;
+ERROR 42S22: Reference 'a' not supported (forward reference in item list)
+EXPLAIN EXTENDED SELECT 1 FROM (SELECT 1 as a) as b  HAVING (SELECT a)=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1275	Field or reference 'a' of SELECT #3 was resolved in SELECT #1
+Note	1275	Field or reference 'b.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	select high_priority 1 AS `1` from (select 1 AS `a`) b having ((select b.a AS `a`) = 1)
+SELECT 1 FROM (SELECT 1 as a) as b HAVING (SELECT a)=1;
+1
+1
+SELECT (SELECT 1), a;
+ERROR 42S22: Unknown column 'a' in 'checking transformed subquery'
+SELECT 1 as a FROM (SELECT 1) as b HAVING (SELECT a)=1;
+a
+1
+SELECT 1 FROM (SELECT (SELECT a) b) c;
+ERROR 42S22: Unknown column 'a' in 'field list'
+SELECT * FROM (SELECT 1 as id) b WHERE id IN (SELECT * FROM (SELECT 1 as id) c ORDER BY id);
+id
+1
+SELECT * FROM (SELECT 1) a  WHERE 1 IN (SELECT 1,1);
+ERROR 21000: Operand should contain 1 column(s)
+SELECT 1 IN (SELECT 1);
+1 IN (SELECT 1)
+1
+SELECT 1 FROM (SELECT 1 as a) b WHERE 1 IN (SELECT (SELECT a));
+1
+1
+select (SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE(1));
+ERROR HY000: Wrong usage of PROCEDURE and subquery
+SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE((SELECT 1));
+ERROR HY000: Incorrect parameters to procedure 'ANALYSE'
+SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NULL;
+a
+SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NOT NULL;
+a
+1
+SELECT (SELECT 1,2,3) = ROW(1,2,3);
+(SELECT 1,2,3) = ROW(1,2,3)
+1
+SELECT (SELECT 1,2,3) = ROW(1,2,1);
+(SELECT 1,2,3) = ROW(1,2,1)
+0
+SELECT (SELECT 1,2,3) < ROW(1,2,1);
+(SELECT 1,2,3) < ROW(1,2,1)
+0
+SELECT (SELECT 1,2,3) > ROW(1,2,1);
+(SELECT 1,2,3) > ROW(1,2,1)
+1
+SELECT (SELECT 1,2,3) = ROW(1,2,NULL);
+(SELECT 1,2,3) = ROW(1,2,NULL)
+NULL
+SELECT ROW(1,2,3) = (SELECT 1,2,3);
+ROW(1,2,3) = (SELECT 1,2,3)
+1
+SELECT ROW(1,2,3) = (SELECT 1,2,1);
+ROW(1,2,3) = (SELECT 1,2,1)
+0
+SELECT ROW(1,2,3) < (SELECT 1,2,1);
+ROW(1,2,3) < (SELECT 1,2,1)
+0
+SELECT ROW(1,2,3) > (SELECT 1,2,1);
+ROW(1,2,3) > (SELECT 1,2,1)
+1
+SELECT ROW(1,2,3) = (SELECT 1,2,NULL);
+ROW(1,2,3) = (SELECT 1,2,NULL)
+NULL
+SELECT (SELECT 1.5,2,'a') = ROW(1.5,2,'a');
+(SELECT 1.5,2,'a') = ROW(1.5,2,'a')
+1
+SELECT (SELECT 1.5,2,'a') = ROW(1.5,2,'b');
+(SELECT 1.5,2,'a') = ROW(1.5,2,'b')
+0
+SELECT (SELECT 1.5,2,'a') = ROW('b',2,'b');
+(SELECT 1.5,2,'a') = ROW('b',2,'b')
+0
+SELECT (SELECT 'b',2,'a') = ROW(1.5,2,'a');
+(SELECT 'b',2,'a') = ROW(1.5,2,'a')
+0
+SELECT (SELECT 1.5,2,'a') = ROW(1.5,'c','a');
+(SELECT 1.5,2,'a') = ROW(1.5,'c','a')
+0
+SELECT (SELECT 1.5,'c','a') = ROW(1.5,2,'a');
+(SELECT 1.5,'c','a') = ROW(1.5,2,'a')
+0
+SELECT (SELECT * FROM (SELECT 'test' a,'test' b) a);
+ERROR 21000: Operand should contain 1 column(s)
+SELECT 1 as a,(SELECT a+a) b,(SELECT b);
+a	b	(SELECT b)
+1	2	2
+create table t1 (a int);
+create table t2 (a int, b int);
+create table t3 (a int);
+create table t4 (a int not null, b int not null);
+insert into t1 values (2);
+insert into t2 values (1,7),(2,7);
+insert into t4 values (4,8),(3,8),(5,9);
+select (select a from t1 where t1.a = a1) as a2, (select b from t2 where t2.b=a2) as a1;
+ERROR 42S22: Reference 'a1' not supported (forward reference in item list)
+select (select a from t1 where t1.a=t2.a), a from t2;
+(select a from t1 where t1.a=t2.a)	a
+NULL	1
+2	2
+select (select a from t1 where t1.a=t2.b), a from t2;
+(select a from t1 where t1.a=t2.b)	a
+NULL	1
+NULL	2
+select (select a from t1), a, (select 1 union select 2 limit 1) from t2;
+(select a from t1)	a	(select 1 union select 2 limit 1)
+2	1	1
+2	2	1
+select (select a from t3), a from t2;
+(select a from t3)	a
+NULL	1
+NULL	2
+select * from t2 where t2.a=(select a from t1);
+a	b
+2	7
+insert into t3 values (6),(7),(3);
+select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1);
+a	b
+1	7
+2	7
+(select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1)) union (select * from t4 order by a limit 2) limit 3;
+a	b
+1	7
+2	7
+3	8
+(select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1)) union (select * from t4 where t4.b=(select max(t2.a)*4 from t2) order by a);
+a	b
+1	7
+2	7
+3	8
+4	8
+explain extended (select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1)) union (select * from t4 where t4.b=(select max(t2.a)*4 from t2) order by a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	Using filesort
+3	UNION	t4	ALL	NULL	NULL	NULL	NULL	3	Using where; Using filesort
+4	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+Warnings:
+Note	1003	(select high_priority test.t2.a AS `a`,test.t2.b AS `b` from test.t2 where (test.t2.b = (select test.t3.a AS `a` from test.t3 order by test.t3.a desc limit 1))) union (select test.t4.a AS `a`,test.t4.b AS `b` from test.t4 where (test.t4.b = (select (max(test.t2.a) * 4) AS `max(t2.a)*4` from test.t2)) order by test.t4.a)
+select (select a from t3 where a<t2.a*4 order by 1 desc limit 1), a from t2;
+(select a from t3 where a<t2.a*4 order by 1 desc limit 1)	a
+3	1
+7	2
+select (select t3.a from t3 where a<8 order by 1 desc limit 1), a from 
+(select * from t2 where a>1) as tt;
+(select t3.a from t3 where a<8 order by 1 desc limit 1)	a
+7	2
+explain extended select (select t3.a from t3 where a<8 order by 1 desc limit 1), a from 
+(select * from t2 where a>1) as tt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived3>	system	NULL	NULL	NULL	NULL	1	
+3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where; Using filesort
+Warnings:
+Note	1003	select high_priority (select test.t3.a AS `a` from test.t3 where (test.t3.a < 8) order by test.t3.a desc limit 1) AS `(select t3.a from t3 where a<8 order by 1 desc limit 1)`,tt.a AS `a` from (select test.t2.a AS `a`,test.t2.b AS `b` from test.t2 where (test.t2.a > 1)) tt
+select * from t1 where t1.a=(select t2.a from t2 where t2.b=(select max(a) from t3) order by 1 desc limit 1);
+a
+2
+select * from t1 where t1.a=(select t2.a from t2 where t2.b=(select max(a) from t3 where t3.a > t1.a) order by 1 desc limit 1);
+a
+2
+select * from t1 where t1.a=(select t2.a from t2 where t2.b=(select max(a) from t3 where t3.a < t1.a) order by 1 desc limit 1);
+a
+select b,(select avg(t2.a+(select min(t3.a) from t3 where t3.a >= t4.a)) from t2) from t4;
+b	(select avg(t2.a+(select min(t3.a) from t3 where t3.a >= t4.a)) from t2)
+8	7.5000
+8	4.5000
+9	7.5000
+explain extended select b,(select avg(t2.a+(select min(t3.a) from t3 where t3.a >= t4.a)) from t2) from t4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t4	ALL	NULL	NULL	NULL	NULL	3	
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+3	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
+Warnings:
+Note	1275	Field or reference 't4.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	select high_priority test.t4.b AS `b`,(select avg((test.t2.a + (select min(test.t3.a) AS `min(t3.a)` from test.t3 where (test.t3.a >= test.t4.a)))) AS `avg(t2.a+(select min(t3.a) from t3 where t3.a >= t4.a))` from test.t2) AS `(select avg(t2.a+(select min(t3.a) from t3 where t3.a >= t4.a)) from t2)` from test.t4
+select * from t3 where exists (select * from t2 where t2.b=t3.a);
+a
+7
+select * from t3 where not exists (select * from t2 where t2.b=t3.a);
+a
+6
+3
+select * from t3 where a in (select b from t2);
+a
+7
+select * from t3 where a not in (select b from t2);
+a
+6
+3
+select * from t3 where a = some (select b from t2);
+a
+7
+select * from t3 where a <> any (select b from t2);
+a
+6
+3
+select * from t3 where a = all (select b from t2);
+a
+7
+select * from t3 where a <> all (select b from t2);
+a
+6
+3
+insert into t2 values (100, 5);
+select * from t3 where a < any (select b from t2);
+a
+6
+3
+select * from t3 where a < all (select b from t2);
+a
+3
+select * from t3 where a >= any (select b from t2);
+a
+6
+7
+explain extended select * from t3 where a >= any (select b from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	
+Warnings:
+Note	1003	select high_priority test.t3.a AS `a` from test.t3 where (test.t3.a >= (select min(test.t2.b) from test.t2 limit 1))
+select * from t3 where a >= all (select b from t2);
+a
+7
+delete from t2 where a=100;
+select * from t3 where a in (select a,b from t2);
+ERROR 21000: Operand should contain 1 column(s)
+select * from t3 where a in (select * from t2);
+ERROR 21000: Operand should contain 1 column(s)
+insert into t4 values (12,7),(1,7),(10,9),(9,6),(7,6),(3,9),(1,10);
+select b,max(a) as ma from t4 group by b having b < (select max(t2.a) from t2 where t2.b=t4.b);
+b	ma
+insert into t2 values (2,10);
+select b,max(a) as ma from t4 group by b having ma < (select max(t2.a) from t2 where t2.b=t4.b);
+b	ma
+10	1
+delete from t2 where a=2 and b=10;
+select b,max(a) as ma from t4 group by b having b >= (select max(t2.a) from t2 where t2.b=t4.b);
+b	ma
+7	12
+create table t5 (a int);
+select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
+(select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a)	a
+NULL	1
+2	2
+insert into t5 values (5);
+select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
+(select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a)	a
+NULL	1
+2	2
+insert into t5 values (2);
+select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
+(select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a)	a
+NULL	1
+2	2
+explain extended select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	DEPENDENT SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	
+3	DEPENDENT UNION	t5	ALL	NULL	NULL	NULL	NULL	2	Using where
+Warnings:
+Note	1275	Field or reference 't2.a' of SELECT #2 was resolved in SELECT #1
+Note	1275	Field or reference 't2.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	select high_priority (select test.t1.a AS `a` from test.t1 where (test.t1.a = test.t2.a) union select test.t5.a AS `a` from test.t5 where (test.t5.a = test.t2.a)) AS `(select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a)`,test.t2.a AS `a` from test.t2
+select (select a from t1 where t1.a=t2.a union all select a from t5 where t5.a=t2.a), a from t2;
+ERROR 21000: Subquery returns more than 1 row
+create table t6 (patient_uq int, clinic_uq int, index i1 (clinic_uq));
+create table t7( uq int primary key, name char(25));
+insert into t7 values(1,"Oblastnaia bolnitsa"),(2,"Bolnitsa Krasnogo Kresta");
+insert into t6 values (1,1),(1,2),(2,2),(1,3);
+select * from t6 where exists (select * from t7 where uq = clinic_uq);
+patient_uq	clinic_uq
+1	1
+1	2
+2	2
+explain extended select * from t6 where exists (select * from t7 where uq = clinic_uq);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t6	ALL	NULL	NULL	NULL	NULL	4	Using where
+2	DEPENDENT SUBQUERY	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.clinic_uq	1	
+Warnings:
+Note	1275	Field or reference 'clinic_uq' of SELECT #2 was resolved in SELECT #1
+Note	1003	select high_priority test.t6.patient_uq AS `patient_uq`,test.t6.clinic_uq AS `clinic_uq` from test.t6 where exists(select test.t7.uq AS `uq`,test.t7.name AS `name` from test.t7 where (test.t7.uq = test.t6.clinic_uq) limit 1)
+select * from t1 where a= (select a from t2,t4 where t2.b=t4.b);
+ERROR 23000: Column: 'a' in field list is ambiguous
+drop table if exists t1,t2,t3;
+CREATE TABLE t3 (a varchar(20),b char(1) NOT NULL default '0');
+INSERT INTO t3 VALUES ('W','a'),('A','c'),('J','b');
+CREATE TABLE t2 (a varchar(20),b int NOT NULL default '0');
+INSERT INTO t2 VALUES ('W','1'),('A','3'),('J','2');
+CREATE TABLE t1 (a varchar(20),b date NOT NULL default '0000-00-00');
+INSERT INTO t1 VALUES ('W','1732-02-22'),('A','1735-10-30'),('J','1743-04-13');
+SELECT * FROM t1 WHERE b = (SELECT MIN(b) FROM t1);
+a	b
+W	1732-02-22
+SELECT * FROM t2 WHERE b = (SELECT MIN(b) FROM t2);
+a	b
+W	1
+SELECT * FROM t3 WHERE b = (SELECT MIN(b) FROM t3);
+a	b
+W	a
+CREATE TABLE `t8` (
+`pseudo` varchar(35) character set latin1 NOT NULL default '',
+`email` varchar(60) character set latin1 NOT NULL default '',
+PRIMARY KEY  (`pseudo`),
+UNIQUE KEY `email` (`email`)
+) TYPE=MyISAM CHARSET=latin1 ROW_FORMAT=DYNAMIC;
+INSERT INTO t8 (pseudo,email) VALUES ('joce','test');
+INSERT INTO t8 (pseudo,email) VALUES ('joce1','test1');
+INSERT INTO t8 (pseudo,email) VALUES ('2joce1','2test1');
+EXPLAIN EXTENDED SELECT pseudo,(SELECT email FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce')) FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t8	const	PRIMARY	PRIMARY	35	const	1	
+4	SUBQUERY	t8	const	PRIMARY	PRIMARY	35		1	
+2	SUBQUERY	t8	const	PRIMARY	PRIMARY	35	const	1	
+3	SUBQUERY	t8	const	PRIMARY	PRIMARY	35		1	
+Warnings:
+Note	1003	select high_priority test.t8.pseudo AS `pseudo`,(select test.t8.email AS `email` from test.t8 where (test.t8.pseudo = (select test.t8.pseudo AS `pseudo` from test.t8 where (test.t8.pseudo = _latin1'joce')))) AS `(SELECT email FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce'))` from test.t8 where (test.t8.pseudo = (select test.t8.pseudo AS `pseudo` from test.t8 where (test.t8.pseudo = _latin1'joce')))
+SELECT pseudo FROM t8 WHERE pseudo=(SELECT pseudo,email FROM
+t8 WHERE pseudo='joce');
+ERROR 21000: Operand should contain 1 column(s)
+SELECT pseudo FROM t8 WHERE pseudo=(SELECT * FROM t8 WHERE
+pseudo='joce');
+ERROR 21000: Operand should contain 1 column(s)
+SELECT pseudo FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce');
+pseudo
+joce
+SELECT pseudo FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo LIKE '%joce%');
+ERROR 21000: Subquery returns more than 1 row
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8;
+CREATE TABLE `t1` (
+`topic` mediumint(8) unsigned NOT NULL default '0',
+`date` date NOT NULL default '0000-00-00',
+`pseudo` varchar(35) character set latin1 NOT NULL default '',
+PRIMARY KEY  (`pseudo`,`date`,`topic`),
+KEY `topic` (`topic`)
+) TYPE=MyISAM ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 (topic,date,pseudo) VALUES
+('43506','2002-10-02','joce'),('40143','2002-08-03','joce');
+EXPLAIN EXTENDED SELECT DISTINCT date FROM t1 WHERE date='2002-08-03';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	41	NULL	2	Using where; Using index
+Warnings:
+Note	1003	select high_priority distinct test.t1.date AS `date` from test.t1 where (test.t1.date = 20020803)
+EXPLAIN EXTENDED SELECT (SELECT DISTINCT date FROM t1 WHERE date='2002-08-03');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	t1	index	NULL	PRIMARY	41	NULL	2	Using where; Using index
+Warnings:
+Note	1003	select high_priority (select distinct test.t1.date AS `date` from test.t1 where (test.t1.date = 20020803)) AS `(SELECT DISTINCT date FROM t1 WHERE date='2002-08-03')`
+SELECT DISTINCT date FROM t1 WHERE date='2002-08-03';
+date
+2002-08-03
+SELECT (SELECT DISTINCT date FROM t1 WHERE date='2002-08-03');
+(SELECT DISTINCT date FROM t1 WHERE date='2002-08-03')
+2002-08-03
+SELECT 1 FROM t1 WHERE 1=(SELECT 1 UNION SELECT 1) UNION ALL SELECT 1;
+1
+1
+1
+1
+SELECT 1 FROM t1 WHERE 1=(SELECT 1 UNION ALL SELECT 1) UNION SELECT 1;
+ERROR 21000: Subquery returns more than 1 row
+EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1=(SELECT 1 UNION SELECT 1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	topic	3	NULL	2	Using index
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select high_priority 1 AS `1` from test.t1
+drop table t1;
+CREATE TABLE `t1` (
+`numeropost` mediumint(8) unsigned NOT NULL auto_increment,
+`maxnumrep` int(10) unsigned NOT NULL default '0',
+PRIMARY KEY  (`numeropost`),
+UNIQUE KEY `maxnumrep` (`maxnumrep`)
+) TYPE=MyISAM ROW_FORMAT=FIXED;
+INSERT INTO t1 (numeropost,maxnumrep) VALUES (40143,1),(43506,2);
+CREATE TABLE `t2` (
+`mot` varchar(30) NOT NULL default '',
+`topic` mediumint(8) unsigned NOT NULL default '0',
+`date` date NOT NULL default '0000-00-00',
+`pseudo` varchar(35) NOT NULL default '',
+PRIMARY KEY  (`mot`,`pseudo`,`date`,`topic`)
+) TYPE=MyISAM ROW_FORMAT=DYNAMIC;
+INSERT INTO t2 (mot,topic,date,pseudo) VALUES ('joce','40143','2002-10-22','joce'), ('joce','43506','2002-10-22','joce');
+select numeropost as a FROM t1 GROUP BY (SELECT 1 FROM t1 HAVING a=1);
+a
+40143
+SELECT numeropost,maxnumrep FROM t1 WHERE exists (SELECT 1 FROM t2 WHERE (mot='joce') AND date >= '2002-10-21' AND t1.numeropost = t2.topic) ORDER BY maxnumrep DESC LIMIT 0, 20;
+numeropost	maxnumrep
+43506	2
+40143	1
+SELECT (SELECT 1) as a FROM (SELECT 1 FROM t1 HAVING a=1) b;
+ERROR 42S22: Unknown column 'a' in 'having clause'
+SELECT 1 IN (SELECT 1 FROM t2 HAVING a);
+ERROR 42S22: Unknown column 'a' in 'having clause'
+SELECT * from t2 where topic IN (SELECT topic FROM t2 GROUP BY topic);
+mot	topic	date	pseudo
+joce	40143	2002-10-22	joce
+joce	43506	2002-10-22	joce
+SELECT * from t2 where topic IN (SELECT topic FROM t2 GROUP BY topic HAVING topic < 4100);
+mot	topic	date	pseudo
+SELECT * from t2 where topic IN (SELECT SUM(topic) FROM t1);
+mot	topic	date	pseudo
+SELECT * from t2 where topic = any (SELECT topic FROM t2 GROUP BY topic);
+mot	topic	date	pseudo
+joce	40143	2002-10-22	joce
+joce	43506	2002-10-22	joce
+SELECT * from t2 where topic = any (SELECT topic FROM t2 GROUP BY topic HAVING topic < 4100);
+mot	topic	date	pseudo
+SELECT * from t2 where topic = any (SELECT SUM(topic) FROM t1);
+mot	topic	date	pseudo
+SELECT * from t2 where topic = all (SELECT topic FROM t2 GROUP BY topic);
+mot	topic	date	pseudo
+SELECT * from t2 where topic = all (SELECT topic FROM t2 GROUP BY topic HAVING topic < 4100);
+mot	topic	date	pseudo
+joce	40143	2002-10-22	joce
+joce	43506	2002-10-22	joce
+SELECT *, topic = all (SELECT topic FROM t2 GROUP BY topic HAVING topic < 4100) from t2;
+mot	topic	date	pseudo	topic = all (SELECT topic FROM t2 GROUP BY topic HAVING topic < 4100)
+joce	40143	2002-10-22	joce	1
+joce	43506	2002-10-22	joce	1
+SELECT * from t2 where topic = all (SELECT SUM(topic) FROM t2);
+mot	topic	date	pseudo
+SELECT * from t2 where topic <> any (SELECT SUM(topic) FROM t2);
+mot	topic	date	pseudo
+joce	40143	2002-10-22	joce
+joce	43506	2002-10-22	joce
+SELECT * from t2 where topic IN (SELECT topic FROM t2 GROUP BY topic HAVING topic < 41000);
+mot	topic	date	pseudo
+joce	40143	2002-10-22	joce
+SELECT * from t2 where topic = any (SELECT topic FROM t2 GROUP BY topic HAVING topic < 41000);
+mot	topic	date	pseudo
+joce	40143	2002-10-22	joce
+SELECT * from t2 where topic = all (SELECT topic FROM t2 GROUP BY topic HAVING topic < 41000);
+mot	topic	date	pseudo
+joce	40143	2002-10-22	joce
+SELECT *, topic = all (SELECT topic FROM t2 GROUP BY topic HAVING topic < 41000) from t2;
+mot	topic	date	pseudo	topic = all (SELECT topic FROM t2 GROUP BY topic HAVING topic < 41000)
+joce	40143	2002-10-22	joce	1
+joce	43506	2002-10-22	joce	0
+drop table t1,t2;
+CREATE TABLE `t1` (
+`numeropost` mediumint(8) unsigned NOT NULL auto_increment,
+`maxnumrep` int(10) unsigned NOT NULL default '0',
+PRIMARY KEY  (`numeropost`),
+UNIQUE KEY `maxnumrep` (`maxnumrep`)
+) TYPE=MyISAM ROW_FORMAT=FIXED;
+INSERT INTO t1 (numeropost,maxnumrep) VALUES (1,0),(2,1);
+select numeropost as a FROM t1 GROUP BY (SELECT 1 FROM t1 HAVING a=1);
+ERROR 21000: Subquery returns more than 1 row
+select numeropost as a FROM t1 ORDER BY (SELECT 1 FROM t1 HAVING a=1);
+ERROR 21000: Subquery returns more than 1 row
+drop table t1;
+create table t1 (a int);
+insert into t1 values (1),(2),(3);
+(select * from t1) union (select * from t1) order by (select a from t1 limit 1);
+a
+1
+2
+3
+drop table t1;
+CREATE TABLE t1 (field char(1) NOT NULL DEFAULT 'b');
+INSERT INTO t1 VALUES ();
+SELECT field FROM t1 WHERE 1=(SELECT 1 UNION ALL SELECT 1 FROM (SELECT 1) a HAVING field='b');
+ERROR 21000: Subquery returns more than 1 row
+drop table t1;
+CREATE TABLE `t1` (
+`numeropost` mediumint(8) unsigned NOT NULL default '0',
+`numreponse` int(10) unsigned NOT NULL auto_increment,
+`pseudo` varchar(35) NOT NULL default '',
+PRIMARY KEY  (`numeropost`,`numreponse`),
+UNIQUE KEY `numreponse` (`numreponse`),
+KEY `pseudo` (`pseudo`,`numeropost`)
+) TYPE=MyISAM;
+SELECT (SELECT numeropost FROM t1 HAVING numreponse=a),numreponse FROM (SELECT * FROM t1) as a;
+ERROR 42S22: Reference 'numreponse' not supported (forward reference in item list)
+SELECT numreponse, (SELECT numeropost FROM t1 HAVING numreponse=a) FROM (SELECT * FROM t1) as a;
+ERROR 42S22: Unknown column 'a' in 'having clause'
+SELECT numreponse, (SELECT numeropost FROM t1 HAVING numreponse=1) FROM (SELECT * FROM t1) as a;
+numreponse	(SELECT numeropost FROM t1 HAVING numreponse=1)
+INSERT INTO t1 (numeropost,numreponse,pseudo) VALUES (1,1,'joce'),(1,2,'joce'),(1,3,'test');
+EXPLAIN EXTENDED SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT 1 FROM t1 WHERE numeropost='1');
+ERROR 21000: Subquery returns more than 1 row
+EXPLAIN EXTENDED SELECT MAX(numreponse) FROM t1 WHERE numeropost='1';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Note	1003	select high_priority max(test.t1.numreponse) AS `MAX(numreponse)` from test.t1 where (test.t1.numeropost = _latin1'1')
+EXPLAIN EXTENDED SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT MAX(numreponse) FROM t1 WHERE numeropost='1');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	const	PRIMARY,numreponse	PRIMARY	7	const,const	1	
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Note	1003	select high_priority test.t1.numreponse AS `numreponse` from test.t1 where ((test.t1.numeropost = _latin1'1') and (test.t1.numreponse = 3))
+drop table t1;
+CREATE TABLE t1 (a int(1));
+INSERT INTO t1 VALUES (1);
+SELECT 1 FROM (SELECT a FROM t1) b HAVING (SELECT b.a)=1;
+1
+1
+drop table t1;
+create table t1 (a int NOT NULL, b int, primary key (a));
+create table t2 (a int NOT NULL, b int, primary key (a));
+insert into t1 values (0, 10),(1, 11),(2, 12);
+insert into t2 values (1, 21),(2, 22),(3, 23);
+select * from t1;
+a	b
+0	10
+1	11
+2	12
+update t1 set b= (select b from t1);
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
+update t1 set b= (select b from t2);
+ERROR 21000: Subquery returns more than 1 row
+update t1 set b= (select b from t2 where t1.a = t2.a);
+select * from t1;
+a	b
+0	NULL
+1	21
+2	22
+drop table t1, t2;
+create table t1 (a int NOT NULL, b int, primary key (a));
+create table t2 (a int NOT NULL, b int, primary key (a));
+insert into t1 values (0, 10),(1, 11),(2, 12);
+insert into t2 values (1, 21),(2, 12),(3, 23);
+select * from t1;
+a	b
+0	10
+1	11
+2	12
+select * from t1 where b = (select b from t2 where t1.a = t2.a);
+a	b
+2	12
+delete from t1 where b = (select b from t1);
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
+delete from t1 where b = (select b from t2);
+ERROR 21000: Subquery returns more than 1 row
+delete from t1 where b = (select b from t2 where t1.a = t2.a);
+select * from t1;
+a	b
+0	10
+1	11
+drop table t1, t2;
+create table t11 (a int NOT NULL, b int, primary key (a));
+create table t12 (a int NOT NULL, b int, primary key (a));
+create table t2 (a int NOT NULL, b int, primary key (a));
+insert into t11 values (0, 10),(1, 11),(2, 12);
+insert into t12 values (33, 10),(22, 11),(2, 12);
+insert into t2 values (1, 21),(2, 12),(3, 23);
+select * from t11;
+a	b
+0	10
+1	11
+2	12
+select * from t12;
+a	b
+33	10
+22	11
+2	12
+delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b = (select b from t12 where t11.a = t12.a);
+ERROR HY000: You can't specify target table 't12' for update in FROM clause
+delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b = (select b from t2);
+ERROR 21000: Subquery returns more than 1 row
+delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b = (select b from t2 where t11.a = t2.a);
+select * from t11;
+a	b
+0	10
+1	11
+select * from t12;
+a	b
+33	10
+22	11
+drop table t11, t12, t2;
+CREATE TABLE t1 (x int);
+create table t2 (a int);
+create table t3 (b int);
+insert into t2 values (1);
+insert into t3 values (1),(2);
+INSERT INTO t1 (x) VALUES ((SELECT x FROM t1));
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
+INSERT INTO t1 (x) VALUES ((SELECT b FROM t3));
+ERROR 21000: Subquery returns more than 1 row
+INSERT INTO t1 (x) VALUES ((SELECT a FROM t2));
+select * from t1;
+x
+1
+insert into t2 values (1);
+INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(a) FROM t2));
+select * from t1;
+x
+1
+2
+INSERT INTO t1 (x) select (SELECT SUM(a)+1 FROM t2) FROM t2;
+select * from t1;
+x
+1
+2
+3
+3
+INSERT INTO t1 (x) select (SELECT SUM(x)+2 FROM t1) FROM t2;
+INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(x) FROM t2));
+ERROR 42S22: Unknown column 'x' in 'field list'
+INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(a) FROM t2));
+select * from t1;
+x
+1
+2
+3
+3
+11
+11
+2
+drop table t1, t2, t3;
+CREATE TABLE t1 (x int not null, y int, primary key (x));
+create table t2 (a int);
+create table t3 (a int);
+insert into t2 values (1);
+insert into t3 values (1),(2);
+select * from t1;
+x	y
+replace into t1 (x, y) VALUES ((SELECT x FROM t1), (SELECT a+1 FROM t2));
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
+replace into t1 (x, y) VALUES ((SELECT a FROM t3), (SELECT a+1 FROM t2));
+ERROR 21000: Subquery returns more than 1 row
+replace into t1 (x, y) VALUES ((SELECT a FROM t2), (SELECT a+1 FROM t2));
+select * from t1;
+x	y
+1	2
+replace into t1 (x, y) VALUES ((SELECT a FROM t2), (SELECT a+2 FROM t2));
+select * from t1;
+x	y
+1	3
+replace DELAYED into t1 (x, y) VALUES ((SELECT a+3 FROM t2), (SELECT a FROM t2));
+select * from t1;
+x	y
+1	3
+4	1
+replace DELAYED into t1 (x, y) VALUES ((SELECT a+3 FROM t2), (SELECT a+1 FROM t2));
+select * from t1;
+x	y
+1	3
+4	2
+replace LOW_PRIORITY into t1 (x, y) VALUES ((SELECT a+1 FROM t2), (SELECT a FROM t2));
+select * from t1;
+x	y
+1	3
+4	2
+2	1
+drop table t1, t2, t3;
+SELECT * FROM (SELECT 1) b WHERE 1 IN (SELECT *);
+ERROR HY000: No tables used
+CREATE TABLE t2 (id int(11) default NULL, KEY id (id)) TYPE=MyISAM CHARSET=latin1;
+INSERT INTO t2 VALUES (1),(2);
+SELECT * FROM t2 WHERE id IN (SELECT 1);
+id
+1
+EXPLAIN EXTENDED SELECT * FROM t2 WHERE id IN (SELECT 1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ref	id	id	5	const	1	Using where; Using index
+Warnings:
+Note	1248	Select 2 was reduced during optimisation
+Note	1003	select high_priority test.t2.id AS `id` from test.t2 where (test.t2.id = 1)
+SELECT * FROM t2 WHERE id IN (SELECT 1 UNION SELECT 3);
+id
+1
+SELECT * FROM t2 WHERE id IN (SELECT 1+(select 1));
+id
+2
+EXPLAIN EXTENDED SELECT * FROM t2 WHERE id IN (SELECT 1+(select 1));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ref	id	id	5	const	1	Using where; Using index
+Warnings:
+Note	1248	Select 3 was reduced during optimisation
+Note	1248	Select 2 was reduced during optimisation
+Note	1003	select high_priority test.t2.id AS `id` from test.t2 where (test.t2.id = (1 + 1))
+EXPLAIN EXTENDED SELECT * FROM t2 WHERE id IN (SELECT 1 UNION SELECT 3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	NULL	id	5	NULL	2	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	DEPENDENT UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select high_priority test.t2.id AS `id` from test.t2 where <in_optimizer>(test.t2.id,<exists>(select 1 AS `Not_used` having (<cache>(test.t2.id) = <null_helper>(1)) limit 1 union select 1 AS `Not_used` having (<cache>(test.t2.id) = <null_helper>(3)) limit 1))
+SELECT * FROM t2 WHERE id IN (SELECT 5 UNION SELECT 3);
+id
+SELECT * FROM t2 WHERE id IN (SELECT 5 UNION SELECT 2);
+id
+2
+INSERT INTO t2 VALUES ((SELECT * FROM t2));
+ERROR HY000: You can't specify target table 't2' for update in FROM clause
+INSERT INTO t2 VALUES ((SELECT id FROM t2));
+ERROR HY000: You can't specify target table 't2' for update in FROM clause
+SELECT * FROM t2;
+id
+1
+2
+CREATE TABLE t1 (id int(11) default NULL, KEY id (id)) TYPE=MyISAM CHARSET=latin1;
+INSERT INTO t1 values (1),(1);
+UPDATE t2 SET id=(SELECT * FROM t1);
+ERROR 21000: Subquery returns more than 1 row
+drop table t2, t1;
+create table t1 (a int);
+insert into t1 values (1),(2),(3);
+select 1 IN (SELECT * from t1);
+1 IN (SELECT * from t1)
+1
+select 10 IN (SELECT * from t1);
+10 IN (SELECT * from t1)
+0
+select NULL IN (SELECT * from t1);
+NULL IN (SELECT * from t1)
+NULL
+update t1 set a=NULL where a=2;
+select 1 IN (SELECT * from t1);
+1 IN (SELECT * from t1)
+1
+select 3 IN (SELECT * from t1);
+3 IN (SELECT * from t1)
+1
+select 10 IN (SELECT * from t1);
+10 IN (SELECT * from t1)
+NULL
+select 1 > ALL (SELECT * from t1);
+1 > ALL (SELECT * from t1)
+0
+select 10 > ALL (SELECT * from t1);
+10 > ALL (SELECT * from t1)
+NULL
+select 1 > ANY (SELECT * from t1);
+1 > ANY (SELECT * from t1)
+NULL
+select 10 > ANY (SELECT * from t1);
+10 > ANY (SELECT * from t1)
+1
+drop table t1;
+create table t1 (a varchar(20));
+insert into t1 values ('A'),('BC'),('DEF');
+select 'A' IN (SELECT * from t1);
+'A' IN (SELECT * from t1)
+1
+select 'XYZS' IN (SELECT * from t1);
+'XYZS' IN (SELECT * from t1)
+0
+select NULL IN (SELECT * from t1);
+NULL IN (SELECT * from t1)
+NULL
+update t1 set a=NULL where a='BC';
+select 'A' IN (SELECT * from t1);
+'A' IN (SELECT * from t1)
+1
+select 'DEF' IN (SELECT * from t1);
+'DEF' IN (SELECT * from t1)
+1
+select 'XYZS' IN (SELECT * from t1);
+'XYZS' IN (SELECT * from t1)
+NULL
+select 'A' > ALL (SELECT * from t1);
+'A' > ALL (SELECT * from t1)
+0
+select 'XYZS' > ALL (SELECT * from t1);
+'XYZS' > ALL (SELECT * from t1)
+NULL
+select 'A' > ANY (SELECT * from t1);
+'A' > ANY (SELECT * from t1)
+NULL
+select 'XYZS' > ANY (SELECT * from t1);
+'XYZS' > ANY (SELECT * from t1)
+1
+drop table t1;
+create table t1 (a float);
+insert into t1 values (1.5),(2.5),(3.5);
+select 1.5 IN (SELECT * from t1);
+1.5 IN (SELECT * from t1)
+1
+select 10.5 IN (SELECT * from t1);
+10.5 IN (SELECT * from t1)
+0
+select NULL IN (SELECT * from t1);
+NULL IN (SELECT * from t1)
+NULL
+update t1 set a=NULL where a=2.5;
+select 1.5 IN (SELECT * from t1);
+1.5 IN (SELECT * from t1)
+1
+select 3.5 IN (SELECT * from t1);
+3.5 IN (SELECT * from t1)
+1
+select 10.5 IN (SELECT * from t1);
+10.5 IN (SELECT * from t1)
+NULL
+select 1.5 > ALL (SELECT * from t1);
+1.5 > ALL (SELECT * from t1)
+0
+select 10.5 > ALL (SELECT * from t1);
+10.5 > ALL (SELECT * from t1)
+NULL
+select 1.5 > ANY (SELECT * from t1);
+1.5 > ANY (SELECT * from t1)
+NULL
+select 10.5 > ANY (SELECT * from t1);
+10.5 > ANY (SELECT * from t1)
+1
+explain extended select (select a+1) from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
+Warnings:
+Note	1275	Field or reference 'a' of SELECT #2 was resolved in SELECT #1
+Note	1248	Select 2 was reduced during optimisation
+Note	1003	select high_priority (test.t1.a + 1) AS `(select a+1)` from test.t1
+select (select a+1) from t1;
+(select a+1)
+2.5
+NULL
+4.5
+drop table t1;
+CREATE TABLE t1 (a int(11) NOT NULL default '0', PRIMARY KEY  (a));
+CREATE TABLE t2 (a int(11) default '0', INDEX (a));
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t2 VALUES (1),(2),(3);
+SELECT t1.a, t1.a in (select t2.a from t2) FROM t1;
+a	t1.a in (select t2.a from t2)
+1	1
+2	1
+3	1
+4	0
+explain extended SELECT t1.a, t1.a in (select t2.a from t2) FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	4	Using index
+2	DEPENDENT SUBQUERY	t2	index_subquery	a	a	5	func	2	Using index
+Warnings:
+Note	1003	select high_priority test.t1.a AS `a`,<in_optimizer>(test.t1.a,<exists>(<index_lookup>(<cache>(test.t1.a) in t2 on a chicking NULL))) AS `t1.a in (select t2.a from t2)` from test.t1
+CREATE TABLE t3 (a int(11) default '0');
+INSERT INTO t3 VALUES (1),(2),(3);
+SELECT t1.a, t1.a in (select t2.a from t2,t3 where t3.a=t2.a) FROM t1;
+a	t1.a in (select t2.a from t2,t3 where t3.a=t2.a)
+1	1
+2	1
+3	1
+4	0
+explain extended SELECT t1.a, t1.a in (select t2.a from t2,t3 where t3.a=t2.a) FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	4	Using index
+2	DEPENDENT SUBQUERY	t2	ref_or_null	a	a	5	func	2	Using where; Using index
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
+Warnings:
+Note	1003	select high_priority test.t1.a AS `a`,<in_optimizer>(test.t1.a,<exists>(select 1 AS `Not_used` from test.t2 join test.t3 where ((test.t3.a = test.t2.a) and ((<cache>(test.t1.a) = test.t2.a) or isnull(test.t2.a))) having <is_not_null_test>(test.t2.a) limit 1)) AS `t1.a in (select t2.a from t2,t3 where t3.a=t2.a)` from test.t1
+drop table t1,t2,t3;
+create table t1 (a float);
+select 10.5 IN (SELECT * from t1 LIMIT 1);
+ERROR 42000: This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
+select 10.5 IN (SELECT * from t1 LIMIT 1 UNION SELECT 1.5);
+ERROR 42000: This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
+drop table t1;
+create table t1 (a int, b int, c varchar(10));
+create table t2 (a int);
+insert into t1 values (1,2,'a'),(2,3,'b'),(3,4,'c');
+insert into t2 values (1),(2),(NULL);
+select a, (select a,b,c from t1 where t1.a=t2.a) = ROW(a,2,'a'),(select c from t1 where a=t2.a)  from t2;
+a	(select a,b,c from t1 where t1.a=t2.a) = ROW(a,2,'a')	(select c from t1 where a=t2.a)
+1	1	a
+2	0	b
+NULL	NULL	NULL
+select a, (select a,b,c from t1 where t1.a=t2.a) = ROW(a,3,'b'),(select c from t1 where a=t2.a) from t2;
+a	(select a,b,c from t1 where t1.a=t2.a) = ROW(a,3,'b')	(select c from t1 where a=t2.a)
+1	0	a
+2	1	b
+NULL	NULL	NULL
+select a, (select a,b,c from t1 where t1.a=t2.a) = ROW(a,4,'c'),(select c from t1 where a=t2.a) from t2;
+a	(select a,b,c from t1 where t1.a=t2.a) = ROW(a,4,'c')	(select c from t1 where a=t2.a)
+1	0	a
+2	0	b
+NULL	NULL	NULL
+drop table t1,t2;
+create table t1 (a int, b real, c varchar(10));
+insert into t1 values (1, 1, 'a'), (2,2,'b'), (NULL, 2, 'b');
+select ROW(1, 1, 'a') IN (select a,b,c from t1);
+ROW(1, 1, 'a') IN (select a,b,c from t1)
+1
+select ROW(1, 2, 'a') IN (select a,b,c from t1);
+ROW(1, 2, 'a') IN (select a,b,c from t1)
+NULL
+select ROW(1, 1, 'a') IN (select b,a,c from t1);
+ROW(1, 1, 'a') IN (select b,a,c from t1)
+1
+select ROW(1, 1, 'a') IN (select a,b,c from t1 where a is not null);
+ROW(1, 1, 'a') IN (select a,b,c from t1 where a is not null)
+1
+select ROW(1, 2, 'a') IN (select a,b,c from t1 where a is not null);
+ROW(1, 2, 'a') IN (select a,b,c from t1 where a is not null)
+0
+select ROW(1, 1, 'a') IN (select b,a,c from t1 where a is not null);
+ROW(1, 1, 'a') IN (select b,a,c from t1 where a is not null)
+1
+select ROW(1, 1, 'a') IN (select a,b,c from t1 where c='b' or c='a');
+ROW(1, 1, 'a') IN (select a,b,c from t1 where c='b' or c='a')
+1
+select ROW(1, 2, 'a') IN (select a,b,c from t1 where c='b' or c='a');
+ROW(1, 2, 'a') IN (select a,b,c from t1 where c='b' or c='a')
+NULL
+select ROW(1, 1, 'a') IN (select b,a,c from t1 where c='b' or c='a');
+ROW(1, 1, 'a') IN (select b,a,c from t1 where c='b' or c='a')
+1
+select ROW(1, 1, 'a') IN (select b,a,c from t1 limit 2);
+ERROR 42000: This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
+drop table t1;
+create table t1 (a int);
+insert into t1 values (1);
+do @a:=(SELECT a from t1);
+select @a;
+@a
+1
+set @a:=2;
+set @a:=(SELECT a from t1);
+select @a;
+@a
+1
+drop table t1;
+do (SELECT a from t1);
+ERROR 42S02: Table 'test.t1' doesn't exist
+set @a:=(SELECT a from t1);
+ERROR 42S02: Table 'test.t1' doesn't exist
+CREATE TABLE t1 (a int, KEY(a));
+HANDLER t1 OPEN;
+HANDLER t1 READ a=((SELECT 1));
+ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use
+HANDLER t1 CLOSE;
+drop table t1;
+create table t1 (a int);
+create table t2 (b int);
+insert into t1 values (1),(2);
+insert into t2 values (1);
+select a from t1 where a in (select a from t1 where a in (select b from t2));
+a
+1
+drop table t1, t2;
+create table t1 (a int, b int);
+create table t2 like t1;
+insert into t1 values (1,2),(1,3),(1,4),(1,5);
+insert into t2 values (1,2),(1,3);
+select * from t1 where row(a,b) in (select a,b from t2);
+a	b
+1	2
+1	3
+drop table t1, t2;
+CREATE TABLE `t1` (`i` int(11) NOT NULL default '0',PRIMARY KEY  (`i`)) TYPE=MyISAM CHARSET=latin1;
+INSERT INTO t1 VALUES (1);
+UPDATE t1 SET i=i+1 WHERE i=(SELECT MAX(i));
+ERROR HY000: Invalid use of group function
+drop table t1;
+CREATE TABLE t1 (a int(1));
+EXPLAIN EXTENDED SELECT (SELECT RAND() FROM t1) FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+2	UNCACHEABLE SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+Warnings:
+Note	1003	select high_priority no_cache (select no_cache rand() AS `RAND()` from test.t1) AS `(SELECT RAND() FROM t1)` from test.t1
+EXPLAIN EXTENDED SELECT (SELECT ENCRYPT('test') FROM t1) FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+2	UNCACHEABLE SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+Warnings:
+Note	1003	select high_priority no_cache (select no_cache ecrypt(_latin1'test') AS `ENCRYPT('test')` from test.t1) AS `(SELECT ENCRYPT('test') FROM t1)` from test.t1
+EXPLAIN EXTENDED SELECT (SELECT BENCHMARK(1,1) FROM t1) FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+2	UNCACHEABLE SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+Warnings:
+Note	1003	select high_priority no_cache (select no_cache benchmark(1,1) AS `BENCHMARK(1,1)` from test.t1) AS `(SELECT BENCHMARK(1,1) FROM t1)` from test.t1
+drop table t1;
+CREATE TABLE `t1` (
+`mot` varchar(30) character set latin1 NOT NULL default '',
+`topic` mediumint(8) unsigned NOT NULL default '0',
+`date` date NOT NULL default '0000-00-00',
+`pseudo` varchar(35) character set latin1 NOT NULL default '',
+PRIMARY KEY  (`mot`,`pseudo`,`date`,`topic`),
+KEY `pseudo` (`pseudo`,`date`,`topic`),
+KEY `topic` (`topic`)
+) TYPE=MyISAM CHARSET=latin1 ROW_FORMAT=DYNAMIC;
+CREATE TABLE `t2` (
+`mot` varchar(30) character set latin1 NOT NULL default '',
+`topic` mediumint(8) unsigned NOT NULL default '0',
+`date` date NOT NULL default '0000-00-00',
+`pseudo` varchar(35) character set latin1 NOT NULL default '',
+PRIMARY KEY  (`mot`,`pseudo`,`date`,`topic`),
+KEY `pseudo` (`pseudo`,`date`,`topic`),
+KEY `topic` (`topic`)
+) TYPE=MyISAM CHARSET=latin1 ROW_FORMAT=DYNAMIC;
+CREATE TABLE `t3` (
+`numeropost` mediumint(8) unsigned NOT NULL auto_increment,
+`maxnumrep` int(10) unsigned NOT NULL default '0',
+PRIMARY KEY  (`numeropost`),
+UNIQUE KEY `maxnumrep` (`maxnumrep`)
+) TYPE=MyISAM CHARSET=latin1;
+INSERT INTO t1 VALUES ('joce','1','','joce'),('test','2','','test');
+Warnings:
+Warning	1264	Data truncated for column 'date' at row 1
+Warning	1264	Data truncated for column 'date' at row 2
+INSERT INTO t2 VALUES ('joce','1','','joce'),('test','2','','test');
+Warnings:
+Warning	1264	Data truncated for column 'date' at row 1
+Warning	1264	Data truncated for column 'date' at row 2
+INSERT INTO t3 VALUES (1,1);
+SELECT DISTINCT topic FROM t2 WHERE NOT EXISTS(SELECT * FROM t3 WHERE
+numeropost=topic);
+topic
+2
+select * from t1;
+mot	topic	date	pseudo
+joce	1	0000-00-00	joce
+test	2	0000-00-00	test
+DELETE FROM t1 WHERE topic IN (SELECT DISTINCT topic FROM t2 WHERE NOT
+EXISTS(SELECT * FROM t3 WHERE numeropost=topic));
+select * from t1;
+mot	topic	date	pseudo
+joce	1	0000-00-00	joce
+drop table t1, t2, t3;
+SELECT * FROM (SELECT 1 as a,(SELECT a)) a;
+a	(SELECT a)
+1	1
+CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT 1)) a;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bigint(1) NOT NULL default '0',
+  `(SELECT 1)` bigint(1) NOT NULL default '0'
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT a)) a;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bigint(1) NOT NULL default '0',
+  `(SELECT a)` bigint(1) NOT NULL default '0'
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT a+0)) a;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bigint(1) NOT NULL default '0',
+  `(SELECT a+0)` bigint(17) NOT NULL default '0'
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+CREATE TABLE t1 SELECT (SELECT 1 as a UNION SELECT 1+1 limit 1,1) as a;
+select * from t1;
+a
+2
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bigint(17) NOT NULL default '0'
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (a int);
+insert into t1 values (1), (2), (3);
+explain extended select a,(select (select rand() from t1 limit 1)  from t1 limit 1)
+from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
+2	UNCACHEABLE SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	
+3	UNCACHEABLE SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	
+Warnings:
+Note	1003	select high_priority no_cache test.t1.a AS `a`,(select no_cache (select no_cache rand() AS `rand()` from test.t1 limit 1) AS `(select rand() from t1 limit 1)` from test.t1 limit 1) AS `(select (select rand() from t1 limit 1)  from t1 limit 1)` from test.t1
+drop table t1;
+select t1.Continent, t2.Name, t2.Population from t1 LEFT JOIN t2 ON t1.Code = t2.Country  where t2.Population IN (select max(t2.Population) AS Population from t2, t1 where t2.Country = t1.Code group by Continent);
+ERROR 42S02: Table 'test.t1' doesn't exist
+CREATE TABLE t1 (
+ID int(11) NOT NULL auto_increment,
+name char(35) NOT NULL default '',
+t2 char(3) NOT NULL default '',
+District char(20) NOT NULL default '',
+Population int(11) NOT NULL default '0',
+PRIMARY KEY  (ID)
+) TYPE=MyISAM;
+INSERT INTO t1 VALUES (130,'Sydney','AUS','New South Wales',3276207);
+INSERT INTO t1 VALUES (131,'Melbourne','AUS','Victoria',2865329);
+INSERT INTO t1 VALUES (132,'Brisbane','AUS','Queensland',1291117);
+CREATE TABLE t2 (
+Code char(3) NOT NULL default '',
+Name char(52) NOT NULL default '',
+Continent enum('Asia','Europe','North America','Africa','Oceania','Antarctica','South America') NOT NULL default 'Asia',
+Region char(26) NOT NULL default '',
+SurfaceArea float(10,2) NOT NULL default '0.00',
+IndepYear smallint(6) default NULL,
+Population int(11) NOT NULL default '0',
+LifeExpectancy float(3,1) default NULL,
+GNP float(10,2) default NULL,
+GNPOld float(10,2) default NULL,
+LocalName char(45) NOT NULL default '',
+GovernmentForm char(45) NOT NULL default '',
+HeadOfState char(60) default NULL,
+Capital int(11) default NULL,
+Code2 char(2) NOT NULL default '',
+PRIMARY KEY  (Code)
+) TYPE=MyISAM;
+INSERT INTO t2 VALUES ('AUS','Australia','Oceania','Australia and New Zealand',7741220.00,1901,18886000,79.8,351182.00,392911.00,'Australia','Constitutional Monarchy, Federation','Elisabeth II',135,'AU');
+INSERT INTO t2 VALUES ('AZE','Azerbaijan','Asia','Middle East',86600.00,1991,7734000,62.9,4127.00,4100.00,'Azärbaycan','Federal Republic','Heydär Äliyev',144,'AZ');
+select t2.Continent, t1.Name, t1.Population from t2 LEFT JOIN t1 ON t2.Code = t1.t2  where t1.Population IN (select max(t1.Population) AS Population from t1, t2 where t1.t2 = t2.Code group by Continent);
+Continent	Name	Population
+Oceania	Sydney	3276207
+drop table t1, t2;
+CREATE TABLE `t1` (
+`id` mediumint(8) unsigned NOT NULL auto_increment,
+`pseudo` varchar(35) character set latin1 NOT NULL default '',
+PRIMARY KEY  (`id`),
+UNIQUE KEY `pseudo` (`pseudo`),
+) TYPE=MyISAM PACK_KEYS=1 ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 (pseudo) VALUES ('test');
+SELECT 0 IN (SELECT 1 FROM t1 a);
+0 IN (SELECT 1 FROM t1 a)
+0
+EXPLAIN EXTENDED SELECT 0 IN (SELECT 1 FROM t1 a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+Warnings:
+Note	1003	select high_priority <in_optimizer>(0,<exists>(select 1 AS `Not_used` from test.t1 a where isnull(1) having <is_not_null_test>(1) limit 1)) AS `0 IN (SELECT 1 FROM t1 a)`
+INSERT INTO t1 (pseudo) VALUES ('test1');
+SELECT 0 IN (SELECT 1 FROM t1 a);
+0 IN (SELECT 1 FROM t1 a)
+0
+EXPLAIN EXTENDED SELECT 0 IN (SELECT 1 FROM t1 a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+Warnings:
+Note	1003	select high_priority <in_optimizer>(0,<exists>(select 1 AS `Not_used` from test.t1 a where isnull(1) having <is_not_null_test>(1) limit 1)) AS `0 IN (SELECT 1 FROM t1 a)`
+drop table t1;
+CREATE TABLE `t1` (
+`i` int(11) NOT NULL default '0',
+PRIMARY KEY  (`i`)
+) TYPE=MyISAM CHARSET=latin1;
+INSERT INTO t1 VALUES (1);
+UPDATE t1 SET i=i+(SELECT MAX(i) FROM (SELECT 1) t) WHERE i=(SELECT MAX(i));
+ERROR HY000: Invalid use of group function
+UPDATE t1 SET i=i+1 WHERE i=(SELECT MAX(i));
+ERROR HY000: Invalid use of group function
+UPDATE t1 SET t.i=i+(SELECT MAX(i) FROM (SELECT 1) t);
+ERROR 42S02: Unknown table 't' in field list
+drop table t1;
+CREATE TABLE t1 (
+id int(11) default NULL
+) TYPE=MyISAM CHARSET=latin1;
+INSERT INTO t1 VALUES (1),(1),(2),(2),(1),(3);
+CREATE TABLE t2 (
+id int(11) default NULL,
+name varchar(15) default NULL
+) TYPE=MyISAM CHARSET=latin1;
+INSERT INTO t2 VALUES (4,'vita'), (1,'vita'), (2,'vita'), (1,'vita');
+update t1, t2 set t2.name='lenka' where t2.id in (select id from t1);
+select * from t2;
+id	name
+4	vita
+1	lenka
+2	lenka
+1	lenka
+drop table t1,t2;
+create table t1 (a int, unique index indexa (a));
+insert into t1 values (-1), (-4), (-2), (NULL);
+select -10 IN (select a from t1 FORCE INDEX (indexa));
+-10 IN (select a from t1 FORCE INDEX (indexa))
+NULL
+drop table t1;
+create table t1 (id int not null auto_increment primary key, salary int, key(salary));
+insert into t1 (salary) values (100),(1000),(10000),(10),(500),(5000),(50000);
+explain extended SELECT id FROM t1 where salary = (SELECT MAX(salary) FROM t1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ref	salary	salary	5	const	1	Using where
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Note	1003	select high_priority test.t1.id AS `id` from test.t1 where (test.t1.salary = (select max(test.t1.salary) AS `MAX(salary)` from test.t1))
+drop table t1;
+CREATE TABLE t1 (
+ID int(10) unsigned NOT NULL auto_increment,
+SUB_ID int(3) unsigned NOT NULL default '0',
+REF_ID int(10) unsigned default NULL,
+REF_SUB int(3) unsigned default '0',
+PRIMARY KEY (ID,SUB_ID),
+UNIQUE KEY t1_PK (ID,SUB_ID),
+KEY t1_FK (REF_ID,REF_SUB),
+KEY t1_REFID (REF_ID)
+) TYPE=MyISAM CHARSET=cp1251;
+INSERT INTO t1 VALUES (1,0,NULL,NULL),(2,0,NULL,NULL);
+SELECT DISTINCT REF_ID FROM t1 WHERE ID= (SELECT DISTINCT REF_ID FROM t1 WHERE ID=2);
+REF_ID
+DROP TABLE t1;
+create table t1 (a int, b int);
+create table t2 (a int, b int);
+insert into t1 values (1,0), (2,0), (3,0);
+insert into t2 values (1,1), (2,1), (3,1), (2,2);
+update ignore t1 set b=(select b from t2 where t1.a=t2.a);
+Warnings:
+Error	1241	Subquery returns more than 1 row
+select * from t1;
+a	b
+1	1
+2	NULL
+3	1
+drop table t1, t2;
+create table t1(City VARCHAR(30),Location geometry);
+insert into t1 values("Paris",GeomFromText('POINT(2.33 48.87)'));
+select City from t1 where (select intersects(GeomFromText(AsText(Location)),GeomFromText('Polygon((2 50, 2.5 50, 2.5 47, 2 47, 2 50))'))=0);
+City
+drop table t1;
+CREATE TABLE `t1` (
+`id` mediumint(8) unsigned NOT NULL auto_increment,
+`pseudo` varchar(35) NOT NULL default '',
+`email` varchar(60) NOT NULL default '',
+PRIMARY KEY  (`id`),
+UNIQUE KEY `email` (`email`),
+UNIQUE KEY `pseudo` (`pseudo`),
+) TYPE=MyISAM CHARSET=latin1 PACK_KEYS=1 ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 (id,pseudo,email) VALUES (1,'test','test'),(2,'test1','test1');
+SELECT pseudo as a, pseudo as b FROM t1 GROUP BY (SELECT a) ORDER BY (SELECT id*1);
+a	b
+test	test
+test1	test1
+drop table if exists t1;
+(SELECT 1 as a) UNION (SELECT 1) ORDER BY (SELECT a+0);
+a
+1
+create table t1 (a int not null, b int, primary key (a));
+create table t2 (a int not null, primary key (a));
+create table t3 (a int not null, b int, primary key (a));
+insert into t1 values (1,10), (2,20), (3,30),  (4,40);
+insert into t2 values (2), (3), (4), (5);
+insert into t3 values (10,3), (20,4), (30,5);
+select * from t2 where t2.a in (select a from t1);
+a
+2
+3
+4
+explain extended select * from t2 where t2.a in (select a from t1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	4	Using where; Using index
+2	DEPENDENT SUBQUERY	t1	unique_subquery	PRIMARY	PRIMARY	4	func	1	Using index
+Warnings:
+Note	1003	select high_priority test.t2.a AS `a` from test.t2 where <in_optimizer>(test.t2.a,<exists>(<primary_index_lookup>(<cache>(test.t2.a) in t1 on PRIMARY)))
+select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
+a
+2
+4
+explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	4	Using where; Using index
+2	DEPENDENT SUBQUERY	t1	unique_subquery	PRIMARY	PRIMARY	4	func	1	Using index; Using where
+Warnings:
+Note	1003	select high_priority test.t2.a AS `a` from test.t2 where <in_optimizer>(test.t2.a,<exists>(<primary_index_lookup>(<cache>(test.t2.a) in t1 on PRIMARY where (test.t1.b <> 30))))
+select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
+a
+2
+3
+explain extended select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	4	Using where; Using index
+2	DEPENDENT SUBQUERY	t1	eq_ref	PRIMARY	PRIMARY	4	func	1	Using where
+2	DEPENDENT SUBQUERY	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	Using where; Using index
+Warnings:
+Note	1003	select high_priority test.t2.a AS `a` from test.t2 where <in_optimizer>(test.t2.a,<exists>(select 1 AS `Not_used` from test.t1 join test.t3 where ((test.t1.b = test.t3.a) and (<cache>(test.t2.a) = test.t1.a)) limit 1))
+drop table t1, t2, t3;
+create table t1 (a int, b int, index a (a,b));
+create table t2 (a int, index a (a));
+create table t3 (a int, b int, index a (a));
+insert into t1 values (1,10), (2,20), (3,30), (4,40);
+insert into t2 values (2), (3), (4), (5);
+insert into t3 values (10,3), (20,4), (30,5);
+select * from t2 where t2.a in (select a from t1);
+a
+2
+3
+4
+explain extended select * from t2 where t2.a in (select a from t1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	NULL	a	5	NULL	4	Using where; Using index
+2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	1001	Using index
+Warnings:
+Note	1003	select high_priority test.t2.a AS `a` from test.t2 where <in_optimizer>(test.t2.a,<exists>(<index_lookup>(<cache>(test.t2.a) in t1 on a)))
+select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
+a
+2
+4
+explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	NULL	a	5	NULL	4	Using where; Using index
+2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	1001	Using index; Using where
+Warnings:
+Note	1003	select high_priority test.t2.a AS `a` from test.t2 where <in_optimizer>(test.t2.a,<exists>(<index_lookup>(<cache>(test.t2.a) in t1 on a where (test.t1.b <> 30))))
+select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
+a
+2
+3
+explain extended select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	NULL	a	5	NULL	4	Using where; Using index
+2	DEPENDENT SUBQUERY	t3	index	a	a	5	NULL	3	Using index
+2	DEPENDENT SUBQUERY	t1	ref	a	a	10	func,test.t3.a	1000	Using where; Using index
+Warnings:
+Note	1003	select high_priority test.t2.a AS `a` from test.t2 where <in_optimizer>(test.t2.a,<exists>(select 1 AS `Not_used` from test.t1 join test.t3 where ((test.t1.b = test.t3.a) and (<cache>(test.t2.a) = test.t1.a)) limit 1))
+insert into t1 values (3,31);
+select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
+a
+2
+3
+4
+select * from t2 where t2.a in (select a from t1 where t1.b <> 30 and t1.b <> 31);
+a
+2
+4
+explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	NULL	a	5	NULL	4	Using where; Using index
+2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	1001	Using index; Using where
+Warnings:
+Note	1003	select high_priority test.t2.a AS `a` from test.t2 where <in_optimizer>(test.t2.a,<exists>(<index_lookup>(<cache>(test.t2.a) in t1 on a where (test.t1.b <> 30))))
+drop table t1, t2, t3;
+create table t1 (a int, b int);
+create table t2 (a int, b int);
+create table t3 (a int, b int);
+insert into t1 values (0,100),(1,2), (1,3), (2,2), (2,7), (2,-1), (3,10);
+insert into t2 values (0,0), (1,1), (2,1), (3,1), (4,1);
+insert into t3 values (3,3), (2,2), (1,1);
+select a,(select count(distinct t1.b) as sum from t1,t2 where t1.a=t2.a and t2.b > 0 and t1.a <= t3.b group by t1.a order by sum limit 1) from t3;
+a	(select count(distinct t1.b) as sum from t1,t2 where t1.a=t2.a and t2.b > 0 and t1.a <= t3.b group by t1.a order by sum limit 1)
+3	1
+2	2
+1	2
+drop table t1,t2,t3;
+create table t1 (s1 int);
+create table t2 (s1 int);
+insert into t1 values (1);
+insert into t2 values (1);
+select * from t1 where exists (select s1 from t2 having max(t2.s1)=t1.s1);
+s1
+1
+drop table t1,t2;
+create table t1 (s1 int);
+create table t2 (s1 int);
+insert into t1 values (1);
+insert into t2 values (1);
+update t1 set  s1 = s1 + 1 where 1 = (select x.s1 as A from t2 WHERE t2.s1 > t1.s1 order by A);
+ERROR 42S22: Unknown column 'x.s1' in 'field list'
+DROP TABLE t1, t2;
+CREATE TABLE t1 (s1 CHAR(5) COLLATE latin1_german1_ci,
+s2 CHAR(5) COLLATE latin1_swedish_ci);
+INSERT INTO t1 VALUES ('z','?');
+select * from t1 where s1 > (select max(s2) from t1);
+ERROR HY000: Illegal mix of collations (latin1_german1_ci,IMPLICIT) and (latin1_swedish_ci,IMPLICIT) for operation '>'
+select * from t1 where s1 > any (select max(s2) from t1);
+ERROR HY000: Illegal mix of collations (latin1_german1_ci,IMPLICIT) and (latin1_swedish_ci,IMPLICIT) for operation '>'
+drop table t1;
+create table t1(toid int,rd int);
+create table t2(userid int,pmnew int,pmtotal int);
+insert into t2 values(1,0,0),(2,0,0);
+insert into t1 values(1,0),(1,0),(1,0),(1,12),(1,15),(1,123),(1,12312),(1,12312),(1,123),(2,0),(2,0),(2,1),(2,2);
+select userid,pmtotal,pmnew, (select count(rd) from t1 where toid=t2.userid) calc_total, (select count(rd) from t1 where rd=0 and toid=t2.userid) calc_new from t2 where userid in (select distinct toid from t1);
+userid	pmtotal	pmnew	calc_total	calc_new
+1	0	0	9	3
+2	0	0	4	2
+drop table t1, t2;
+create table t1 (s1 char(5));
+select (select 'a','b' from t1 union select 'a','b' from t1) from t1;
+ERROR 21000: Operand should contain 1 column(s)
+insert into t1 values ('tttt');
+select * from t1 where ('a','b')=(select 'a','b' from t1 union select 'a','b' from t1);
+s1
+tttt
+explain extended (select * from t1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
+Warnings:
+Note	1003	(select high_priority test.t1.s1 AS `s1` from test.t1)
+(select * from t1);
+s1
+tttt
+drop table t1;
+create table t1 (s1 char(5), index s1(s1));
+create table t2 (s1 char(5), index s1(s1));
+insert into t1 values ('a1'),('a2'),('a3');
+insert into t2 values ('a1'),('a2');
+select s1, s1 NOT IN (SELECT s1 FROM t2) from t1;
+s1	s1 NOT IN (SELECT s1 FROM t2)
+a1	0
+a2	0
+a3	1
+select s1, s1 = ANY (SELECT s1 FROM t2) from t1;
+s1	s1 = ANY (SELECT s1 FROM t2)
+a1	1
+a2	1
+a3	0
+select s1, s1 <> ALL (SELECT s1 FROM t2) from t1;
+s1	s1 <> ALL (SELECT s1 FROM t2)
+a1	0
+a2	0
+a3	1
+select s1, s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2') from t1;
+s1	s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2')
+a1	0
+a2	1
+a3	1
+explain extended select s1, s1 NOT IN (SELECT s1 FROM t2) from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	s1	6	NULL	3	Using index
+2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	Using index
+Warnings:
+Note	1003	select high_priority test.t1.s1 AS `s1`,not(<in_optimizer>(test.t1.s1,<exists>(<index_lookup>(<cache>(test.t1.s1) in t2 on s1 chicking NULL)))) AS `s1 NOT IN (SELECT s1 FROM t2)` from test.t1
+explain extended select s1, s1 = ANY (SELECT s1 FROM t2) from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	s1	6	NULL	3	Using index
+2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	Using index
+Warnings:
+Note	1003	select high_priority test.t1.s1 AS `s1`,<in_optimizer>(test.t1.s1,<exists>(<index_lookup>(<cache>(test.t1.s1) in t2 on s1 chicking NULL))) AS `s1 = ANY (SELECT s1 FROM t2)` from test.t1
+explain extended select s1, s1 <> ALL (SELECT s1 FROM t2) from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	s1	6	NULL	3	Using index
+2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	Using index
+Warnings:
+Note	1003	select high_priority test.t1.s1 AS `s1`,not(<in_optimizer>(test.t1.s1,<exists>(<index_lookup>(<cache>(test.t1.s1) in t2 on s1 chicking NULL)))) AS `s1 <> ALL (SELECT s1 FROM t2)` from test.t1
+explain extended select s1, s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	s1	6	NULL	3	Using index
+2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	1	Using index; Using where
+Warnings:
+Note	1003	select high_priority test.t1.s1 AS `s1`,not(<in_optimizer>(test.t1.s1,<exists>(<index_lookup>(<cache>(test.t1.s1) in t2 on s1 chicking NULL where (test.t2.s1 < _latin1'a2'))))) AS `s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2')` from test.t1
+drop table t1,t2;
+create table t2 (a int, b int);
+create table t3 (a int);
+insert into t3 values (6),(7),(3);
+select * from t3 where a >= all (select b from t2);
+a
+6
+7
+3
+explain extended select * from t3 where a >= all (select b from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+Warnings:
+Note	1003	select high_priority test.t3.a AS `a` from test.t3 where <not>((test.t3.a < (select max(test.t2.b) from test.t2 limit 1)))
+insert into t2 values (2,2), (2,1), (3,3), (3,1);
+select * from t3 where a > all (select max(b) from t2 group by a);
+a
+6
+7
+explain extended select * from t3 where a > all (select max(b) from t2 group by a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	4	Using temporary; Using filesort
+Warnings:
+Note	1003	select high_priority test.t3.a AS `a` from test.t3 where <not>((test.t3.a <= <max>(select max(test.t2.b) AS `max(b)` from test.t2 group by test.t2.a)))
+drop table t2, t3;
+CREATE TABLE `t1` ( `id` mediumint(9) NOT NULL auto_increment, `taskid` bigint(20) NOT NULL default '0', `dbid` int(11) NOT NULL default '0', `create_date` datetime NOT NULL default '0000-00-00 00:00:00', `last_update` datetime NOT NULL default '0000-00-00 00:00:00', PRIMARY KEY  (`id`)) TYPE=MyISAM CHARSET=latin1 AUTO_INCREMENT=3 ;
+INSERT INTO `t1` (`id`, `taskid`, `dbid`, `create_date`,`last_update`) VALUES (1, 1, 15, '2003-09-29 10:31:36', '2003-09-29 10:31:36'), (2, 1, 21, now(), now());
+CREATE TABLE `t2` (`db_id` int(11) NOT NULL auto_increment,`name` varchar(200) NOT NULL default '',`primary_uid` smallint(6) NOT NULL default '0',`secondary_uid` smallint(6) NOT NULL default '0',PRIMARY KEY  (`db_id`),UNIQUE KEY `name_2` (`name`),FULLTEXT KEY `name` (`name`)) TYPE=MyISAM CHARSET=latin1 AUTO_INCREMENT=2147483647;
+INSERT INTO `t2` (`db_id`, `name`, `primary_uid`, `secondary_uid`) VALUES (18, 'Not Set 1', 0, 0),(19, 'Valid', 1, 2),(20, 'Valid 2', 1, 2),(21, 'Should Not Return', 1, 2),(26, 'Not Set 2', 0, 0),(-1, 'ALL DB\'S', 0, 0);
+CREATE TABLE `t3` (`taskgenid` mediumint(9) NOT NULL auto_increment,`dbid` int(11) NOT NULL default '0',`taskid` int(11) NOT NULL default '0',`mon` tinyint(4) NOT NULL default '1',`tues` tinyint(4) NOT NULL default '1',`wed` tinyint(4) NOT NULL default '1',`thur` tinyint(4) NOT NULL default '1',`fri` tinyint(4) NOT NULL default '1',`sat` tinyint(4) NOT NULL default '0',`sun` tinyint(4) NOT NULL default '0',`how_often` smallint(6) NOT NULL default '1',`userid` smallint(6) NOT NULL default '0',`active` tinyint(4) NOT NULL default '1',PRIMARY KEY  (`taskgenid`)) TYPE=MyISAM CHARSET=latin1 AUTO_INCREMENT=2 ;
+INSERT INTO `t3` (`taskgenid`, `dbid`, `taskid`, `mon`, `tues`,`wed`, `thur`, `fri`, `sat`, `sun`, `how_often`, `userid`, `active`) VALUES (1,-1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 1);
+CREATE TABLE `t4` (`task_id` smallint(6) NOT NULL default '0',`description` varchar(200) NOT NULL default '') TYPE=MyISAM CHARSET=latin1;
+INSERT INTO `t4` (`task_id`, `description`) VALUES (1, 'Daily Check List'),(2, 'Weekly Status');
+select  dbid, name, (date_format(now() , '%Y-%m-%d') - INTERVAL how_often DAY) >= ifnull((SELECT date_format(max(create_date),'%Y-%m-%d') FROM t1 WHERE dbid = b.db_id AND taskid = a.taskgenid), '1950-01-01') from t3 a, t2 b, t4  WHERE dbid = - 1 AND primary_uid = '1' AND t4.task_id = taskid;
+dbid	name	(date_format(now() , '%Y-%m-%d') - INTERVAL how_often DAY) >= ifnull((SELECT date_format(max(create_date),'%Y-%m-%d') FROM t1 WHERE dbid = b.db_id AND taskid = a.taskgenid), '1950-01-01')
+-1	Valid	1
+-1	Valid 2	1
+-1	Should Not Return	0
+SELECT dbid, name FROM t3 a, t2 b, t4 WHERE dbid = - 1 AND primary_uid = '1' AND ((date_format(now() , '%Y-%m-%d') - INTERVAL how_often DAY) >= ifnull((SELECT date_format(max(create_date),'%Y-%m-%d') FROM t1 WHERE dbid = b.db_id AND taskid = a.taskgenid), '1950-01-01')) AND t4.task_id = taskid;
+dbid	name
+-1	Valid
+-1	Valid 2
+drop table t1,t2,t3,t4;
+CREATE TABLE t1 (id int(11) default NULL) TYPE=MyISAM CHARSET=latin1;
+INSERT INTO t1 VALUES (1),(5);
+CREATE TABLE t2 (id int(11) default NULL) TYPE=MyISAM CHARSET=latin1;
+INSERT INTO t2 VALUES (2),(6);
+select * from t1 where (1,2,6) in (select * from t2);
+ERROR 21000: Operand should contain 3 column(s)
+DROP TABLE t1,t2;
+create table t1 (s1 int);
+insert into t1 values (1);
+insert into t1 values (2);
+set sort_buffer_size = (select s1 from t1);
+ERROR 21000: Subquery returns more than 1 row
+do (select * from t1);
+drop table t1;
+create table t1 (s1 char);
+insert into t1 values ('e');
+select * from t1 where 'f' > any (select s1 from t1);
+s1
+e
+select * from t1 where 'f' > any (select s1 from t1 union select s1 from t1);
+s1
+e
+explain select * from t1 where 'f' > any (select s1 from t1 union select s1 from t1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	
+3	UNION	t1	system	NULL	NULL	NULL	NULL	1	
+drop table t1;
+CREATE TABLE t1 (number char(11) NOT NULL default '') TYPE=MyISAM CHARSET=latin1;
+INSERT INTO t1 VALUES ('69294728265'),('18621828126'),('89356874041'),('95895001874');
+CREATE TABLE t2 (code char(5) NOT NULL default '',UNIQUE KEY code (code)) TYPE=MyISAM CHARSET=latin1;
+INSERT INTO t2 VALUES ('1'),('1226'),('1245'),('1862'),('18623'),('1874'),('1967'),('6');
+select c.number as phone,(select p.code from t2 p where c.number like concat(p.code, '%') order by length(p.code) desc limit 1) as code from t1 c;
+phone	code
+69294728265	6
+18621828126	1862
+89356874041	NULL
+95895001874	NULL
+drop table t1, t2;
+create table t1 (s1 int);
+create table t2 (s1 int);
+select * from t1 where (select count(*) from t2 where t1.s2) = 1;
+ERROR 42S22: Unknown column 't1.s2' in 'where clause'
+select * from t1 where (select count(*) from t2 group by t1.s2) = 1;
+ERROR 42S22: Unknown column 't1.s2' in 'group statement'
+select count(*) from t2 group by t1.s2;
+ERROR 42S02: Unknown table 't1' in group statement
+drop table t1, t2;
+CREATE TABLE t1(COLA FLOAT NOT NULL,COLB FLOAT NOT NULL,COLC VARCHAR(20) DEFAULT NULL,PRIMARY KEY (COLA, COLB));
+CREATE TABLE t2(COLA FLOAT NOT NULL,COLB FLOAT NOT NULL,COLC CHAR(1) NOT NULL,PRIMARY KEY (COLA));
+INSERT INTO t1 VALUES (1,1,'1A3240'), (1,2,'4W2365');
+INSERT INTO t2 VALUES (100, 200, 'C');
+SELECT DISTINCT COLC FROM t1 WHERE COLA = (SELECT COLA FROM t2 WHERE COLB = 200 AND COLC ='C' LIMIT 1);
+COLC
+DROP TABLE t1, t2;

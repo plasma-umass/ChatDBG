@@ -1,0 +1,15 @@
+#
+# securenets	This file defines the access rights to your NIS server
+#		for NIS clients. This file contains netmask/network
+#		pairs. A clients IP address needs to match with at least
+#		one of those.
+#
+#		One can use the word "host" instead of a netmask of
+#		255.255.255.255. Only IP addresses are allowed in this
+#		file, not hostnames.
+#
+# Always allow access for localhost
+255.0.0.0	127.0.0.0
+
+# This line gives access to everybody. PLEASE ADJUST!
+0.0.0.0		0.0.0.0

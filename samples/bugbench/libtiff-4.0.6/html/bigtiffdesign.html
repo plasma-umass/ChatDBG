@@ -1,0 +1,80 @@
+<html>
+<head>
+<title>BigTIFF Design</title>
+</head>
+<body>
+
+<h1>BigTIFF Design</h1>
+
+<p>This is the HTML equivalent of a former Wiki working place for preparing a 64-bit (larger than 4GB) TIFF 
+format specification. The design is based on a proposal by Steve Carlsen of Adobe, with input from various 
+other parties.</p>
+
+<h2>Briefly</h2>
+<ul>
+<li>Version = 43</li>
+
+<li>8-byte offset to first IFD</li>
+<li>Value/Offset fields are 8 bytes</li>
+<li>8-byte offset to the next IFD</li>
+<li>add TIFFType of LONG8, an 8 byte (unsigned) int</li>
+<li>StripOffsets and TileOffsets and ByteCounts can be LONG8</li>
+</ul>
+
+<h2>More Detail</h2>
+<ul>
+<li>The Version ID, in header bytes 2-3, formerly decimal 42, now changes to 43</li>
+
+<li>Header bytes 4-5 contain the decimal number 8.<ul>
+  <li>If there is some other number here, a reader should give up.</li>
+  <li>This is to provide a nice way to move to 16-byte pointers some day.</li></ul></li>
+<li>Header bytes 6-7 are reserved and must be zero.<ul>
+  <li>If they're not, a reader should give up.</li></ul></li>
+<li>Header bytes 8-15 contain the 8-byte offset to the first IFD.</li>
+<li>Value/Offset fields are 8 bytes long, and take up bytes 8-15 in an IFD entry.<ul>
+
+  <li>If the value is <= 8 bytes, it must be stored in the field.</li>
+  <li>All values must begin at an 8-byte-aligned address.</li></ul></li>
+<li>8-byte offset to the Next_IFD, at the end of an IFD.</li>
+<li>To keep IFD entries 8-byte-aligned, we begin with an 8-byte (instead of 2-byte) count of the number of directory entries.</li>
+<li>Add TIFFTypes of LONG8 (= 16), an 8 byte (unsigned) int, and SLONG8 (= 17).</li>
+<li>Add TIFFType IFD8 (=18) an 8byte IFD offset.</li>
+<li>StripOffsets and TileOffsets and ByteCounts may be LONG8 or the traditionally allowed LONG or SHORT.</li>
+
+<li>The proposed extension is ".tf8", and call it "8-Byte TIFF".</li>
+</ul>
+<p>Otherwise, it's just like "original TIFF." ("TIFF Classic?")</p>
+
+<h2>Open Issues</h2>
+<ul>
+<li>What to call the new format<ul>
+  <li>ChrisCox -- I don't think end users will understand what "8-byte TIFF" means</li>
+  <li>AndreyKiselev - 23 Sep 2004 -- What about TIFF64? "64" is a widely used buzzword and should be directly associated with the 64-bit offsets and 64-bit architectures.</li></ul></li>
+
+<li>What 3 character file extension to use (gotta be DOS compatible)</li>
+<li>What 4 character file type to use (for Macintosh)</li>
+<li>What MIME type to use</li>
+</ul>
+
+<h2>Samples</h2>
+<p><a href="http://www.awaresystems.be/imaging/tiff/bigtiff/BigTIFFSamples.zip">Example files</a> from Joris Van Damme</p>
+
+<h2>Changes</h2>
+
+<ul>
+<li>TIFFType 13 is ttIFD, 14 is assigned to ttUnicode, and 15 is assigned to ttComplex. So, I changed the types for ttLong8 and ttSLong8 to 16 and 17, respectively.<ul>
+  <li>AndreyKiselev - 23 Sep 2004 -- Where are these fields defined? Is there any new Technical Note or something? And what is encoding behind the word "Unicode"?</li>
+  <li>ChrisCox - 27 Sep 2004 -- They are in the Adobe TIFF definitions.  I am still working on releasing updated TIFF documentation.</li></ul></li>
+<li>Added list of open issues.</li>
+<li>settle on version 43</li>
+<li>cleanup</li>
+<li>TIFFType 18 (8 byte IFD) added.</li>
+
+<li>Clarified that fields which may be LONG8 can also be one of the old supported types.</li>
+</ul>
+
+<h2>See also</h2>
+<p><a href="http://www.awaresystems.be/imaging/tiff/bigtiff.html">AWare Systems' informal overview of the BigTIFF proposal</a></p>
+
+</body>
+</html>

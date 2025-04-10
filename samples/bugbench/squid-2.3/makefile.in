@@ -1,0 +1,63 @@
+# $Id: makefile.in,v 1.23.2.2 2000/01/05 18:44:26 wessels Exp $
+#
+
+srcdir		= @srcdir@
+VPATH		= @srcdir@
+
+CC		= @CC@
+INSTALL		= @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA	= @INSTALL_DATA@
+SHELL		= /bin/sh
+
+# Where to install
+prefix		= @prefix@
+exec_prefix	= @exec_prefix@
+
+SUBDIRS		= lib @makesnmplib@ scripts src icons errors 
+AUTHDIRS	= auth_modules/NCSA \
+		  auth_modules/getpwnam \
+		  auth_modules/PAM \
+		  auth_modules/SMB \
+		  auth_modules/LDAP
+
+noargs: all
+
+all install: makefile
+	@for dir in $(SUBDIRS); do \
+		echo "Making $@ in $$dir..."; \
+		(cd $$dir ; $(MAKE) $(MFLAGS) prefix="$(prefix)" $@) || exit 1; \
+	done
+
+clean:
+	@for dir in $(SUBDIRS); do \
+		echo "Making $@ in $$dir..."; \
+		(cd $$dir ; $(MAKE) $(MFLAGS) prefix="$(prefix)" $@); \
+	done
+
+
+install-pinger:
+	(cd src; $(MAKE) $(MFLAGS) prefix="$(prefix)" $@)
+
+almostclean: clean
+	rm -f config.log makefile
+	rm -f include/paths.h include/autoconf.h include/config.h
+	rm -f auth_modules/dummy
+	@for dir in $(SUBDIRS) $(AUTHDIRS) contrib; do \
+		echo Making distclean in $$dir; \
+		(cd $$dir; $(MAKE) $(MFLAGS) prefix="$(prefix)" distclean); \
+	done
+
+distclean: almostclean
+	rm -f config.status config.cache
+
+targz: distclean
+	tar cvf current.tar . ; gzip current.tar
+
+makefile: configure config.status makefile.in lib/Makefile.in include/config.h.in src/Makefile.in include/version.h
+	@echo "Package configuration updated. Cleaning and reconfiguring" ;\
+	./config.status --recheck;\
+	./config.status ;\
+	$(MAKE) $(MFLAGS) clean
+
+depend:

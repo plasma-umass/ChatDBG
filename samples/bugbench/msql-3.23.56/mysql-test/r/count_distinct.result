@@ -1,0 +1,11 @@
+isbn	city	libname	a
+007	Berkeley	Berkeley Public1	1
+007	Berkeley	Berkeley Public2	1
+000	New York	New York Public Libra	6
+001	New York	NYC Lib	1
+006	San Fran	San Fransisco Public	1
+isbn	city	libname	a
+007	Berkeley	Berkeley Public1	2
+000	New York	New York Public Libra	2
+f1	count(distinct t2.f2)	count(distinct 1,NULL)
+1	0	0

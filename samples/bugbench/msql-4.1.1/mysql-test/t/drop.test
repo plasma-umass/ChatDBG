@@ -1,0 +1,55 @@
+# Initialise
+--disable_warnings
+drop table if exists t1;
+drop database if exists mysqltest;
+--enable_warnings
+
+--error 1051;
+drop table t1;
+create table t1(n int);
+insert into t1 values(1);
+create temporary table t1( n int);
+insert into t1 values(2);
+--error 1050;
+create table t1(n int);
+drop table t1;
+select * from t1;
+
+# now test for a bug in drop database - it is important that the name
+# of the table is the same as the name of the database - in the original
+# code this triggered a bug
+create database mysqltest;
+drop database if exists mysqltest;
+create database mysqltest;
+create table mysqltest.mysqltest (n int);
+insert into mysqltest.mysqltest values (4);
+select * from mysqltest.mysqltest;
+drop database if exists mysqltest;
+create database mysqltest;
+drop database mysqltest;
+
+# test drop/create database and FLUSH TABLES WITH READ LOCK
+flush tables with read lock;
+--error 1209,1223;
+create database mysqltest;
+unlock tables;
+create database mysqltest;
+show databases;
+flush tables with read lock;
+--error 1208,1223;
+drop database mysqltest;
+unlock tables;
+drop database mysqltest;
+show databases;
+--error 1008
+drop database mysqltest;
+
+# test create table and FLUSH TABLES WITH READ LOCK
+drop table t1;
+flush tables with read lock;
+--error 1223;
+create table t1(n int);
+unlock tables;
+create table t1(n int);
+show tables;
+drop table t1;

@@ -1,0 +1,265 @@
+<!--
+$Header: /cvsroot/pgsql/doc/src/sgml/ref/create_aggregate.sgml,v 1.28 2003/09/09 18:28:52 tgl Exp $
+PostgreSQL documentation
+-->
+
+<refentry id="SQL-CREATEAGGREGATE">
+ <refmeta>
+  <refentrytitle id="sql-createaggregate-title">CREATE AGGREGATE</refentrytitle>
+  <refmiscinfo>SQL - Language Statements</refmiscinfo>
+ </refmeta>
+
+ <refnamediv>
+  <refname>CREATE AGGREGATE</refname>
+  <refpurpose>define a new aggregate function</refpurpose>
+ </refnamediv>
+
+ <indexterm zone="sql-createaggregate">
+  <primary>CREATE AGGREGATE</primary>
+ </indexterm>
+
+ <refsynopsisdiv>
+<synopsis>
+CREATE AGGREGATE <replaceable class="PARAMETER">name</replaceable> (
+    BASETYPE = <replaceable class="PARAMETER">input_data_type</replaceable>,
+    SFUNC = <replaceable class="PARAMETER">sfunc</replaceable>,
+    STYPE = <replaceable class="PARAMETER">state_data_type</replaceable>
+    [ , FINALFUNC = <replaceable class="PARAMETER">ffunc</replaceable> ]
+    [ , INITCOND = <replaceable class="PARAMETER">initial_condition</replaceable> ]
+)
+</synopsis>
+ </refsynopsisdiv>
+
+ <refsect1>
+  <title>Description</title>
+
+  <para>
+   <command>CREATE AGGREGATE</command> defines a new aggregate function. Some aggregate functions
+   for base types such as <function>min(integer)</function>
+   and <function>avg(double precision)</function> are already provided in the standard
+   distribution. If one defines new types or needs an aggregate function not
+   already provided, then <command>CREATE AGGREGATE</command>
+   can be used to provide the desired features.
+  </para>
+
+  <para>
+   If a schema name is given (for example, <literal>CREATE AGGREGATE
+   myschema.myagg ...</>) then the aggregate function is created in the
+   specified schema.  Otherwise it is created in the current schema.
+  </para>
+
+  <para>
+   An  aggregate  function is identified by its name and input data type.
+   Two aggregates in the same schema can have the same name if they operate on
+   different input types.  The
+   name and input data type of an aggregate must also be distinct from
+   the name and input data type(s) of every ordinary function in the same
+   schema.
+  </para>
+
+  <para>
+   An  aggregate function is made from one or two ordinary
+   functions:
+   a state transition function
+   <replaceable class="PARAMETER">sfunc</replaceable>,
+   and an optional final calculation function
+   <replaceable class="PARAMETER">ffunc</replaceable>.
+   These are used as follows:
+<programlisting>
+<replaceable class="PARAMETER">sfunc</replaceable>( internal-state, next-data-item ) ---> next-internal-state
+<replaceable class="PARAMETER">ffunc</replaceable>( internal-state ) ---> aggregate-value
+</programlisting>
+  </para>
+
+  <para>
+   <productname>PostgreSQL</productname> creates a temporary variable
+   of data type <replaceable class="PARAMETER">stype</replaceable>
+   to hold the current internal state of the aggregate.  At each input
+   data item,
+   the state transition function is invoked to calculate a new
+   internal state value.  After all the data has been processed,
+   the final function is invoked once to calculate the aggregate's return
+   value.  If there is no final function then the ending state value
+   is returned as-is.
+  </para>
+  
+  <para>
+   An aggregate function may provide an initial condition,
+   that is, an initial value for the internal state value.
+   This is specified and stored in the database as a column of type
+   <type>text</type>, but it must be a valid external representation
+   of a constant of the state value data type.  If it is not supplied
+   then the state value starts out null.
+  </para>
+  
+  <para>
+   If the state transition function is declared <quote>strict</quote>,
+   then it cannot be called with null inputs.  With such a transition
+   function, aggregate execution behaves as follows.  Null input values
+   are ignored (the function is not called and the previous state value
+   is retained).  If the initial state value is null, then the first
+   nonnull input value replaces the state value, and the transition
+   function is invoked beginning with the second nonnull input value.
+   This is handy for implementing aggregates like <function>max</function>.
+   Note that this behavior is only available when
+   <replaceable class="PARAMETER">state_data_type</replaceable>
+   is the same as
+   <replaceable class="PARAMETER">input_data_type</replaceable>.
+   When these types are different, you must supply a nonnull initial
+   condition or use a nonstrict transition function.
+  </para>
+  
+  <para>
+   If the state transition function is not strict, then it will be called
+   unconditionally at each input value, and must deal with null inputs
+   and null transition values for itself.  This allows the aggregate
+   author to have full control over the aggregate's handling of null values.
+  </para>
+  
+  <para>
+   If the final function is declared <quote>strict</quote>, then it will not
+   be called when the ending state value is null; instead a null result
+   will be returned automatically.  (Of course this is just the normal
+   behavior of strict functions.)  In any case the final function has
+   the option of returning a null value.  For example, the final function for
+   <function>avg</function> returns null when it sees there were zero
+   input rows.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Parameters</title>
+
+  <variablelist>
+   <varlistentry>
+    <term><replaceable class="PARAMETER">name</replaceable></term>
+    <listitem>
+     <para>
+      The name (optionally schema-qualified) of the aggregate function
+      to create.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="PARAMETER">input_data_type</replaceable></term>
+    <listitem>
+     <para>
+      The input data type on which this aggregate function operates.
+      This can be specified as <literal>"ANY"</> for an aggregate that
+      does not examine its input values (an example is
+      <function>count(*)</function>).
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="PARAMETER">sfunc</replaceable></term>
+    <listitem>
+     <para>
+      The name of the state transition function to be called for each
+      input data value.  This is normally a function of two arguments,
+      the first being of type <replaceable
+      class="PARAMETER">state_data_type</replaceable> and the second
+      of type <replaceable
+      class="PARAMETER">input_data_type</replaceable>.  Alternatively,
+      for an aggregate that does not examine its input values, the
+      function takes just one argument of type <replaceable
+      class="PARAMETER">state_data_type</replaceable>.  In either case
+      the function must return a value of type <replaceable
+      class="PARAMETER">state_data_type</replaceable>.  This function
+      takes the current state value and the current input data item,
+      and returns the next state value.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="PARAMETER">state_data_type</replaceable></term>
+    <listitem>
+     <para>
+      The data type for the aggregate's state value.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="PARAMETER">ffunc</replaceable></term>
+    <listitem>
+     <para>
+      The name of the final function called to compute the aggregate's
+      result after all input data has been traversed.  The function
+      must take a single argument of type <replaceable
+      class="PARAMETER">state_data_type</replaceable>.  The return
+      data type of the aggregate is defined as the return type of this
+      function.  If <replaceable class="PARAMETER">ffunc</replaceable>
+      is not specified, then the ending state value is used as the
+      aggregate's result, and the return type is <replaceable
+      class="PARAMETER">state_data_type</replaceable>.
+     </para>
+    </listitem>
+   </varlistentry>
+
+   <varlistentry>
+    <term><replaceable class="PARAMETER">initial_condition</replaceable></term>
+    <listitem>
+     <para>
+      The initial setting for the state value.  This must be a string
+      constant in the form accepted for the data type <replaceable
+      class="PARAMETER">state_data_type</replaceable>.  If not
+      specified, the state value starts out null.
+     </para>
+    </listitem>
+   </varlistentry>
+  </variablelist>
+
+  <para>
+   The parameters of <command>CREATE AGGREGATE</command> can be
+   written in any order, not just the order illustrated above.
+  </para>
+ </refsect1>
+  
+ <refsect1>
+  <title>Examples</title>
+
+  <para>
+   See <xref linkend="xaggr">.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>Compatibility</title>
+
+  <para>
+   <command>CREATE AGGREGATE</command> is a
+   <productname>PostgreSQL</productname> language extension.  The SQL
+   standard does not provide for user-defined aggregate function.
+  </para>
+ </refsect1>
+
+ <refsect1>
+  <title>See Also</title>
+
+  <simplelist type="inline">
+   <member><xref linkend="sql-alteraggregate" endterm="sql-alteraggregate-title"></member>
+   <member><xref linkend="sql-dropaggregate" endterm="sql-dropaggregate-title"></member>
+  </simplelist>
+ </refsect1>
+</refentry>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: sgml
+sgml-omittag:nil
+sgml-shorttag:t
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:1
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-default-dtd-file:"../reference.ced"
+sgml-exposed-tags:nil
+sgml-local-catalogs:"/usr/lib/sgml/catalog"
+sgml-local-ecat-files:nil
+End:
+-->

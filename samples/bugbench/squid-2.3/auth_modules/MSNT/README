@@ -1,0 +1,125 @@
+
+MSNT Auth v1.1
+Squid web proxy Authentication module
+Antonino Iannella, Stellar-X Pty Ltd
+Mon Apr 10 22:47:33 CST 2000
+_____________________________________
+
+This is a simple authentication module for the Squid proxy server
+to authenticate users on an NT domain.
+
+It originates from the Samba and SMB packages by Andrew Tridgell
+and Richard Sharpe. This version is sourced from the Pike
+authentication module by William Welliver (hwellive@intersil.com).
+
+Usage is simple. It accepts a username and password on standard input
+and will return OK if the username/password is valid for the domain,
+or ERR if there was some problem.
+
+You will need to modify the NT server definitions for your site;
+this is the NT server and NT domain to authenticate to.
+This is done in sitedef.h.
+
+Usernames can now be explicitly denied. See below for details.
+
+This is released under the GNU General Public License and
+is available from http://stellarx.tripod.com.
+
+Site customisation -
+
+Change the following lines in sitedef.h.
+Set the Primary Domain Controller, the backup (if different from the PDC),
+and the NT domain.
+
+  #define PRIMARY_DC "my_pdc"
+  #define BACKUP_DC  "my_bdc"
+  #define NTDOMAIN   "my_domain"
+
+Denying Users -
+
+Users who are not allowed to access the web proxy can be added to
+the denied user list. This list is read every minute, or when
+msntauth receives a SIGHUP signal.
+
+The denied user file is /usr/local/squid/etc/denyusers. This may be
+changed in the DENYUSERS line in denyusers.c. The denied user file
+contains a list of usernames in no particular structure or form.
+If the file does not exist, no users are denied.
+The file must be readable by the web proxy user.
+Msntauth will send syslog messages at LOG_USER priority.
+
+Installation -
+
+Type 'make', then 'make install', then 'make clean'.
+To avoid using the makefile, it may compile with
+
+  gcc -O2 -s -o msntauth *.c
+
+The default is to install 'msntauth' into /usr/local/sbin.
+
+Refer to Squid documentation for the required changes to squid.conf.
+You will need to set the following lines to enable authentication for
+your access list -
+
+  acl <yourACL> proxy_auth REQUIRED
+  http_access allow <yourACL>
+
+You will need to specify the absolute path to msntauth in the 
+authenticate_program directive, and check the authenticate_children
+and authenticate_ttl.
+
+Compilation issues -
+
+The Makefile assumes that GCC is in the current PATH.
+Msntauth is known to compile properly on Redhat Linux 6, and FreeBSD 3.1
+without problems. Other operating systems are untested,
+but use a recent copy of the GNU C compiler.
+Smbencrypt.c has the '#include <sys/vfs.h>' line commented out.
+Remove the comments for S5R4 systems, like Solaris.
+
+When compiling under Solaris, the socket libraries must be linked to.
+In the Makefile CFLAGS line, add to the end
+
+  -Dsolaris -lnsl -lsocket
+
+Testing -
+
+I strongly urge that Msntauth is tested prior to being used in a 
+production environment. It may behave differently on different platforms.
+To test it, run it from the command line. Enter username and password
+pairs separated by a space. Press ENTER to get an OK or ERR message.
+Make sure pressing <CTRL><D> behaves the same as a carriage return.
+Make sure pressing <CTRL><C> aborts the program.
+
+Test that entering no details does not result in an OK or ERR message.
+Test that entering an invalid username and password results in an ERR message.
+Note that if NT guest user access is allowed on the PDC, an OK message
+may be returned instead of ERR.
+Test that entering an valid username and password results in an OK message.
+Test that entering a guest username and password returns the correct
+response for the site's access policy.
+
+If the above didn't work as expected, you may need to modify the main()
+function in smbauth.c. Inform the maintainer of any problems.
+
+Contact details -
+
+To contact the maintainer of this package, email Antonino Iannella
+on stellarx@usa.net or antonino.iannella@usa.net.
+The latest version may be found on http://stellarx.tripod.com.
+
+Reported problem -
+
+For an unknown username, Msntauth returns OK.
+This is because the PDC returns guest access for unknown users,
+even if guest access is disabled.
+This problem was reported by Mr Vadim Popov (vap@iilsr.minsk.by).
+I am not able to replicate this.
+
+The tested environment consisted of PDC on Windows NT 4, SP 6.
+Squid 2.3 and Msntauth was tested on SuSe, RedHat, and Debian Linux.
+A fix was provided in case you have this problem.
+Apply the provided patch before compiling, using
+
+  patch smblib.c < smblib.c.patch
+

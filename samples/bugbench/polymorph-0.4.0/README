@@ -1,0 +1,69 @@
+polymorph -- filename convertor
+
+---------------------------
+
+  i. what is polymorph?
+ ii. options
+iii. why?
+ iv. contact
+
+---------------------------
+
+  i. what is polymorph?
+
+     Specifically, polymorph is a filesystem "unixizer".
+There are a number of places you can encounter files whose
+names are affected by passing through a Microsoft system.
+This program eliminates upper case letters from the
+filename, and clears up the leading directory some
+newsreaders (MS Outlook!) leave on the beginnings of files.
+
+---------------------------
+
+ ii. options
+
+ command line switches:
+
+ -a  all      convert all files, including hidden files
+ -c  clean    trim filename after the last backslash '\'
+ -f  filename convert 'filename' only
+ -h  help     print a list of the recognized command line
+                switches and exit
+ -v  version  print the version of polymorph and exit
+ -t  track    track symlinks and change the name of the
+                target file
+
+---------------------------
+
+iii. why?
+
+     This program came about after trying to collect
+binaries from newsgroups for a little while.  All the files
+I'd collected had these mucho-funky names like
+collision_WAVE.MPG, or C:\ProNews\baffle.JPG.
+
+     Obviously, this had to stop.
+
+     I tried to write a short bash-script to get the job
+done, but couldn't seem to get the shell to understand what
+I meant by a "string".  So I wrote this program.  It does
+what I want it to, and with a set of useful command line
+switches, it's a little smarter than I could make a shell
+script anyway.
+
+     polymorph will look through the current directory and
+rename files to their current name with all lower case
+letters.  polymorph can also be told to just work on symlinks,
+and leave their target files alone.  polymorph ignores
+directories, and does not recurse directories (at this time).
+If polymorph finds that the target name already exists, it will
+skip renaming the original file.
+
+---------------------------
+
+ iv. contact
+
+     Please let me know if you find polymorph useful.
+Thanks for your time and attention--
+
+Gerall Kahla <kahlage@sourceforge.net>

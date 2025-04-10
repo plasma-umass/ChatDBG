@@ -1,0 +1,12 @@
+#! /bin/sh
+#
+# ypxfr_1perday - Do daily NIS map check/updates, to see, if we
+#                 have missed one update.
+#
+
+YPBINDIR=@YPBINDIR@
+
+for map in group.byname group.bygid protocols.byname protocols.bynumber networks.byname networks.byaddr rpc.byname rpc.bynumber services.byname ypservers
+do
+  $YPBINDIR/ypxfr $map
+done

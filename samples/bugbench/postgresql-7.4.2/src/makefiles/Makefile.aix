@@ -1,0 +1,33 @@
+# MAKE_EXPORTS is required for svr4 loaders that want a file of
+# symbol names to tell them what to export/import.
+MAKE_EXPORTS= true
+
+RANLIB= touch
+MK_NO_LORDER= true
+AROPT = crs
+
+DLSUFFIX = .so
+ifeq ($(host_os), aix3.2.5)
+ifneq ($(GCC), yes)
+	LDFLAGS_SL = -e _nostart -H512 -bM:SRE
+endif
+else
+	LDFLAGS_SL = -Wl,-bnoentry -Wl,-H512 -Wl,-bM:SRE
+endif
+
+
+EXPSUFF= .exp
+IMPSUFF= .imp
+
+POSTGRES_IMP= postgres$(IMPSUFF)
+
+MKLDEXPORT=$(top_srcdir)/src/backend/port/aix/mkldexport.sh
+
+%$(EXPSUFF): %.o
+	$(MKLDEXPORT) $*.o > $*$(EXPSUFF)
+
+%$(DLSUFFIX): %.o %$(EXPSUFF)
+	@echo Making shared library $@ from $*.o, $*$(EXPSUFF) and postgres.imp
+	$(CC) $(LDFLAGS) $(LDFLAGS_SL) -o $@ $*.o -Wl,-bI:$(top_builddir)/src/backend/$(POSTGRES_IMP) -Wl,-bE:$*$(EXPSUFF) $(LIBS)
+
+sqlmansect = 7

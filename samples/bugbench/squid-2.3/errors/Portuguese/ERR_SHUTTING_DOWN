@@ -1,0 +1,20 @@
+<HTML><HEAD>
+<TITLE>ERRO: A URL solicitada n&atilde;o pode ser recuperada</TITLE>
+</HEAD><BODY>
+<H1>ERRO</H1>
+<H2>A URL solicitada n&atilde;o pode ser recuperada</H2>
+<HR>
+<P>
+Enquanto tentava recuperar a URL:
+<A HREF="%U">%U</A>,
+<P>
+o seguite erro foi encontrado:
+<UL>
+<P>
+Este servidor de cache est&aacute; em procedimento de 
+<STRONG>shutting down</STRONG> e n&atilde;o pode servir
+sua requisi&ccedil;&atilde;o neste momento. Por favor,
+tente mais tarde. Voc&ecirc; pode tentar usar outro servidor
+de cache, ou desligar o <STRONG>proxy</STRONG>, alterando a 
+configura&ccedil;&atilde;o de seu <STRONG>browser</STRONG>.
+</P>

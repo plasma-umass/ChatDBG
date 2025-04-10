@@ -1,0 +1,52 @@
+SET CHARACTER SET koi8r;
+
+--disable_warnings
+DROP TABLE IF EXISTS таблица, t1;
+--enable_warnings
+
+SET CHARACTER SET koi8r;
+CREATE TABLE t1 (a CHAR(10) CHARACTER SET cp1251) SELECT _koi8r'проба' AS a;
+SHOW CREATE TABLE t1;
+SELECT a FROM t1;
+SELECT HEX(a) FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE `таблица`
+(
+  поле CHAR(32) CHARACTER SET koi8r NOT NULL COMMENT "комментарий поля"
+) COMMENT "комментарий таблицы";
+
+SHOW TABLES;
+SHOW CREATE TABLE таблица;
+SHOW FIELDS FROM таблица;
+
+SET CHARACTER SET cp1251;
+SHOW TABLES;
+SHOW CREATE TABLE РЮАКХЖЮ;
+SHOW FIELDS FROM РЮАКХЖЮ;
+
+
+SET CHARACTER SET utf8;
+SHOW TABLES;
+SHOW CREATE TABLE я┌п╟п╠п╩п╦я├п╟;
+SHOW FIELDS FROM я┌п╟п╠п╩п╦я├п╟;
+
+SET CHARACTER SET koi8r;
+DROP TABLE таблица;
+SET CHARACTER SET default;
+
+SET CHARACTER SET koi8r;
+CREATE DATABASE тест;
+USE тест;
+SHOW TABLES;
+SHOW TABLES IN тест;
+SET CHARACTER SET cp1251;
+SHOW TABLES;
+SHOW TABLES IN РЕЯР;
+SET CHARACTER SET koi8r;
+DROP DATABASE тест;
+
+SET NAMES koi8r;
+SELECT hex('тест');
+SET character_set_connection=cp1251;
+SELECT hex('тест');

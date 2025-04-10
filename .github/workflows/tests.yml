@@ -47,4 +47,4 @@ jobs:
       - name: run tests
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: python3 -m pytest --forked
+        run: python3 -m pytest --forked test

@@ -39,6 +39,9 @@ RUN pip install --break-system-packages -e /root/ChatDBG
 RUN python3 -c 'import chatdbg; print(f"command script import {chatdbg.__path__[0]}/chatdbg_lldb.py")' >> ~/.lldbinit
 RUN echo 'settings set target.disable-aslr false' >> ~/.lldbinit
 RUN python3 -c 'import chatdbg; print(f"source {chatdbg.__path__[0]}/chatdbg_gdb.py")' >> ~/.gdbinit
+ENV CHATDBG_UNSAFE=1
+
+RUN pip install --break-system-packages -r /root/ChatDBG/samples/python/requirements.txt
 
 # BugBench.
 RUN git clone https://github.com/nicovank/bugbench.git /root/ChatDBG/samples/bugbench

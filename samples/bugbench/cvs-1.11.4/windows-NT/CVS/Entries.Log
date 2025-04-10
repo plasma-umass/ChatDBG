@@ -1,7 +1,0 @@
-A D/SCC////
-A D/arpa////
-A D/netinet////
-A D/sys////
-R D/sys////
-R D/netinet////
-R D/arpa////

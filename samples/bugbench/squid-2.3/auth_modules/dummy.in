@@ -1,4 +1,0 @@
-this file stops configure/make complaining when building outside
-the source tree.
-
-Masashi Fujita <objectx@bandit.co.jp>

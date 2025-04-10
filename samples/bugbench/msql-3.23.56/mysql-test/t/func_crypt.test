@@ -1,2 +1,0 @@
-
-select length(encrypt('foo', 'ff')) <> 0;

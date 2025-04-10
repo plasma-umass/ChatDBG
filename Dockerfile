@@ -41,6 +41,7 @@ RUN echo 'settings set target.disable-aslr false' >> ~/.lldbinit
 RUN python3 -c 'import chatdbg; print(f"source {chatdbg.__path__[0]}/chatdbg_gdb.py")' >> ~/.gdbinit
 
 # BugBench.
+RUN git clone https://github.com/nicovank/bugbench.git /root/ChatDBG/samples/bugbench
 RUN cd /root/ChatDBG/samples/bugbench && make all
 
 ENV TERM=xterm-256color

@@ -1,2 +1,0 @@
-TestOpenEmpty: access.db: unexpected file type or format
-TestOpenEmpty: com.sleepycat.db.DbException: Invalid argument: Invalid argument

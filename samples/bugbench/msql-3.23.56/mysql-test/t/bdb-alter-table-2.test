@@ -1,3 +1,0 @@
--- source include/have_bdb.inc
-select * from t1;
-drop table t1;

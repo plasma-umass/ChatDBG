@@ -1,4 +1,0 @@
--O max_binlog_size=16384
---innodb
---log-warnings
-

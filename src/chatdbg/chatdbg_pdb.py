@@ -288,7 +288,7 @@ class ChatDBG(ChatDBGSuper):
         """
         try:
             if chatdbg_config.unsafe:
-                return super._getval(arg)
+                return super()._getval(arg)
             else:
                 return sandbox_eval(arg, self.curframe.f_globals, self.curframe_locals)
         except NameError as e:

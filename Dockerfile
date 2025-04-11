@@ -43,7 +43,7 @@ ENV CHATDBG_UNSAFE=1
 
 RUN pip install --break-system-packages -r /root/ChatDBG/samples/python/requirements.txt
 
-# BugBench.
+# Bugbench.
 RUN git clone https://github.com/nicovank/bugbench.git /root/ChatDBG/samples/bugbench
 RUN cd /root/ChatDBG/samples/bugbench && make all
 

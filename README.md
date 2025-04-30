@@ -6,7 +6,7 @@ by [Emery Berger](https://emeryberger.com), [Stephen Freund](https://www.cs.will
 [![Downloads](https://static.pepy.tech/badge/chatdbg)](https://pepy.tech/project/chatdbg)
 [![Downloads](https://static.pepy.tech/badge/chatdbg/month)](https://pepy.tech/project/chatdbg)
 
-ChatDBG is an AI-based debugging assistant for C/C++/Python/Rust code that integrates large language models into a standard debugger (`pdb`, `lldb`, `gdb`, and `windbg`) to help debug your code. With ChatDBG, you can engage in a dialog with your debugger, asking open-ended questions about your program, like `why is x null?`. ChatDBG will _take the wheel_ and steer the debugger to answer your queries. ChatDBG can provide error diagnoses and suggest fixes.
+ChatDBG is an AI-based debugging assistant for C/C++/Python/Rust code that integrates large language models into a standard debugger (`pdb`, `lldb`, `gdb`) to help debug your code. With ChatDBG, you can engage in a dialog with your debugger, asking open-ended questions about your program, like `why is x null?`. ChatDBG will _take the wheel_ and steer the debugger to answer your queries. ChatDBG can provide error diagnoses and suggest fixes.
 
 As far as we are aware, ChatDBG is the *first* debugger to automatically perform root cause analysis and to provide suggested fixes.
 
@@ -92,31 +92,6 @@ python3 -c 'import chatdbg; print(f"source {chatdbg.__path__[0]}/chatdbg_gdb.py"
 
 This will install ChatDBG as a GDB extension.
 </details>
-
-### Installing as a `WinDBG` extension
-
-<details>
-<summary>
-<B><TT>WinDBG</TT> installation instructions</B>
-</summary>
-
-1. **Install WinDBG**: Follow instructions [here](https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/) if `WinDBG` is not installed already.
-1. **Install `vcpkg`**: Follow instructions [here](https://vcpkg.io/en/getting-started) if `vcpkg` is not installed already.
-1. **Install Debugging Tools for Windows**: Install the Windows SDK [here](https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/) and check the box `Debugging Tools for Windows`.
-1. **Navigate to the `src\chatdbg` directory**: `cd src\chatdbg`
-1. **Install needed dependencies**: Run`vcpkg install`
-1. **Build the chatdbg.dll extension**: Run`mkdir build & cd build & cmake .. & cmake --build . & cd ..`
-
-**Using ChatDBG**:
-
- * Load into WinDBGX:
-   * Run `windbgx your_executable_here.exe`
-   * Click the menu items `View` -> `Command browser`
-   * Type `.load debug\chatdbg.dll`
- * After running code and hitting an exception / signal:
-   * Type `!why` in Command browser
-</details>
-
 
 ## Usage
 

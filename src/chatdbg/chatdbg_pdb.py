@@ -635,7 +635,6 @@ class ChatDBG(ChatDBGSuper):
             model=chatdbg_config.model,
             debug=chatdbg_config.debug,
             functions=functions,
-            stream=not chatdbg_config.no_stream,
             max_call_response_tokens=8192,
             listeners=[
                 chatdbg_config.make_printer(

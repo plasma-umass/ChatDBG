@@ -212,7 +212,6 @@ class DBGDialog:
             model=chatdbg_config.model,
             debug=chatdbg_config.debug,
             functions=functions,
-            stream=not chatdbg_config.no_stream,
             listeners=[
                 printer,
                 self._log,

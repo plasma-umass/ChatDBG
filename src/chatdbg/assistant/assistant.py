@@ -38,7 +38,6 @@ class Assistant:
         functions=[],
         max_call_response_tokens=2048,
         debug=False,
-        stream=False,
     ):
 
         # Hide their debugging info -- it messes with our error handling
@@ -62,7 +61,6 @@ class Assistant:
         self._timeout = timeout
         self._conversation = [{"role": "system", "content": instructions}]
         self._max_call_response_tokens = max_call_response_tokens
-        self._stream = stream
 
         self._check_model()
         self._broadcast("on_begin_dialog", instructions)
@@ -102,10 +100,7 @@ class Assistant:
 
         self._broadcast("on_begin_query", prompt, user_text)
         try:
-            if self._stream:
-                stats = self._streamed_query(prompt, user_text)
-            else:
-                stats = self._batch_query(prompt, user_text)
+            stats = self._streamed_query(prompt, user_text)
             elapsed = time.time() - start
 
             stats["time"] = elapsed
@@ -203,42 +198,13 @@ class Assistant:
             self._broadcast("on_warn", result)
         return result
 
-    def _batch_query(self, prompt: str, user_text):
-        cost = 0
-
-        self._conversation.append({"role": "user", "content": prompt})
-
-        while True:
-            completion = self._completion()
-
-            cost += litellm.completion_cost(completion)
-
-            response_message = completion.choices[0].message
-            self._conversation.append(response_message.json())
-
-            if response_message.content:
-                self._broadcast("on_response", response_message.content)
-
-            if completion.choices[0].finish_reason == "tool_calls":
-                self._add_function_results_to_conversation(response_message)
-            else:
-                break
-
-        stats = {
-            "cost": cost,
-            "tokens": completion.usage.total_tokens,
-            "prompt_tokens": completion.usage.prompt_tokens,
-            "completion_tokens": completion.usage.completion_tokens,
-        }
-        return stats
-
     def _streamed_query(self, prompt: str, user_text):
         cost = 0
 
         self._conversation.append({"role": "user", "content": prompt})
 
         while True:
-            stream = self._completion(stream=True)
+            stream = self._stream_completion()
 
             # litellm.stream_chunk_builder is broken for new GPT models
             # that have content before calls, so...
@@ -312,7 +278,7 @@ class Assistant:
         }
         return stats
 
-    def _completion(self, stream=False):
+    def _stream_completion(self):
 
         self._trim_conversation()
 
@@ -325,7 +291,7 @@ class Assistant:
             ],
             timeout=self._timeout,
             logger_fn=self._logger,
-            stream=stream,
+            stream=True,
         )
 
     def _trim_conversation(self):

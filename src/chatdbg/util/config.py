@@ -78,10 +78,6 @@ class ChatDBGConfig(Configurable):
         _chatdbg_get_env("take_the_wheel", True), help="Let LLM take the wheel"
     ).tag(config=True)
 
-    no_stream = Bool(
-        _chatdbg_get_env("batch", False), help="Do not stream the LLM responses"
-    ).tag(config=True)
-
     format = Unicode(
         _chatdbg_get_env("format", "md"),
         help="The output format (text or md or md:simple or jupyter)",
@@ -106,7 +102,6 @@ class ChatDBGConfig(Configurable):
         log,
         model,
         instructions,
-        no_stream,
         format,
         module_whitelist,
         unsafe,

@@ -10,9 +10,10 @@ jobs:
   sanity:
     strategy:
       matrix:
+        platform: ["ubuntu-latest", "macos-latest", "windows-latest"]
         python: ["3.10", "3.11", "3.12"]
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.platform }}
 
     steps:
       - uses: actions/checkout@v4

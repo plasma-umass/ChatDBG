@@ -1,0 +1,31 @@
+name: Code quality
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  code-quality:
+    strategy:
+      matrix:
+        python: ["3.10", "3.11", "3.12"]
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install
+        run: python3 -m pip install .
+
+      - name: Install dependencies
+        run: python3 -m pip install black mypy
+
+      - name: Black
+        run: python3 -m black --check src

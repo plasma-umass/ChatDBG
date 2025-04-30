@@ -134,7 +134,6 @@ class ChatDBGConfig(Configurable):
             "show_libs": self.show_libs,
             "show_slices": self.show_slices,
             "take_the_wheel": self.take_the_wheel,
-            "no_stream": self.no_stream,
             "format": self.format,
             "instructions": self.instructions,
             "module_whitelist": self.module_whitelist,

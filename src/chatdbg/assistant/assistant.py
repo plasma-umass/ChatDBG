@@ -273,7 +273,7 @@ class Assistant:
             if response_message.content != None:
                 # fix: remove tool calls.  They get added below.
                 response_message = response_message.copy()
-                response_message["tool_calls"] = None                
+                response_message["tool_calls"] = None
                 self._conversation.append(response_message.json())
 
             if response_message.content != None:

@@ -25,7 +25,13 @@ jobs:
         run: python3 -m pip install .
 
       - name: Install dependencies
-        run: python3 -m pip install black mypy
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install black
+          python3 -m pip install mypy
 
-      - name: Black
-        run: python3 -m black --check src
+      - name: Run compileall
+        run: python3 -m compileall src
+
+      - name: Run black
+        run: python3 -m black --check src test

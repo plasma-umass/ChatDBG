@@ -1,6 +1,6 @@
 import json
 import os
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import lldb
 
@@ -141,13 +141,13 @@ class LLDBDialog(DBGDialog):
 
     def _get_frame_summaries(
         self, max_entries: int = 20
-    ) -> Optional[List[Union[_FrameSummaryEntry, _SkippedFramesEntry]]]:
+    ) -> Optional[list[Union[_FrameSummaryEntry, _SkippedFramesEntry]]]:
         thread = self.get_thread()
         if not thread:
             return None
 
         skipped = 0
-        summaries: List[Union[_FrameSummaryEntry, _SkippedFramesEntry]] = []
+        summaries: list[Union[_FrameSummaryEntry, _SkippedFramesEntry]] = []
 
         index = -1
         # For each frame in thread
@@ -158,7 +158,7 @@ class LLDBDialog(DBGDialog):
                 continue
             name = frame.GetDisplayFunctionName().split("(")[0]
             # Get function arguments, store as _ArgumentEntries
-            arguments: List[_ArgumentEntry] = []
+            arguments: list[_ArgumentEntry] = []
             for j in range(
                 frame.GetFunction().GetType().GetFunctionArgumentTypes().GetSize()
             ):

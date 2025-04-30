@@ -1,6 +1,5 @@
 import copy
 import warnings
-from typing import Dict, List
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
@@ -62,7 +61,7 @@ def _chunkify(messages, model):
 
 
 def trim_messages(
-    messages: List[Dict[str, str]],  # list of JSON objects encoded as dicts
+    messages: list[dict[str, str]],  # list of JSON objects encoded as dicts
     model: str,
     trim_ratio: float = 0.75,
 ) -> list:

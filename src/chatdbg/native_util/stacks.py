@@ -1,5 +1,4 @@
 import textwrap
-from typing import List
 
 import llm_utils
 
@@ -22,7 +21,7 @@ class _FrameSummaryEntry:
         self,
         index: int,
         name: str,
-        arguments: List[_ArgumentEntry],
+        arguments: list[_ArgumentEntry],
         file_path: str,
         lineno: int,
     ):

@@ -9,8 +9,7 @@ from chatdbg.util.markdown import ChatDBGMarkdownPrinter
 from chatdbg.util.printer import ChatDBGPrinter
 
 from io import TextIOWrapper
-from types import *
-from typing import *
+from typing import Union
 
 from chatdbg.util.jupyter import ChatDBGJupyterPrinter
 
@@ -127,7 +126,7 @@ class ChatDBGConfig(Configurable):
 
         return parser
 
-    def to_json(self) -> Dict[str, Union[int, str, bool]]:
+    def to_json(self) -> dict[str, Union[int, str, bool]]:
         """Serialize the object to a JSON string."""
         return {
             "model": self.model,
@@ -146,7 +145,7 @@ class ChatDBGConfig(Configurable):
             "module_whitelist": self.module_whitelist,
         }
 
-    def parse_user_flags(self, argv: List[str]) -> None:
+    def parse_user_flags(self, argv: list[str]) -> None:
 
         args, unknown_args = self._parser().parse_known_args(argv)
 
@@ -171,7 +170,7 @@ class ChatDBGConfig(Configurable):
             ]
         )
 
-    def parse_only_user_flags(self, args: List[str]) -> str:
+    def parse_only_user_flags(self, args: list[str]) -> str:
         try:
             unknown = chatdbg_config.parse_user_flags(args)
             if unknown:

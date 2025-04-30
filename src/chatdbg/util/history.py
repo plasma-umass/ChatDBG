@@ -1,9 +1,6 @@
-from typing import List, Tuple
-
-
 class CommandHistory:
     def __init__(self, prompt: str):
-        self._history: List[Tuple[str, str]] = []
+        self._history: list[tuple[str, str]] = []
         self._prompt = prompt
 
     def append(self, command: str, result: str) -> None:
@@ -12,7 +9,7 @@ class CommandHistory:
     def clear(self) -> None:
         self._history = []
 
-    def _format_history_entry(self, entry: Tuple[str, str]) -> str:
+    def _format_history_entry(self, entry: tuple[str, str]) -> str:
         line, output = entry
         if output:
             return f"{self._prompt}{line}\n{output}"

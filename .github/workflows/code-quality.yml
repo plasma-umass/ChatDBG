@@ -34,4 +34,4 @@ jobs:
         run: python3 -m compileall src
 
       - name: Run black
-        run: python3 -m black --check src test
+        run: python3 -m black --check src

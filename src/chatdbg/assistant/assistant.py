@@ -37,19 +37,10 @@ class Assistant:
         listeners=[Printer()],
         functions=[],
         max_call_response_tokens=2048,
-        debug=False,
     ):
 
         # Hide their debugging info -- it messes with our error handling
         litellm.suppress_debug_info = True
-
-        if debug:
-            log_file = open(f"chatdbg.log", "w")
-            self._logger = lambda model_call_dict: print(
-                pprint.pformat(model_call_dict, width=160), file=log_file, flush=True
-            )
-        else:
-            self._logger = None
 
         self._clients = listeners
 
@@ -64,10 +55,6 @@ class Assistant:
 
         self._check_model()
         self._broadcast("on_begin_dialog", instructions)
-
-    def _log(self, dict):
-        if self._logger != None:
-            self._logger(dict)
 
     def close(self):
         self._broadcast("on_end_dialog")
@@ -216,7 +203,6 @@ class Assistant:
                 chunks = []
                 tool_chunks = []
                 for chunk in stream:
-                    self._log({"chunk": chunk})
                     chunks.append(chunk)
                     if chunk.choices[0].delta.content != None:
                         self._broadcast(
@@ -290,7 +276,6 @@ class Assistant:
                 for f in self._functions.values()
             ],
             timeout=self._timeout,
-            logger_fn=self._logger,
             stream=True,
         )
 

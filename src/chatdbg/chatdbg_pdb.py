@@ -633,7 +633,6 @@ class ChatDBG(ChatDBGSuper):
         self._assistant = Assistant(
             instruction_prompt,
             model=chatdbg_config.model,
-            debug=chatdbg_config.debug,
             functions=functions,
             max_call_response_tokens=8192,
             listeners=[

@@ -210,7 +210,6 @@ class DBGDialog:
         assistant = Assistant(
             instruction_prompt,
             model=chatdbg_config.model,
-            debug=chatdbg_config.debug,
             functions=functions,
             listeners=[
                 printer,

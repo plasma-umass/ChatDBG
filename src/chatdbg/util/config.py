@@ -40,10 +40,6 @@ class ChatDBGConfig(Configurable):
         config=True
     )
 
-    debug = Bool(_chatdbg_get_env("debug", False), help="Log LLM calls").tag(
-        config=True
-    )
-
     log = Unicode(_chatdbg_get_env("log", "log.yaml"), help="The log file").tag(
         config=True
     )
@@ -98,7 +94,6 @@ class ChatDBGConfig(Configurable):
     ).tag(config=True)
 
     _user_configurable = [
-        debug,
         log,
         model,
         instructions,
@@ -125,7 +120,6 @@ class ChatDBGConfig(Configurable):
         """Serialize the object to a JSON string."""
         return {
             "model": self.model,
-            "debug": self.debug,
             "log": self.log,
             "tag": self.tag,
             "rc_lines": self.rc_lines,

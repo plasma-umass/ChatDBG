@@ -29,6 +29,7 @@ from chatdbg.util.text import strip_ansi, truncate_proportionally
 from chatdbg.util.config import chatdbg_config
 from chatdbg.util.log import ChatDBGLog
 from chatdbg.util.history import CommandHistory
+from chatdbg.util.exit_message import chatdbg_was_called, print_exit_message
 
 
 def load_ipython_extension(ipython):
@@ -78,6 +79,7 @@ class ChatDBG(ChatDBGSuper):
         self._chat_prefix = "   "
         self._text_width = 120
         self._assistant = None
+        atexit.register(print_exit_message)
         atexit.register(lambda: self._close_assistant())
 
         self._history = CommandHistory(self.prompt)
@@ -267,10 +269,10 @@ class ChatDBG(ChatDBGSuper):
             self.lastcmd = lastcmd
 
     def default(self, line):
-        if line[0] == "!":
+        if line[:1] == "!":
             super().default(line)
         else:
-            if line[0] == ":":
+            if line[:1] == ":":
                 line = line[1:].strip()
             self.do_chat(line)
 
@@ -284,11 +286,11 @@ class ChatDBG(ChatDBGSuper):
         """
         Sandbox for evaluating expressions from the LLM.
         """
-        if chatdbg_config.unsafe:
-            return super._getval(arg)
-        
         try:
-            return sandbox_eval(arg, self.curframe.f_globals, self.curframe_locals)
+            if chatdbg_config.unsafe:
+                return super()._getval(arg)
+            else:
+                return sandbox_eval(arg, self.curframe.f_globals, self.curframe_locals)
         except NameError as e:
             self.error(f"NameError: {e}")
             return None
@@ -576,6 +578,7 @@ class ChatDBG(ChatDBGSuper):
         """chat
         Send a chat message.
         """
+        chatdbg_was_called()
         self.was_chat_or_renew = True
 
         full_prompt = self._build_prompt(arg, self._assistant != None)
@@ -589,7 +592,8 @@ class ChatDBG(ChatDBGSuper):
                 self._make_assistant()
 
             stats = self._assistant.query(full_prompt, user_text=arg)
-            self.message(stats["message"])
+            if "message" in stats:
+                self.message(stats["message"])
         except AssistantError as e:
             for line in str(e).split("\n"):
                 self.error(line)
@@ -630,9 +634,7 @@ class ChatDBG(ChatDBGSuper):
         self._assistant = Assistant(
             instruction_prompt,
             model=chatdbg_config.model,
-            debug=chatdbg_config.debug,
             functions=functions,
-            stream=not chatdbg_config.no_stream,
             max_call_response_tokens=8192,
             listeners=[
                 chatdbg_config.make_printer(

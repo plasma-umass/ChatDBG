@@ -10,9 +10,10 @@ jobs:
   sanity:
     strategy:
       matrix:
-        python: ["3.10", "3.11", "3.12"]
+        platform: ["ubuntu-latest", "macos-latest", "windows-latest"]
+        python: ["3.10", "3.11", "3.12", "3.13"]
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.platform }}
 
     steps:
       - uses: actions/checkout@v4
@@ -26,9 +27,6 @@ jobs:
 
       - name: Install
         run: python3 -m pip install .
-
-      - name: Install in editable mode
-        run: python3 -m pip install -e .
 
       - name: Check help message
         run: python3 -m chatdbg --help

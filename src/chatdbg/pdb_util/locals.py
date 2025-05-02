@@ -7,8 +7,8 @@ import textwrap
 import numpy as np
 
 from io import StringIO
-from types import *
-from typing import *
+from types import FrameType
+from typing import Any, Union
 
 
 class SymbolFinder(ast.NodeVisitor):
@@ -32,7 +32,7 @@ class SymbolFinder(ast.NodeVisitor):
         self.generic_visit(node)
 
 
-def _extract_locals(frame: FrameType) -> Set[str]:
+def _extract_locals(frame: FrameType) -> set[str]:
     try:
         source = textwrap.dedent(inspect.getsource(frame))
         tree = ast.parse(source)
@@ -48,19 +48,6 @@ def _extract_locals(frame: FrameType) -> Set[str]:
     except:
         # ipes
         return set()
-
-
-def _extract_nb_globals(globals: Dict[str, Any]):
-    result = set()
-    for source in globals["In"]:
-        try:
-            tree = ast.parse(source)
-            finder = SymbolFinder()
-            finder.visit(tree)
-            result = result | (finder.defined_symbols & globals.keys())
-        except Exception as e:
-            pass
-    return result
 
 
 def _is_iterable(obj: Any) -> bool:

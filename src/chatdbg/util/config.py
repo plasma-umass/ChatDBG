@@ -9,8 +9,7 @@ from chatdbg.util.markdown import ChatDBGMarkdownPrinter
 from chatdbg.util.printer import ChatDBGPrinter
 
 from io import TextIOWrapper
-from types import *
-from typing import *
+from typing import Union
 
 from chatdbg.util.jupyter import ChatDBGJupyterPrinter
 
@@ -38,10 +37,6 @@ class DBGParser(argparse.ArgumentParser):
 
 class ChatDBGConfig(Configurable):
     model = Unicode(_chatdbg_get_env("model", "gpt-4o"), help="The LLM model").tag(
-        config=True
-    )
-
-    debug = Bool(_chatdbg_get_env("debug", False), help="Log LLM calls").tag(
         config=True
     )
 
@@ -79,10 +74,6 @@ class ChatDBGConfig(Configurable):
         _chatdbg_get_env("take_the_wheel", True), help="Let LLM take the wheel"
     ).tag(config=True)
 
-    no_stream = Bool(
-        _chatdbg_get_env("batch", False), help="Do not stream the LLM responses"
-    ).tag(config=True)
-
     format = Unicode(
         _chatdbg_get_env("format", "md"),
         help="The output format (text or md or md:simple or jupyter)",
@@ -103,11 +94,9 @@ class ChatDBGConfig(Configurable):
     ).tag(config=True)
 
     _user_configurable = [
-        debug,
         log,
         model,
         instructions,
-        no_stream,
         format,
         module_whitelist,
         unsafe,
@@ -127,11 +116,10 @@ class ChatDBGConfig(Configurable):
 
         return parser
 
-    def to_json(self) -> Dict[str, Union[int, str, bool]]:
+    def to_json(self) -> dict[str, Union[int, str, bool]]:
         """Serialize the object to a JSON string."""
         return {
             "model": self.model,
-            "debug": self.debug,
             "log": self.log,
             "tag": self.tag,
             "rc_lines": self.rc_lines,
@@ -140,13 +128,12 @@ class ChatDBGConfig(Configurable):
             "show_libs": self.show_libs,
             "show_slices": self.show_slices,
             "take_the_wheel": self.take_the_wheel,
-            "no_stream": self.no_stream,
             "format": self.format,
             "instructions": self.instructions,
             "module_whitelist": self.module_whitelist,
         }
 
-    def parse_user_flags(self, argv: List[str]) -> None:
+    def parse_user_flags(self, argv: list[str]) -> None:
 
         args, unknown_args = self._parser().parse_known_args(argv)
 
@@ -171,7 +158,7 @@ class ChatDBGConfig(Configurable):
             ]
         )
 
-    def parse_only_user_flags(self, args: List[str]) -> str:
+    def parse_only_user_flags(self, args: list[str]) -> str:
         try:
             unknown = chatdbg_config.parse_user_flags(args)
             if unknown:

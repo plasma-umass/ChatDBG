@@ -32,12 +32,18 @@ class DBGDialog:
     def __init__(self, prompt) -> None:
         self._prompt = prompt
         self._history = CommandHistory(self._prompt)
+        self._unsafe_cmd = False
 
     def query_and_print(self, assistant, user_text, is_followup):
         prompt = self.build_prompt(user_text, is_followup)
 
         self._history.clear()
         print(assistant.query(prompt, user_text)["message"])
+        if self._unsafe_cmd:
+            self.warn(
+                f"Warning: One or more debugger commands were blocked as potentially unsafe.\nWarning: You can disable sanitizing with `config --unsafe` and try again at your own risk."
+            )
+            self._unsafe_cmd = False
 
     def dialog(self, user_text):
         assistant = self._make_assistant()
@@ -204,9 +210,7 @@ class DBGDialog:
         assistant = Assistant(
             instruction_prompt,
             model=chatdbg_config.model,
-            debug=chatdbg_config.debug,
             functions=functions,
-            stream=not chatdbg_config.no_stream,
             listeners=[
                 printer,
                 self._log,

@@ -1,4 +1,3 @@
-import os
 import shutil
 import textwrap
 
@@ -64,7 +63,7 @@ _simple_box = Box = box.Box(
     "    \n" "    \n" "    \n" "    \n" "    \n" "    \n" "    \n" "    \n", ascii=True
 )
 
-from rich.markdown import *
+from rich.markdown import ConsoleOptions, loop_first, RenderResult, Segment
 
 
 class MyListItem(rich.markdown.ListItem):

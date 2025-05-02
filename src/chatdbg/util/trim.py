@@ -1,18 +1,23 @@
 import copy
-import warnings
-from typing import Dict, List
 
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore")
-    import litellm
+import tiktoken
+
+from ..util import litellm
 
 
 def sandwich_tokens(
     text: str, model: str, max_tokens: int = 1024, top_proportion: float = 0.5
 ) -> str:
-    if max_tokens == None:
+    if not max_tokens:
         return text
-    tokens = litellm.encode(model, text)
+
+    try:
+        encoding = tiktoken.encoding_for_model(model)
+    except KeyError:
+        # For non-OpenAI models, use the GPT-4o encoding by default.
+        encoding = tiktoken.get_encoding("o200k_base")
+
+    tokens = encoding.encode(text)
     if len(tokens) <= max_tokens:
         return text
     else:
@@ -20,18 +25,34 @@ def sandwich_tokens(
         top_len = int(top_proportion * total_len)
         bot_start = len(tokens) - (total_len - top_len)
         return (
-            litellm.decode(model, tokens[0:top_len])
+            encoding.decode(model, tokens[0:top_len])
             + " [...] "
-            + litellm.decode(model, tokens[bot_start:])
+            + encoding.decode(model, tokens[bot_start:])
         )
 
 
-def _sum_messages(messages, model):
-    return litellm.token_counter(model, messages=messages)
+def sum_messages(messages, model):
+    try:
+        encoding = tiktoken.encoding_for_model(model)
+    except KeyError:
+        # For non-OpenAI models, use the GPT-4o encoding by default.
+        encoding = tiktoken.get_encoding("o200k_base")
+
+    # This is a lower-bound approximation, it won't match the reported usage.
+    count = 0
+    for message in messages:
+        if "content" in message:
+            count += len(encoding.encode(message["content"]))
+        if "tool_calls" in message:
+            for tool_call in message["tool_calls"]:
+                count += len(encoding.encode(tool_call["function"]["name"]))
+                count += len(encoding.encode(tool_call["function"]["arguments"]))
+
+    return count
 
 
 def _sum_kept_chunks(chunks, model):
-    return sum(_sum_messages(messages, model) for (messages, kept) in chunks if kept)
+    return sum(sum_messages(messages, model) for (messages, kept) in chunks if kept)
 
 
 def _extract(messages, model, tool_call_ids):
@@ -40,7 +61,6 @@ def _extract(messages, model, tool_call_ids):
     for m in messages:
         if m.get("tool_call_id", -1) in tool_call_ids:
             content = sandwich_tokens(m["content"], model, 512, 1.0)
-            # print(len(litellm.encode(model, m['content'])), '->', len(litellm.encode(model, content)))
             m["content"] = content
             tools += [m]
         else:
@@ -62,7 +82,7 @@ def _chunkify(messages, model):
 
 
 def trim_messages(
-    messages: List[Dict[str, str]],  # list of JSON objects encoded as dicts
+    messages: list[dict[str, str]],  # list of JSON objects encoded as dicts
     model: str,
     trim_ratio: float = 0.75,
 ) -> list:
@@ -80,43 +100,38 @@ def trim_messages(
 
     messages = copy.deepcopy(messages)
 
-    max_tokens_for_model = litellm.model_cost[model]["max_input_tokens"]
+    if model in litellm.model_data:
+        max_tokens_for_model = litellm.model_data[model]["max_input_tokens"]
+    else:
+        # Arbitrary. This is Llama 3.1/3.2/3.3 max input tokens.
+        max_tokens_for_model = 128000
     max_tokens = int(max_tokens_for_model * trim_ratio)
 
-    if litellm.token_counter(model, messages=messages) < max_tokens:
+    if sum_messages(messages, model) < max_tokens:
         return messages
 
     chunks = _chunkify(messages=messages, model=model)
-    # print("0", sum_all_chunks(chunks, model), max_tokens)
 
     # 1. System messages
     chunks = [(m, b or m[0]["role"] == "system") for (m, b) in chunks]
-    # print("1", sum_kept_chunks(chunks, model))
 
     # 2. First User Message
     for i in range(len(chunks)):
         messages, kept = chunks[i]
         if messages[0]["role"] == "user":
             chunks[i] = (messages, True)
-    # print("2", sum_kept_chunks(chunks, model))
 
     # 3. Fill it up
     for i in range(len(chunks))[::-1]:
         messages, kept = chunks[i]
         if kept:
-            # print('+')
             continue
         elif (
-            _sum_kept_chunks(chunks, model) + _sum_messages(messages, model)
-            < max_tokens
+            _sum_kept_chunks(chunks, model) + sum_messages(messages, model) < max_tokens
         ):
-            # print('-', len(messages))
             chunks[i] = (messages, True)
         else:
-            # print("N", sum_kept_chunks(chunks, model), sum_messages(messages, model))
             break
-
-    # print("3", sum_kept_chunks(chunks, model))
 
     assert (
         _sum_kept_chunks(chunks, model) < max_tokens

@@ -38,7 +38,9 @@ class DBGDialog:
         prompt = self.build_prompt(user_text, is_followup)
 
         self._history.clear()
-        print(assistant.query(prompt, user_text)["message"])
+        result = assistant.query(prompt, user_text)
+        if "message" in result:
+            print(result["message"])
         if self._unsafe_cmd:
             self.warn(
                 f"Warning: One or more debugger commands were blocked as potentially unsafe.\nWarning: You can disable sanitizing with `config --unsafe` and try again at your own risk."

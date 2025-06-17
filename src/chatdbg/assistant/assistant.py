@@ -1,4 +1,5 @@
 import json
+import os
 import string
 import textwrap
 import time
@@ -41,6 +42,18 @@ class Assistant:
 
         # Hide their debugging info -- it messes with our error handling
         litellm.suppress_debug_info = True
+
+        # Configure Azure OpenAI if environment variables are present
+        if all(k in os.environ for k in ["AZURE_API_KEY", "AZURE_API_BASE", "AZURE_API_VERSION"]):
+            # For Azure OpenAI, model should be the deployment name
+            if not model.startswith("azure_") and not model.startswith("azure/"):
+                # Keep track that we're using Azure
+                self._using_azure = True
+                # Store original model name for error messages
+                self._base_model = model
+            else:
+                self._using_azure = False
+                self._base_model = model
 
         self._clients = listeners
 
@@ -124,7 +137,23 @@ class Assistant:
         missing_keys = result["missing_keys"]
         if missing_keys != []:
             _, provider, _, _ = litellm.get_llm_provider(self._model)
-            if provider == "openai":
+            if provider == "azure":
+                missing_azure_vars = [k for k in missing_keys if k.startswith("AZURE_")]
+                raise AssistantError(
+                    textwrap.dedent(
+                        f"""\
+                    You need to set the following Azure OpenAI environment variables:
+                    - AZURE_API_KEY: Your Azure OpenAI API key
+                    - AZURE_API_BASE: Your Azure OpenAI endpoint (e.g., https://YOUR_RESOURCE.openai.azure.com)
+                    - AZURE_API_VERSION: API version (e.g., 2024-02-15-preview)
+                    
+                    Missing variables: {', '.join(missing_azure_vars)}
+                    
+                    For Azure OpenAI, use the deployment name as the model name.
+                    The deployment should be using {self._base_model} or compatible model."""
+                    )
+                )
+            elif provider == "openai":
                 raise AssistantError(
                     textwrap.dedent(
                         f"""\
@@ -148,7 +177,7 @@ class Assistant:
                     textwrap.dedent(
                         f"""\
                     The {self._model} model does not support function calls.
-                    You must use a model that does, eg. gpt-4."""
+                    You must use a deployment with a model that supports function calling, like GPT-4 or GPT-3.5-Turbo."""
                     )
                 )
         except:
@@ -156,7 +185,7 @@ class Assistant:
                 textwrap.dedent(
                     f"""\
                 {self._model} does not appear to be a supported model.
-                See https://docs.litellm.ai/docs/providers."""
+                See https://docs.litellm.ai/docs/providers/azure for Azure OpenAI configuration."""
                 )
             )
 
@@ -265,19 +294,28 @@ class Assistant:
         return stats
 
     def _stream_completion(self):
-
         self._trim_conversation()
 
-        return litellm.completion(
-            model=self._model,
-            messages=self._conversation,
-            tools=[
+        completion_params = {
+            "model": self._model,
+            "messages": self._conversation,
+            "tools": [
                 {"type": "function", "function": f["schema"]}
                 for f in self._functions.values()
             ],
-            timeout=self._timeout,
-            stream=True,
-        )
+            "timeout": self._timeout,
+            "stream": True,
+        }
+
+        # Add Azure specific configuration if using Azure
+        if getattr(self, "_using_azure", False):
+            completion_params.update({
+                "api_key": os.getenv("AZURE_API_KEY"),
+                "api_base": os.getenv("AZURE_API_BASE"),
+                "api_version": os.getenv("AZURE_API_VERSION"),
+            })
+
+        return litellm.completion(**completion_params)
 
     def _trim_conversation(self):
         old_len = litellm.token_counter(self._model, messages=self._conversation)

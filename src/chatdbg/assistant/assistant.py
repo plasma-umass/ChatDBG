@@ -42,6 +42,7 @@ class Assistant:
 
         # Hide their debugging info -- it messes with our error handling
         litellm.suppress_debug_info = True
+
         self._clients = listeners
 
         self._functions = {}
@@ -164,7 +165,7 @@ class Assistant:
                     textwrap.dedent(
                         f"""\
                     The {self._model} model does not support function calls.
-                    You must use a deployment with a model that supports function calling, like GPT-4 or GPT-3.5-Turbo."""
+                    You must use a model that does, eg. gpt-4."""
                     )
                 )
         except:
@@ -172,7 +173,7 @@ class Assistant:
                 textwrap.dedent(
                     f"""\
                 {self._model} does not appear to be a supported model.
-                See https://docs.litellm.ai/docs/providers/."""
+                See https://docs.litellm.ai/docs/providers."""
                 )
             )
 

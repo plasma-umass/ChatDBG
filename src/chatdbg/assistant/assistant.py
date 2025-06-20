@@ -42,19 +42,6 @@ class Assistant:
 
         # Hide their debugging info -- it messes with our error handling
         litellm.suppress_debug_info = True
-
-        # Configure Azure OpenAI if environment variables are present
-        if all(k in os.environ for k in ["AZURE_API_KEY", "AZURE_API_BASE", "AZURE_API_VERSION"]):
-            # For Azure OpenAI, model should be the deployment name
-            if not model.startswith("azure_") and not model.startswith("azure/"):
-                # Keep track that we're using Azure
-                self._using_azure = True
-                # Store original model name for error messages
-                self._base_model = model
-            else:
-                self._using_azure = False
-                self._base_model = model
-
         self._clients = listeners
 
         self._functions = {}
@@ -150,7 +137,7 @@ class Assistant:
                     Missing variables: {', '.join(missing_azure_vars)}
                     
                     For Azure OpenAI, use the deployment name as the model name.
-                    The deployment should be using {self._base_model} or compatible model."""
+                    The deployment should be using a compatible model."""
                     )
                 )
             elif provider == "openai":
@@ -185,7 +172,7 @@ class Assistant:
                 textwrap.dedent(
                     f"""\
                 {self._model} does not appear to be a supported model.
-                See https://docs.litellm.ai/docs/providers/azure for Azure OpenAI configuration."""
+                See https://docs.litellm.ai/docs/providers/."""
                 )
             )
 
@@ -307,13 +294,16 @@ class Assistant:
             "stream": True,
         }
 
-        # Add Azure specific configuration if using Azure
-        if getattr(self, "_using_azure", False):
-            completion_params.update({
+        # Add Azure specific configuration if Azure env vars are present and model looks like an Azure deployment
+        if all(
+            k in os.environ
+            for k in ["AZURE_API_KEY", "AZURE_API_BASE", "AZURE_API_VERSION"]
+        ) and self._model.startswith("azure"):
+            completion_params |= {
                 "api_key": os.getenv("AZURE_API_KEY"),
                 "api_base": os.getenv("AZURE_API_BASE"),
                 "api_version": os.getenv("AZURE_API_VERSION"),
-            })
+            }
 
         return litellm.completion(**completion_params)
 

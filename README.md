@@ -44,9 +44,8 @@ For technical details and a complete evaluation, see our paper (to appear at FSE
 > export AZURE_API_KEY=<your-azure-api-key>
 > export AZURE_API_BASE=<your-azure-endpoint>  # e.g., https://YOUR_RESOURCE.openai.azure.com
 > export AZURE_API_VERSION=<api-version>       # e.g., 2024-02-15-preview
+> export CHATDBG_MODEL=<your-deployment-name>  # e.g., azure/gpt-4o
 > ```
->
-> When using Azure OpenAI, you should use your deployment name as the model name. The deployment should be using GPT-4 or a compatible model that supports function calling.
 >
 
 Install ChatDBG using `pip` (you need to do this whether you are debugging Python, C, or C++ code):

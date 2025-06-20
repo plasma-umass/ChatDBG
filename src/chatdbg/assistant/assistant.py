@@ -134,6 +134,7 @@ class Assistant:
                     - AZURE_API_KEY: Your Azure OpenAI API key
                     - AZURE_API_BASE: Your Azure OpenAI endpoint (e.g., https://YOUR_RESOURCE.openai.azure.com)
                     - AZURE_API_VERSION: API version (e.g., 2024-02-15-preview)
+                    - CHATDBG_MODEL: The model name, which should be in the format azure/<deployment_name>
                     
                     Missing variables: {', '.join(missing_azure_vars)}
                     

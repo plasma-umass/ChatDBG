@@ -592,7 +592,8 @@ class ChatDBG(ChatDBGSuper):
                 self._make_assistant()
 
             stats = self._assistant.query(full_prompt, user_text=arg)
-            self.message(stats["message"])
+            if "message" in stats:
+                self.message(stats["message"])
         except AssistantError as e:
             for line in str(e).split("\n"):
                 self.error(line)

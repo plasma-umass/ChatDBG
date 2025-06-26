@@ -13,16 +13,17 @@ authors = [
 ]
 dependencies = [
   "llm-utils>=0.2.8",
-  "openai>=1.29.0",
+  "openai>=1.76.2",
   "rich>=13.7.0",
   "ansicolors>=1.1.8",
   "traitlets>=5.14.1",
   "ipdb>=0.13.13",
   "ipython==8.18.1",
-  "litellm==1.55.9",
   "PyYAML>=6.0.1",
   "ipyflow>=0.0.130",
   "numpy>=1.26.3",
+  "tiktoken>=0.9.0",
+  "requests>=2.32.3",
 ]
 description = "AI-assisted debugging. Uses AI to answer 'why'."
 readme = "README.md"

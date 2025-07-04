@@ -1,4 +1,5 @@
 import sys
+from getopt import GetoptError
 
 import ipdb
 
@@ -17,7 +18,11 @@ def main() -> None:
 
     sys.argv = [sys.argv[0]] + args
 
-    ipdb.__main__.main()
+    try:
+        ipdb.__main__.main()
+    except GetoptError as e:
+        print(f"Unrecognized option: {e.opt}\n")
+        print_help()
 
 
 if __name__ == "__main__":

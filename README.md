@@ -6,21 +6,22 @@ by [Emery Berger](https://emeryberger.com), [Stephen Freund](https://www.cs.will
 [![Downloads](https://static.pepy.tech/badge/chatdbg)](https://pepy.tech/project/chatdbg)
 [![Downloads](https://static.pepy.tech/badge/chatdbg/month)](https://pepy.tech/project/chatdbg)
 
-ChatDBG is an AI-based debugging assistant for C/C++/Python/Rust code that integrates large language models into a standard debugger (`pdb`, `lldb`, `gdb`, and `windbg`) to help debug your code. With ChatDBG, you can engage in a dialog with your debugger, asking open-ended questions about your program, like `why is x null?`. ChatDBG will _take the wheel_ and steer the debugger to answer your queries. ChatDBG can provide error diagnoses and suggest fixes.
+[Read the paper!](https://raw.githubusercontent.com/plasma-umass/ChatDBG/main/ChatDBG.pdf)
 
-As far as we are aware, ChatDBG is the *first* debugger to automatically perform root cause analysis and to provide suggested fixes.
+ChatDBG is an AI-based debugging assistant for C/C++/Python/Rust code that integrates large language models into a standard debugger (`pdb`, `lldb`, `gdb`) to help debug your code. With ChatDBG, you can engage in a dialog with your debugger, asking open-ended questions about your program, like `why is x null?`. ChatDBG will _take the wheel_ and steer the debugger to answer your queries. ChatDBG can provide error diagnoses and suggest fixes.
+
+As far as we are aware, ChatDBG is the _first_ debugger to automatically perform root cause analysis and to provide suggested fixes.
 
 **Watch ChatDBG in action!**
-| LLDB on [test-overflow.cpp](https://github.com/plasma-umass/ChatDBG/blob/main/samples/cpp/test-overflow.cpp) | GDB on [test-overflow.cpp](https://github.com/plasma-umass/ChatDBG/blob/main/samples/cpp/test-overflow.cpp)  | Pdb on [bootstrap.py](https://github.com/plasma-umass/ChatDBG/blob/main/samples/python/bootstrap.py) |
+| LLDB on [test-overflow.cpp](https://github.com/plasma-umass/ChatDBG/blob/main/samples/cpp/test-overflow.cpp) | GDB on [test-overflow.cpp](https://github.com/plasma-umass/ChatDBG/blob/main/samples/cpp/test-overflow.cpp) | Pdb on [bootstrap.py](https://github.com/plasma-umass/ChatDBG/blob/main/samples/python/bootstrap.py) |
 |:-------------------------:|:-------------------------:|:-------------------------:|
 | <a href="https://asciinema.org/a/RsAGFFmsicIvMW8xgvPP6PW2f" target="_blank"><img src="https://raw.githubusercontent.com/plasma-umass/ChatDBG/main/media/lldb.svg" /></a>| <a href="https://asciinema.org/a/bMWOyyrh7WXWsTCFboyKpqwTq" target="_blank"><img src="https://raw.githubusercontent.com/plasma-umass/ChatDBG/main/media/gdb.svg" /></a>|<a href="https://asciinema.org/a/qulxiJTqwVRJPaMZ1hcBs6Clu" target="_blank"><img src="https://raw.githubusercontent.com/plasma-umass/ChatDBG/main/media/pdb.svg" /></a>|
 
-For technical details and a complete evaluation, see our arXiv paper, [_ChatDBG: An AI-Powered Debugging Assistant_](https://arxiv.org/abs/2403.16354) ([PDF](https://github.com/plasma-umass/ChatDBG/blob/main/ChatDBG-arxiv-2403.16354.pdf)).
+For technical details and a complete evaluation, see our FSE'25 paper, [_ChatDBG: An AI-Powered Debugging Assistant_](https://dl.acm.org/doi/10.1145/3729355) ([PDF](https://raw.githubusercontent.com/plasma-umass/ChatDBG/main/ChatDBG.pdf)).
 
 > [!NOTE]
 >
 > ChatDBG for `pdb`, `lldb`, and `gdb` are feature-complete; we are currently backporting features for these debuggers into the other debuggers.
->
 
 ## Installation
 
@@ -74,6 +75,7 @@ xcrun python3 -c 'import chatdbg; print(f"command script import {chatdbg.__path_
 ```
 
 This will install ChatDBG as an LLVM extension.
+
 </details>
 
 ### Installing as a `gdb` extension
@@ -91,32 +93,8 @@ python3 -c 'import chatdbg; print(f"source {chatdbg.__path__[0]}/chatdbg_gdb.py"
 ```
 
 This will install ChatDBG as a GDB extension.
+
 </details>
-
-### Installing as a `WinDBG` extension
-
-<details>
-<summary>
-<B><TT>WinDBG</TT> installation instructions</B>
-</summary>
-
-1. **Install WinDBG**: Follow instructions [here](https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/) if `WinDBG` is not installed already.
-1. **Install `vcpkg`**: Follow instructions [here](https://vcpkg.io/en/getting-started) if `vcpkg` is not installed already.
-1. **Install Debugging Tools for Windows**: Install the Windows SDK [here](https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/) and check the box `Debugging Tools for Windows`.
-1. **Navigate to the `src\chatdbg` directory**: `cd src\chatdbg`
-1. **Install needed dependencies**: Run`vcpkg install`
-1. **Build the chatdbg.dll extension**: Run`mkdir build & cd build & cmake .. & cmake --build . & cd ..`
-
-**Using ChatDBG**:
-
- * Load into WinDBGX:
-   * Run `windbgx your_executable_here.exe`
-   * Click the menu items `View` -> `Command browser`
-   * Type `.load debug\chatdbg.dll`
- * After running code and hitting an exception / signal:
-   * Type `!why` in Command browser
-</details>
-
 
 ## Usage
 
@@ -133,14 +111,14 @@ ChatDBG is an extension of the standard Python debugger `pdb`. Like
 enter post mortem debugging mode.
 
 Unlike other debuggers, you can then use the `why` command to ask
-ChatDBG why your program failed and get a suggested fix.  After the LLM responds,
+ChatDBG why your program failed and get a suggested fix. After the LLM responds,
 you may issue additional debugging commands or continue the conversation by entering
 any other text.
 
 #### IPython and Jupyter Support
 
 To use ChatDBG as the default debugger for IPython or inside Jupyter Notebooks,
-create a IPython profile and then add the necessary exensions on startup.  (Modify
+create a IPython profile and then add the necessary exensions on startup. (Modify
 these lines as necessary if you already have a customized profile file.)
 
 ```bash
@@ -160,12 +138,11 @@ Inside Jupyter, run your notebook with the [ipyflow kernel](https://github.com/i
 %pdb
 ```
 
-
 ### Debugging native code (C, C++, or Rust with <TT>lldb</TT> / <TT>gdb</TT>)
 
-To use ChatDBG with `lldb` or `gdb`, just run native code (compiled with `-g` for debugging symbols) with your choice of debugger; when it crashes, ask `why`. This also works for post mortem debugging (when you load a core with the `-c` option).  
+To use ChatDBG with `lldb` or `gdb`, just run native code (compiled with `-g` for debugging symbols) with your choice of debugger; when it crashes, ask `why`. This also works for post mortem debugging (when you load a core with the `-c` option).
 
-The native debuggers work slightly differently than Pdb.  After the debugger responds to your question, you will enter into ChatDBG's command loop, as indicated by the `(ChatDBG chatting)` prompt.  You may continue issuing debugging commands and you may send additional messages to the LLM by starting those messages with "chat".  When you are done, type `quit` to return to the debugger's main command loop.
+The native debuggers work slightly differently than Pdb. After the debugger responds to your question, you will enter into ChatDBG's command loop, as indicated by the `(ChatDBG chatting)` prompt. You may continue issuing debugging commands and you may send additional messages to the LLM by starting those messages with "chat". When you are done, type `quit` to return to the debugger's main command loop.
 
 <details>
 <summary>
@@ -189,7 +166,7 @@ panic = "abort"
 ```
 
 2. In your program, apply the `#[chatdbg::main]` attribute to your `main`
-function:
+   function:
 
 ```rust
 #[chatdbg::main]
@@ -222,19 +199,18 @@ Process 85494 stopped
 * thread #1, queue = 'com.apple.main-thread', stop reason = EXC_BAD_ACCESS (code=1, address=0x100056200)
     frame #0: 0x0000000100002f64 a.out`foo(n=8, b=1) at test.cpp:7:22
    4     int x[] = { 1, 2, 3, 4, 5 };
-   5     
+   5
    6     void foo(int n, float b) {
 -> 7       cout << "TEST " << x[n * 10000] << endl;
    8     }
-   9     
+   9
    10    int main()
 Target 0: (a.out) stopped.
 ```
 
 Ask `why` to have ChatDBG provide a helpful explanation why this program failed, and suggest a fix:
 
-
-```gdb
+````gdb
 (ChatDBG lldb) why
 The root cause of this error is accessing an index of the array `x`
 that is out of bounds. In `foo()`, the index is calculated as `n *
@@ -264,7 +240,8 @@ message if it is not. If `n` is within the range, the function prints
 the value of the element at index `n` of `x`. With this modification,
 the program will avoid accessing memory outside the bounds of the
 array, and will print the expected output for valid indices.
-```
+````
+
 </details>
 
 <details>
@@ -313,4 +290,3 @@ if __name__ == '__main__':
 ```
 
 </details>
-

@@ -13,5 +13,5 @@ def print_exit_message(*args: Any, **kwargs: Any) -> None:
     if _chatdbg_was_called:
         print("Thank you for using ChatDBG!")
         print(
-            "Share your success stories here: github.com/plasma-umass/ChatDBG/issues/53"
+            "Share your success stories here: https://github.com/plasma-umass/ChatDBG/issues/53"
         )

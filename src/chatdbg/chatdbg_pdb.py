@@ -288,7 +288,7 @@ class ChatDBG(ChatDBGSuper):
         """
         try:
             if chatdbg_config.unsafe:
-                return super._getval(arg)
+                return super()._getval(arg)
             else:
                 return sandbox_eval(arg, self.curframe.f_globals, self.curframe_locals)
         except NameError as e:
@@ -633,9 +633,7 @@ class ChatDBG(ChatDBGSuper):
         self._assistant = Assistant(
             instruction_prompt,
             model=chatdbg_config.model,
-            debug=chatdbg_config.debug,
             functions=functions,
-            stream=not chatdbg_config.no_stream,
             max_call_response_tokens=8192,
             listeners=[
                 chatdbg_config.make_printer(

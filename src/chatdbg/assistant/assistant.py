@@ -204,7 +204,7 @@ class Assistant:
                 tool_chunks = []
                 for chunk in stream:
                     chunks.append(chunk)
-                    if chunk.choices[0].delta.content != None:
+                    if chunk.choices[0].delta.content:
                         self._broadcast(
                             "on_stream_delta", chunk.choices[0].delta.content
                         )

@@ -108,6 +108,24 @@ class ChatDBG(ChatDBGSuper):
             capture_streams=True,
         )
 
+    def _resolve_colors(self):
+        """
+        Return a colors object compatible with what ChatDBG expects.
+        - Honors CHATDBG_NO_COLOR=1 (no ANSI escapes).
+        - Tries legacy IPython color internals (≤ 8.x).
+        - Falls back safely for IPython 9+ where internals moved/changed.
+        """
+        # Allow users/CI to force no color
+        if os.getenv("CHATDBG_NO_COLOR") == "1":
+            return types.SimpleNamespace(excName="", Normal="")
+        # Try legacy IPython path (works on IPython ≤ 8.x)
+        try:
+            # Some environments may still provide active_colors
+            return self.color_scheme_table.active_colors  # noqa: attribute-defined-outside-init
+        except Exception:
+        # Safe fallback for IPython 9+ (no color)
+            return types.SimpleNamespace(excName="", Normal="")
+
     def _close_assistant(self):
         if self._assistant != None:
             self._assistant.close()
@@ -473,9 +491,9 @@ class ChatDBG(ChatDBGSuper):
         return False
 
     def print_stack_trace(self, context=None, locals=None):
-        # override to print the skips into stdout instead of stderr...
-        Colors = self.color_scheme_table.active_colors
-        ColorsNormal = Colors.Normal
+        Colors = self._resolve_colors()
+        ColorsNormal = getattr(Colors, "Normal", "")
+
         if context is None:
             context = self.context
         try:
@@ -502,7 +520,13 @@ class ChatDBG(ChatDBGSuper):
                         file=self.stdout,
                     )
                     skipped = 0
-                self.print_stack_entry(frame_lineno, context=context)
+                # IPython ≤ 8.x accepts 'context='; IPython 9.x removed it.
+                try:
+                    self.print_stack_entry(frame_lineno, context=context)
+                except TypeError:
+                    # Fallback for IPython 9.x (no 'context' kwarg)
+                    self.print_stack_entry(frame_lineno) 
+
                 if locals:
                     print_locals(self.stdout, frame_lineno[0])
             if skipped:
@@ -713,3 +737,16 @@ class ChatDBG(ChatDBGSuper):
         command = f"slice {name}"
         result = self._capture_onecmd(command)
         return command, truncate_proportionally(result, top_proportion=0.5)
+    
+    def _resolve_colors(self):
+    # Allow disabling colors via env
+        if os.getenv("CHATDBG_NO_COLOR") == "1":
+            return types.SimpleNamespace(excName="", Normal="")
+        # Try the legacy IPython 8.x internal
+        try:
+            return self.color_scheme_table.active_colors
+        except Exception:
+            # Safe fallback for IPython 9+ (no color)
+            return types.SimpleNamespace(excName="", Normal="")
+
+

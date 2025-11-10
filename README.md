@@ -8,6 +8,10 @@ by [Emery Berger](https://emeryberger.com), [Stephen Freund](https://www.cs.will
 
 [Read the paper!](https://raw.githubusercontent.com/plasma-umass/ChatDBG/main/ChatDBG.pdf)
 
+[Watch the talk!](https://www.youtube.com/watch?v=XsFGMKKaYSo)
+
+[![Watch the talk!](https://img.youtube.com/vi/XsFGMKKaYSo/0.jpg)](https://www.youtube.com/watch?v=XsFGMKKaYSo)
+
 ChatDBG is an AI-based debugging assistant for C/C++/Python/Rust code that integrates large language models into a standard debugger (`pdb`, `lldb`, `gdb`) to help debug your code. With ChatDBG, you can engage in a dialog with your debugger, asking open-ended questions about your program, like `why is x null?`. ChatDBG will _take the wheel_ and steer the debugger to answer your queries. ChatDBG can provide error diagnoses and suggest fixes.
 
 As far as we are aware, ChatDBG is the _first_ debugger to automatically perform root cause analysis and to provide suggested fixes.

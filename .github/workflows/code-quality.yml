@@ -27,11 +27,17 @@ jobs:
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install black
           python3 -m pip install mypy
 
       - name: Run compileall
         run: python3 -m compileall src
 
+      # Only run black on Python 3.11 to avoid version inconsistencies
+      # (black 26.x requires Python 3.10+)
+      - name: Install black
+        if: matrix.python == '3.11'
+        run: python3 -m pip install black
+
       - name: Run black
+        if: matrix.python == '3.11'
         run: python3 -m black --check src

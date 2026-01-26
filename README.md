@@ -89,14 +89,53 @@ This will install ChatDBG as an LLVM extension.
 <B><TT>gdb</TT> installation instructions</B>
 </summary>
 
-Install ChatDBG into the `gdb` debugger by running the following command:
+#### Prerequisites
+
+GDB must be built with Python support. To check if your GDB has Python support and which version it uses, run:
+
+```bash
+gdb --batch -ex "python import sys; print(f'Python {sys.version}')"
+```
+
+If this prints a Python version (3.9 or higher required), you're good to go. If you get an error like "Python scripting is not supported", you need to install a GDB build with Python support.
+
+#### Installation
+
+Install ChatDBG and configure GDB to load it:
 
 ```bash
 python3 -m pip install ChatDBG
 python3 -c 'import chatdbg; print(f"source {chatdbg.__path__[0]}/chatdbg_gdb.py")' >> ~/.gdbinit
 ```
 
-This will install ChatDBG as a GDB extension.
+> [!NOTE]
+> The second command runs a Python script that outputs a GDB `source` command, which is then appended to your `~/.gdbinit` file. This tells GDB to load ChatDBG on startup. After running this, your `~/.gdbinit` should contain a line like:
+> ```
+> source /path/to/site-packages/chatdbg/chatdbg_gdb.py
+> ```
+
+#### Verifying Installation
+
+To verify ChatDBG is loaded correctly:
+
+```bash
+gdb --batch -ex "python import chatdbg"
+```
+
+If this runs without errors, ChatDBG is properly installed. When you start GDB, you should see the prompt change to `(ChatDBG gdb)`.
+
+#### Troubleshooting
+
+**"Undefined command: why"**: This means ChatDBG didn't load. Check that:
+1. Your `~/.gdbinit` contains the `source` line (not Python code)
+2. The path in the `source` line points to an existing file
+3. GDB's Python can import chatdbg: `gdb --batch -ex "python import chatdbg"`
+
+**Python version mismatch**: If GDB uses a different Python than your system default, install ChatDBG using GDB's Python:
+```bash
+gdb --batch -ex "python import subprocess, sys; subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'ChatDBG'])"
+```
+Then regenerate the gdbinit line using the same Python.
 
 </details>
 

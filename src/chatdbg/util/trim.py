@@ -79,7 +79,16 @@ def trim_messages(
 
     messages = copy.deepcopy(messages)
 
-    max_tokens_for_model = litellm.model_cost[model]["max_input_tokens"]
+    try:
+        model_info = litellm.get_model_info(model)
+        max_tokens_for_model = model_info.get("max_input_tokens")
+        if max_tokens_for_model is None:
+            # Model info exists but doesn't have max_input_tokens
+            return messages
+    except Exception:
+        # Model not in litellm's database (e.g., custom/enterprise models).
+        # Skip trimming and let the model API handle context limits.
+        return messages
     max_tokens = int(max_tokens_for_model * trim_ratio)
 
     if litellm.token_counter(model, messages=messages) < max_tokens:

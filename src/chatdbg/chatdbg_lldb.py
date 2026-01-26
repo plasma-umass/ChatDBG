@@ -16,7 +16,6 @@ from chatdbg.util.config import chatdbg_config
 from chatdbg.util.exit_message import chatdbg_was_called, print_exit_message
 from chatdbg.native_util.safety import command_is_safe
 
-
 # The file produced by the panic handler if the Rust program is using the chatdbg crate.
 RUST_PANIC_LOG_FILENAME = "panic_log.txt"
 PROMPT = "(ChatDBG lldb) "

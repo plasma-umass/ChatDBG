@@ -15,7 +15,6 @@ from chatdbg.util.text import fill_to_width, wrap_long_lines
 
 from ..assistant.listeners import BaseAssistantListener
 
-
 _themes = {
     "default": Theme(
         {

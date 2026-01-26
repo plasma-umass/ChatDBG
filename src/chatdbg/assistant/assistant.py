@@ -125,40 +125,24 @@ class Assistant:
         if missing_keys != []:
             _, provider, _, _ = litellm.get_llm_provider(self._model)
             if provider == "openai":
-                raise AssistantError(
-                    textwrap.dedent(
-                        f"""\
+                raise AssistantError(textwrap.dedent(f"""\
                     You need an OpenAI key to use the {self._model} model.
                     You can get a key here: https://platform.openai.com/api-keys.
-                    Set the environment variable OPENAI_API_KEY to your key value."""
-                    )
-                )
+                    Set the environment variable OPENAI_API_KEY to your key value."""))
             else:
-                raise AssistantError(
-                    textwrap.dedent(
-                        f"""\
+                raise AssistantError(textwrap.dedent(f"""\
                     You need to set the following environment variables
-                    to use the {self._model} model: {', '.join(missing_keys)}."""
-                    )
-                )
+                    to use the {self._model} model: {', '.join(missing_keys)}."""))
 
         try:
             if not litellm.supports_function_calling(self._model):
-                raise AssistantError(
-                    textwrap.dedent(
-                        f"""\
+                raise AssistantError(textwrap.dedent(f"""\
                     The {self._model} model does not support function calls.
-                    You must use a model that does, eg. gpt-4."""
-                    )
-                )
+                    You must use a model that does, eg. gpt-4."""))
         except:
-            raise AssistantError(
-                textwrap.dedent(
-                    f"""\
+            raise AssistantError(textwrap.dedent(f"""\
                 {self._model} does not appear to be a supported model.
-                See https://docs.litellm.ai/docs/providers."""
-                )
-            )
+                See https://docs.litellm.ai/docs/providers."""))
 
     def _add_function(self, function):
         """

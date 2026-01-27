@@ -18,7 +18,7 @@ dependencies = [
   "ansicolors>=1.1.8",
   "traitlets>=5.14.1",
   "ipdb>=0.13.13",
-  "ipython==8.18.1",
+  "ipython>=8.18.1,<10",
   "litellm==1.55.9",
   "PyYAML>=6.0.1",
   "ipyflow>=0.0.130",

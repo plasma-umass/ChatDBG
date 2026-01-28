@@ -30,6 +30,7 @@ from chatdbg.util.config import chatdbg_config
 from chatdbg.util.log import ChatDBGLog
 from chatdbg.util.history import CommandHistory
 from chatdbg.util.exit_message import chatdbg_was_called, print_exit_message
+import re
 
 
 def load_ipython_extension(ipython):
@@ -107,6 +108,9 @@ class ChatDBG(ChatDBGSuper):
             config=chatdbg_config.to_json(),
             capture_streams=True,
         )
+        
+        self._max_linked_files = 5  # Limit number of linked files to include
+        self._max_linked_file_lines = 500  # Max lines per linked file
 
     def _close_assistant(self):
         if self._assistant != None:
@@ -558,158 +562,73 @@ class ChatDBG(ChatDBGSuper):
     def _prompt_history(self):
         return str(self._history)
 
-    def _build_prompt(self, arg, conversing):
-        if not conversing:
-            return build_initial_prompt(
-                self._initial_prompt_enchriched_stack_trace(),
-                self._initial_prompt_error_message(),
-                self._initial_prompt_error_details(),
-                self._initial_prompt_command_line(),
-                self._initial_prompt_input(),
-                self._prompt_history(),
-                user_text=arg,
-            )
-        else:
-            return build_followup_prompt(
-                self._prompt_history(), self._prompt_stack(), arg
-            )
-
-    def do_chat(self, arg):
-        """chat
-        Send a chat message.
+    def _extract_imports_from_file(self, filename):
         """
-        chatdbg_was_called()
-        self.was_chat_or_renew = True
-
-        full_prompt = self._build_prompt(arg, self._assistant != None)
-        full_prompt = strip_ansi(full_prompt)
-        full_prompt = truncate_proportionally(full_prompt)
-
-        self._history.clear()
-
+        Extract import statements from a Python file and return a list of imported module files.
+        """
+        if not os.path.isfile(filename):
+            return []
+        
+        imported_files = []
         try:
-            if self._assistant == None:
-                self._make_assistant()
+            with open(filename, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Parse the AST to find imports
+            tree = ast.parse(content, filename=filename)
+            
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        module_file = self._locate_module_file(alias.name)
+                        if module_file:
+                            imported_files.append(module_file)
+                elif isinstance(node, ast.ImportFrom):
+                    if node.module:
+                        module_file = self._locate_module_file(node.module)
+                        if module_file:
+                            imported_files.append(module_file)
+        except (SyntaxError, OSError):
+            pass
+        
+        return imported_files
 
-            stats = self._assistant.query(full_prompt, user_text=arg)
-            self.message(stats["message"])
-        except AssistantError as e:
-            for line in str(e).split("\n"):
-                self.error(line)
-
-    def do_renew(self, arg):
-        """renew
-        End the current chat dialog and prepare to start a new one.
+    def _locate_module_file(self, module_name):
         """
-        if self._assistant != None:
-            self._assistant.close()
-            self._assistant = None
-        self.was_chat_or_renew = True
-        self.message(f"Ready to start a new dialog.")
-
-    def do_config(self, arg):
+        Try to locate the file for a given module name, only if it's a user file.
         """
-        config
-        Print out the ChatDBG config options.
-        """
-        args = arg.split()
-        message = chatdbg_config.parse_only_user_flags(args)
-        self.message(message)
-
-    def _supported_functions(self):
-        if chatdbg_config.take_the_wheel:
-            functions = [self.debug, self.info]
-            if self._supports_flow:
-                functions += [self.slice]
-        else:
-            functions = []
-
-        return functions
-
-    def _make_assistant(self):
-        instruction_prompt = self._initial_prompt_instructions()
-        functions = self._supported_functions()
-
-        self._assistant = Assistant(
-            instruction_prompt,
-            model=chatdbg_config.model,
-            functions=functions,
-            max_call_response_tokens=8192,
-            listeners=[
-                chatdbg_config.make_printer(
-                    self.stdout, self.prompt, self._chat_prefix, self._text_width
-                ),
-                self._log,
-            ],
-        )
-
-    ### Callbacks for LLM
-
-    def info(self, value):
-        """
-        {
-            "name": "info",
-            "description": "Call the `info` function to get the documentation and source code for any variable, function, package, class, method reference, field reference, or dotted reference visible in the current frame.  Examples include: n, e.n where e is an expression, and t.n where t is a type. Unless it is from a common, widely-used library, you MUST call `info` exactly once on any symbol that is referenced in code leading up to the error.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "value": {
-                        "type": "string",
-                        "description": "The reference to get the information for."
-                    }
-                },
-                "required": [ "value"  ]
-            }
-        }
-        """
-        command = f"info {value}"
-        result = self._capture_onecmd(command)
-        return command, truncate_proportionally(result, top_proportion=1)
-
-    def debug(self, command):
-        """
-        {
-            "name": "debug",
-            "description": "Call the `debug` function to run Pdb debugger commands on the stopped program. You may call the `pdb` function to run the following commands: `bt`, `up`, `down`, `p expression`, `list`.  Call `debug` to print any variable value or expression that you believe may contribute to the error.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "command": {
-                        "type": "string",
-                        "description": "The pdb command to run."
-                    }
-                },
-                "required": [ "command" ]
-            }
-        }
-        """
-        cmd = command if command != "list" else "ll"
-        # old_curframe = self.curframe
-        result = self._capture_onecmd(cmd)
-
-        # help the LLM know where it is...
-        # if old_curframe != self.curframe:
-        #     result += strip_color(self._stack_prompt())
-
-        return command, truncate_proportionally(result, maxlen=8000, top_proportion=0.9)
-
-    def slice(self, name):
-        """
-        {
-            "name": "slice",
-            "description": "Call the `slice` function to get the code used to produce the value currently stored a variable.  You MUST call `slice` exactly once on any variable used but not defined in the current frame's code.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "type": "string",
-                        "description": "The variable to look at."
-                    }
-                },
-                "required": [ "name"  ]
-            }
-        }
-        """
-        command = f"slice {name}"
-        result = self._capture_onecmd(command)
-        return command, truncate_proportionally(result, top_proportion=0.5)
+        try:
+            # Convert module name to file path
+            parts = module_name.split('.')
+            
+            # Check relative to current frame's file directory
+            if hasattr(self.curframe, 'f_code') and self.curframe.f_code.co_filename:
+                current_dir = os.path.dirname(os.path.abspath(self.curframe.f_code.co_filename))
+                
+                # Try as a package
+                package_path = os.path.join(current_dir, *parts, '__init__.py')
+                if os.path.isfile(package_path) and self._is_user_file(package_path):
+                    return package_path
+                
+                # Try as a module
+                module_path = os.path.join(current_dir, *parts[:-1], parts[-1] + '.py')
+                if os.path.isfile(module_path) and self._is_user_file(module_path):
+                    return module_path
+            
+            # Try using sys.path
+            for path in sys.path:
+                if not path:
+                    continue
+                    
+                # Try as a package
+                package_path = os.path.join(path, *parts, '__init__.py')
+                if os.path.isfile(package_path) and self._is_user_file(package_path):
+                    return package_path
+                
+                # Try as a module
+                module_path = os.path.join(path, *parts[:-1], parts[-1] + '.py')
+                if os.path.isfile(module_path) and self._is_user_file(module_path):
+                    return module_path
+        except Exception:
+            pass
+        

@@ -33,6 +33,7 @@ def build_initial_prompt(
     history: str,
     extra: str = "",
     user_text: str = "",
+    linked_files: str = "",
 ) -> str:
     return _concat_prompt(
         _wrap_it("The program has this stack trace", stack),
@@ -40,6 +41,7 @@ def build_initial_prompt(
         _wrap_it("This was the command line", command_line),
         _wrap_it("This was the program's input", inputs),
         _wrap_it("This is the history of some debugger commands I ran", history),
+        _wrap_it("These are the linked files", linked_files),
         _wrap_it("", extra),
         _user_text_it(user_text),
     )

@@ -93,6 +93,11 @@ class ChatDBGConfig(Configurable):
         help="Disable any protections against GPT running harmful code or commands",
     ).tag(config=True)
 
+    include_linked_files = Bool(
+        _chatdbg_get_env("include_linked_files", False),
+        help="Include linked files in the configuration",
+    ).tag(config=True)
+
     _user_configurable = [
         log,
         model,
@@ -100,6 +105,7 @@ class ChatDBGConfig(Configurable):
         format,
         module_whitelist,
         unsafe,
+        include_linked_files,
     ]
 
     def _parser(self):
@@ -131,6 +137,7 @@ class ChatDBGConfig(Configurable):
             "format": self.format,
             "instructions": self.instructions,
             "module_whitelist": self.module_whitelist,
+            "include_linked_files": self.include_linked_files,
         }
 
     def parse_user_flags(self, argv: list[str]) -> None:

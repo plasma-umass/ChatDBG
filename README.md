@@ -1,4 +1,20 @@
 # ChatDBG
+# Create virtual environment
+python -m venv venv
+
+# Activate the virtual environment
+.\venv\Scripts\Activate.ps1
+
+# Install chatdbg
+pip install chatdbg
+
+# Set the OpenAI API key
+$env:OPENAI_API_KEY=""
+
+# Run your script with chatdbg
+chatdbg -c continue C:\Users\sitiwari\ChatDBGn\error.py
+
+
 
 by [Emery Berger](https://emeryberger.com), [Stephen Freund](https://www.cs.williams.edu/~freund/index.html), [Kyla Levin](https://khlevin.github.io/KylaHLevin/index.html), [Nicolas van Kempen](https://nvankempen.com/) (ordered alphabetically)
 

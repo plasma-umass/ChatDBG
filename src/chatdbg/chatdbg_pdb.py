@@ -69,13 +69,6 @@ except NameError as e:
     ChatDBGSuper = pdb.Pdb
 
 
-class _NoColors:
-    """Fallback color class for IPython 9+ compatibility."""
-
-    def __getattr__(self, name):
-        return ""
-
-
 class ChatDBG(ChatDBGSuper):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -479,18 +472,10 @@ class ChatDBG(ChatDBGSuper):
             return frame_locals["__tracebackhide__"]
         return False
 
-    def _get_colors(self):
-        """Get color scheme, with fallback for IPython 9+ compatibility."""
-        try:
-            return self.color_scheme_table.active_colors
-        except AttributeError:
-            # IPython 9+ removed color_scheme_table.active_colors
-            return _NoColors()
-
     def print_stack_trace(self, context=None, locals=None):
-        # override to print the skips into stdout instead of stderr...
-        Colors = self._get_colors()
-        ColorsNormal = Colors.Normal
+        # override to print the skips into stdout instead of stderr and to add locals
+        from pygments.token import Token
+
         if context is None:
             context = self.context
         try:
@@ -512,23 +497,19 @@ class ChatDBG(ChatDBGSuper):
                     skipped += 1
                     continue
                 if skipped:
-                    print(
-                        f"{Colors.excName}    [... skipping {skipped} hidden frame(s)]{ColorsNormal}\n",
-                        file=self.stdout,
+                    msg = self.theme.format(
+                        [(Token.ExcName, f"    [... skipping {skipped} hidden frame(s)]")]
                     )
+                    print(f"{msg}\n", file=self.stdout)
                     skipped = 0
-                # IPython 9+ removed the context parameter from print_stack_entry
-                try:
-                    self.print_stack_entry(frame_lineno, context=context)
-                except TypeError:
-                    self.print_stack_entry(frame_lineno)
+                self.print_stack_entry(frame_lineno)
                 if locals:
                     print_locals(self.stdout, frame_lineno[0])
             if skipped:
-                print(
-                    f"{Colors.excName}    [... skipping {skipped} hidden frame(s)]{ColorsNormal}\n",
-                    file=self.stdout,
+                msg = self.theme.format(
+                    [(Token.ExcName, f"    [... skipping {skipped} hidden frame(s)]")]
                 )
+                print(f"{msg}\n", file=self.stdout)
         except KeyboardInterrupt:
             pass
 

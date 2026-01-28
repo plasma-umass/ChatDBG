@@ -528,15 +528,10 @@ class ChatDBG(ChatDBGSuper):
             stack_frames = "\n".join(
                 line for line in stack_frames.splitlines() if line.strip()
             )
-            stack = (
-                textwrap.dedent(
-                    f"""\
+            stack = textwrap.dedent(f"""\
                 This is the current stack.  The current frame is indicated by 
                 an arrow '>' at the start of the line.
-                ```"""
-                )
-                + f"\n{stack_frames}\n```"
-            )
+                ```""") + f"\n{stack_frames}\n```"
             return stack
         finally:
             self.stdout = stdout

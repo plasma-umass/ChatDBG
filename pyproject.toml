@@ -18,7 +18,8 @@ dependencies = [
   "ansicolors>=1.1.8",
   "traitlets>=5.14.1",
   "ipdb>=0.13.13",
-  "ipython==8.18.1",
+  "ipython>=9.0.0",
+  "pygments>=2.0.0",
   "litellm==1.55.9",
   "PyYAML>=6.0.1",
   "ipyflow>=0.0.130",
@@ -26,7 +27,7 @@ dependencies = [
 ]
 description = "AI-assisted debugging. Uses AI to answer 'why'."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 classifiers = [
   "Programming Language :: Python :: 3",
   "License :: OSI Approved :: Apache Software License",

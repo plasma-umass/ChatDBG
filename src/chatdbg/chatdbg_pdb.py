@@ -12,6 +12,7 @@ from io import StringIO
 from pathlib import Path
 
 import IPython
+from pygments.token import Token
 
 import pdb
 
@@ -473,9 +474,7 @@ class ChatDBG(ChatDBGSuper):
         return False
 
     def print_stack_trace(self, context=None, locals=None):
-        # override to print the skips into stdout instead of stderr...
-        Colors = self.color_scheme_table.active_colors
-        ColorsNormal = Colors.Normal
+        # override to print the skips into stdout instead of stderr and to add locals
         if context is None:
             context = self.context
         try:
@@ -497,19 +496,24 @@ class ChatDBG(ChatDBGSuper):
                     skipped += 1
                     continue
                 if skipped:
-                    print(
-                        f"{Colors.excName}    [... skipping {skipped} hidden frame(s)]{ColorsNormal}\n",
-                        file=self.stdout,
+                    msg = self.theme.format(
+                        [
+                            (
+                                Token.ExcName,
+                                f"    [... skipping {skipped} hidden frame(s)]",
+                            )
+                        ]
                     )
+                    print(f"{msg}\n", file=self.stdout)
                     skipped = 0
-                self.print_stack_entry(frame_lineno, context=context)
+                self.print_stack_entry(frame_lineno)
                 if locals:
                     print_locals(self.stdout, frame_lineno[0])
             if skipped:
-                print(
-                    f"{Colors.excName}    [... skipping {skipped} hidden frame(s)]{ColorsNormal}\n",
-                    file=self.stdout,
+                msg = self.theme.format(
+                    [(Token.ExcName, f"    [... skipping {skipped} hidden frame(s)]")]
                 )
+                print(f"{msg}\n", file=self.stdout)
         except KeyboardInterrupt:
             pass
 

@@ -12,6 +12,7 @@ from io import StringIO
 from pathlib import Path
 
 import IPython
+from pygments.token import Token
 
 import pdb
 
@@ -474,8 +475,6 @@ class ChatDBG(ChatDBGSuper):
 
     def print_stack_trace(self, context=None, locals=None):
         # override to print the skips into stdout instead of stderr and to add locals
-        from pygments.token import Token
-
         if context is None:
             context = self.context
         try:

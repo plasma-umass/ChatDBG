@@ -12,7 +12,7 @@ class ChatDBGPrinter(BaseAssistantListener):
         self._chat_prefix = chat_prefix
         try:
             self._width = min(width, os.get_terminal_size().columns - len(chat_prefix))
-        except:
+        except Exception:
             # get_terminal_size() may fail in notebooks
             self._width = width
 

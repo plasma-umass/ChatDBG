@@ -45,7 +45,7 @@ def _extract_locals(frame: FrameType) -> set[str]:
         parameter_symbols.discard(None)
 
         return (finder.defined_symbols | parameter_symbols) & locals.keys()
-    except:
+    except Exception:
         # ipes
         return set()
 

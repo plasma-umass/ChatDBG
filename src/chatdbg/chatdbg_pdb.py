@@ -308,7 +308,7 @@ class ChatDBG(ChatDBGSuper):
                 return sandbox_eval(arg, self.curframe.f_globals, self.curframe_locals)
             else:
                 return sandbox_eval(arg, frame.f_globals, frame.f_locals)
-        except:
+        except Exception:
             exc_info = sys.exc_info()[:2]
             err = traceback.format_exception_only(*exc_info)[-1].strip()
             return "** raised %s **" % err
@@ -346,7 +346,7 @@ class ChatDBG(ChatDBGSuper):
                 try:
                     obj = eval(x, self.curframe.f_globals, self.curframe_locals)
                     break  # found something so we're good
-                except:
+                except Exception:
                     # fail silently, try the next name
                     pass
 

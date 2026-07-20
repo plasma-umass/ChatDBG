@@ -224,7 +224,7 @@ class GDBDialog(DBGDialog):
             with open(RUST_PANIC_LOG_FILENAME, "r") as log:
                 panic_log = log.read()
             last_error_type = panic_log + "\n" + last_error_type
-        except:
+        except Exception:
             pass
         return last_error_type
 

@@ -139,6 +139,8 @@ class Assistant:
                 raise AssistantError(textwrap.dedent(f"""\
                     The {self._model} model does not support function calls.
                     You must use a model that does, eg. gpt-4."""))
+        except AssistantError:
+            raise
         except Exception:
             raise AssistantError(textwrap.dedent(f"""\
                 {self._model} does not appear to be a supported model.
